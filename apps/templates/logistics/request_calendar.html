@@ -1,0 +1,159 @@
+{% extends "logistics/base.html" %}
+{% block title %}Календарь - Единый Контур{% endblock %}
+{% block content %}
+<style>
+  .calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: .5rem;
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: .5rem;
+  }
+  .calendar-weekday,
+  .calendar-day {
+    border: 1px solid #d9dee8;
+    border-radius: .5rem;
+    background: #fff;
+  }
+  .calendar-weekday {
+    padding: .45rem .6rem;
+    font-weight: 700;
+    color: #495057;
+    text-align: center;
+  }
+  .calendar-weekday.weekend,
+  .calendar-day.weekend {
+    background: #f3f7ff;
+    border-color: #c8d8f2;
+  }
+  .calendar-day {
+    min-height: 142px;
+    padding: .45rem;
+    overflow: hidden;
+  }
+  .calendar-day.outside {
+    opacity: .45;
+    background: #f8f9fa;
+  }
+  .calendar-day.holiday {
+    background: #fff6e6;
+    border-color: #f2d49b;
+  }
+  .calendar-day.today {
+    box-shadow: inset 0 0 0 2px #0d6efd;
+  }
+  .calendar-date {
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: .35rem;
+  }
+  .calendar-request {
+    display: block;
+    border-radius: .35rem;
+    padding: .18rem .35rem;
+    margin-bottom: .25rem;
+    color: #111827;
+    font-size: .78rem;
+    line-height: 1.15;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .calendar-request:hover {
+    color: #000;
+    filter: brightness(.96);
+  }
+  .calendar-request-created { background: #ffd6e7; border-left: 4px solid #d63384; }
+  .calendar-request-supply { background: #fff3cd; border-left: 4px solid #ffc107; }
+  .calendar-request-shipment { background: #d7efff; border-left: 4px solid #0dcaf0; }
+  .calendar-request-delivery { background: #d8f3dc; border-left: 4px solid #198754; }
+  .calendar-request-done { background: #e9ecef; color: #6c757d; border-left: 4px solid #adb5bd; text-decoration: line-through; }
+  .calendar-request-problem { background: #f8d7da; border-left: 4px solid #dc3545; }
+  .calendar-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin-right: .75rem;
+    margin-bottom: .35rem;
+    font-size: .875rem;
+  }
+  .calendar-legend i {
+    display: inline-block;
+    width: 1rem;
+    height: .65rem;
+    border-radius: .25rem;
+  }
+</style>
+
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Календарь</h1>
+    <div class="text-muted">Заявки по актуальной рабочей дате этапа</div>
+  </div>
+  <a class="btn btn-outline-secondary align-self-md-start" href="{% url 'request_list' %}">К списку</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+      <a class="btn btn-outline-primary" href="{% url 'request_calendar' %}?month={{ prev_month }}">Назад</a>
+      <h2 class="h4 mb-0 text-center">{{ month_title }}</h2>
+      <a class="btn btn-outline-primary" href="{% url 'request_calendar' %}?month={{ next_month }}">Вперед</a>
+    </div>
+
+    <div class="calendar-legend mb-3">
+      <span><i class="calendar-request-created"></i>создана</span>
+      <span><i class="calendar-request-supply"></i>ожидает снабжения</span>
+      <span><i class="calendar-request-shipment"></i>ожидает отгрузки</span>
+      <span><i class="calendar-request-delivery"></i>ожидает доставку</span>
+      <span><i class="calendar-request-done"></i>доставлена</span>
+      <span><i class="calendar-request-problem"></i>с ошибкой</span>
+    </div>
+
+    <div class="calendar-header mb-2">
+      {% for weekday in weekdays %}
+        <div class="calendar-weekday {% if forloop.counter > 5 %}weekend{% endif %}">{{ weekday }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="calendar-grid">
+      {% for week in weeks %}
+        {% for day in week %}
+          <div class="calendar-day {% if not day.in_month %}outside{% endif %} {% if day.is_weekend %}weekend{% endif %} {% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %}">
+            <div class="calendar-date">
+              {{ day.number }}
+              {% if day.is_holiday %}<span class="badge text-bg-warning ms-1">праздник</span>{% endif %}
+            </div>
+            {% for item in day.requests %}
+              <a class="calendar-request {{ item.calendar_class }}" href="{{ item.get_absolute_url }}" title="{{ item.request_number }} · {{ item.client_name }}">
+                {{ item.client_name|default:item.request_number }}
+              </a>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if undated_requests %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Без рабочей даты</h2>
+      <div class="row g-2">
+        {% for item in undated_requests %}
+          <div class="col-12 col-md-6 col-xl-4">
+            <a class="calendar-request calendar-request-supply mb-0" href="{{ item.get_absolute_url }}">
+              {{ item.request_number }} · {{ item.client_name|default:"Без клиента" }}
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

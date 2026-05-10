@@ -1,0 +1,62 @@
+{% extends "logistics/base.html" %}
+{% block title %}Клиенты - Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Клиенты</h1>
+    <div class="text-muted">Справочник клиентов для заявок</div>
+  </div>
+  <a class="btn btn-primary align-self-md-start" href="{% url 'client_create' %}">Добавить клиента</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2">
+      <div class="col-12 col-md-10">
+        <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="Поиск по клиенту, региону, контакту, телефону">
+      </div>
+      <div class="col-12 col-md-2 d-grid">
+        <button class="btn btn-outline-primary" type="submit">Найти</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Клиент</th>
+            <th>Регион</th>
+            <th>Контакт</th>
+            <th>Телефон</th>
+            <th>Email</th>
+            <th class="text-end">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for client in clients %}
+            <tr>
+              <td class="fw-semibold">{{ client.name }}</td>
+              <td>{{ client.region|default:"-" }}</td>
+              <td>{{ client.contact_name|default:"-" }}</td>
+              <td>{{ client.phone|default:"-" }}</td>
+              <td>{{ client.email|default:"-" }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'client_edit' client.pk %}">Редактировать</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Удалить</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="text-muted" colspan="6">Клиентов пока нет</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

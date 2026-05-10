@@ -1,0 +1,505 @@
+{% extends "logistics/base.html" %}
+{% block title %}{{ request_obj.request_number }} - Единый Контур{% endblock %}
+{% block content %}
+<style>
+  .request-detail-page .card-body {
+    font-weight: 600;
+  }
+  .request-detail-page .text-muted,
+  .request-detail-page .form-text,
+  .request-detail-page label,
+  .request-detail-page th {
+    font-weight: 400;
+  }
+  .request-detail-page h2,
+  .request-detail-page .fw-semibold,
+  .request-detail-page .btn,
+  .request-detail-page .badge {
+    font-weight: 700;
+  }
+  .workflow-chain {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .35rem;
+    align-items: stretch;
+  }
+  .workflow-step {
+    position: relative;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: #fff;
+    padding: .75rem 2rem .75rem 1rem;
+    min-height: 64px;
+    clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 50%, calc(100% - 24px) 100%, 0 100%);
+  }
+  .workflow-step:last-child {
+    border-radius: 0 .5rem .5rem 0;
+    clip-path: none;
+    padding-right: 1rem;
+  }
+  .workflow-step:first-child {
+    border-radius: .5rem 0 0 .5rem;
+  }
+  .workflow-step.active {
+    border-color: #0d6efd;
+    background: #eef5ff;
+  }
+  .workflow-step.done {
+    border-color: #198754;
+    background: #effaf3;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: .85rem 1.25rem;
+  }
+  .info-grid .info-item-wide {
+    grid-column: 1 / -1;
+  }
+  .info-label {
+    color: #6c757d;
+    font-size: .875rem;
+    font-weight: 400;
+  }
+  .info-value {
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  .top-card-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+    gap: 1rem;
+  }
+  .dates-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .75rem;
+  }
+  .service-dates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .5rem;
+    border-top: 1px solid #edf0f5;
+    padding-top: .65rem;
+    margin-top: .2rem;
+  }
+  .service-dates .info-label {
+    font-size: .72rem;
+  }
+  .service-dates .info-value {
+    color: #6c757d;
+    font-size: .78rem;
+    font-weight: 600;
+  }
+  @media (max-width: 767.98px) {
+    .workflow-chain {
+      grid-template-columns: 1fr;
+    }
+    .workflow-step,
+    .workflow-step:first-child,
+    .workflow-step:last-child {
+      border-radius: .5rem;
+      clip-path: none;
+      padding-right: 1rem;
+    }
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+    .top-card-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+  <div>
+    <div class="text-muted">Заявка</div>
+    <h1 class="h3 mb-1">{{ request_obj.request_number }}</h1>
+    <span class="badge text-bg-{% if request_obj.status == 'delivered' %}success{% elif request_obj.status == 'closed' or request_obj.status == 'cancelled' %}secondary{% else %}primary{% endif %}">
+      {{ request_obj.get_status_display }}
+    </span>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-self-lg-start">
+    <a class="btn btn-outline-secondary" href="{% url 'request_list' %}">К списку</a>
+    {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
+      <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <div class="workflow-chain" aria-label="Маршрут заявки">
+      <div class="workflow-step {% if request_obj.status == 'waiting_supply' or request_obj.status == 'waiting_arrival' %}active{% elif request_obj.status != 'created' %}done{% endif %}">
+        <div class="text-muted small">Этап 1</div>
+        <div>Отдел снабжения</div>
+        <div class="small text-muted">{{ request_obj.supply_eta_date|date:"d.m.Y"|default:"Дата поставки не указана" }}</div>
+      </div>
+      <div class="workflow-step {% if request_obj.status == 'in_warehouse' or request_obj.status == 'cz_check' or request_obj.status == 'ready_to_ship' %}active{% elif request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' or request_obj.status == 'delivered' or request_obj.status == 'closed' %}done{% endif %}">
+        <div class="text-muted small">Этап 2</div>
+        <div>Склад</div>
+        <div class="small text-muted">{{ request_obj.planned_ship_date|date:"d.m.Y"|default:"Дата отгрузки не указана" }}</div>
+      </div>
+      <div class="workflow-step {% if request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' %}active{% elif request_obj.status == 'delivered' or request_obj.status == 'closed' %}done{% endif %}">
+        <div class="text-muted small">Этап 3</div>
+        <div>Доставка</div>
+        <div class="small text-muted">{{ request_obj.planned_delivery_date|date:"d.m.Y"|default:"Дата доставки не указана" }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="request-detail-page row g-3">
+  <div class="col-12">
+    <div class="top-card-grid mb-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Основная информация</h2>
+          <div class="info-grid">
+            <div>
+              <div class="info-label">Клиент</div>
+              <div class="info-value">{{ request_obj.client_name }}</div>
+            </div>
+            <div>
+              <div class="info-label">Статус</div>
+              <div class="info-value">{{ request_obj.get_status_display }}</div>
+            </div>
+            <div>
+              <div class="info-label">Водитель</div>
+              <div class="info-value">{{ request_obj.assigned_driver|default:"Не назначен" }}</div>
+            </div>
+            <div>
+              <div class="info-label">Автомобиль</div>
+              <div class="info-value">{{ request_obj.assigned_vehicle|default:"Не назначен" }}</div>
+            </div>
+            <div class="info-item-wide">
+              <div class="info-label">Адрес</div>
+              <div class="info-value">{{ request_obj.client_address|default:"-" }}</div>
+            </div>
+            <div class="info-item-wide">
+              <div class="info-label">Описание груза</div>
+              <div class="info-value">{{ request_obj.cargo_description }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Даты</h2>
+          <div class="dates-grid">
+            <div>
+              <div class="info-label">Плановая отгрузка</div>
+              <div class="info-value">{{ request_obj.planned_ship_date|date:"d.m.Y"|default:"-" }}</div>
+            </div>
+            <div>
+              <div class="info-label">Плановая доставка</div>
+              <div class="info-value">{{ request_obj.planned_delivery_date|date:"d.m.Y"|default:"-" }}</div>
+            </div>
+            <div>
+              <div class="info-label">Фактическая доставка</div>
+              <div class="info-value">{{ request_obj.actual_delivery_date|date:"d.m.Y"|default:"-" }}</div>
+            </div>
+            <div class="service-dates">
+              <div>
+                <div class="info-label">Создана</div>
+                <div class="info-value">{{ request_obj.created_at|date:"d.m.Y H:i" }}</div>
+              </div>
+              <div>
+                <div class="info-label">Обновлена</div>
+                <div class="info-value">{{ request_obj.updated_at|date:"d.m.Y H:i" }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if user.profile.role == "supply" %}
+      <div class="top-card-grid mb-3">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3">Действия</h2>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="supply_date">
+              <label class="form-label fw-semibold" for="supply_eta_date">Дата поступления</label>
+              <input class="form-control" id="supply_eta_date" name="supply_eta_date" type="date" value="{{ request_obj.supply_eta_date|date:'Y-m-d' }}" onchange="this.form.submit()" required>
+            </form>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <h2 class="h5 mb-3">Честный Знак</h2>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="supply_cz">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="cz_required" id="cz_required_yes" value="yes" onchange="this.form.submit()" {% if request_obj.cz_required %}checked{% endif %}>
+                <label class="form-check-label" for="cz_required_yes">Да</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="cz_required" id="cz_required_no" value="no" onchange="this.form.submit()" {% if not request_obj.cz_required %}checked{% endif %}>
+                <label class="form-check-label" for="cz_required_no">Нет</label>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% elif user.is_superuser or user.profile.role == "admin" or user.profile.role == "transport" or user.profile.role == "warehouse" or user.profile.role == "driver" %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          {% if user.profile.role == "driver" %}
+            <h2 class="h5 mb-3">Режим водителя</h2>
+          {% else %}
+            <h2 class="h5 mb-3">Действия</h2>
+          {% endif %}
+
+          <div class="row g-3">
+            {% if user.is_superuser or user.profile.role == "admin" %}
+              <div class="col-12 col-lg-4">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="assign_driver">
+                  <label class="form-label fw-semibold" for="assigned_driver">Назначить водителя</label>
+                  <select class="form-select mb-2" id="assigned_driver" name="assigned_driver" required>
+                    <option value="">Выберите водителя</option>
+                    {% for driver in drivers %}
+                      <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-primary w-100" type="submit">Назначить</button>
+                </form>
+              </div>
+            {% endif %}
+
+            {% if user.profile.role == "transport" %}
+              <div class="col-12 col-lg-4">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="assign_transport">
+                  <label class="form-label fw-semibold" for="assigned_vehicle_transport">Машина</label>
+                  <select class="form-select mb-2" id="assigned_vehicle_transport" name="assigned_vehicle" required>
+                    <option value="">Выберите машину</option>
+                    {% for vehicle in vehicles %}
+                      <option value="{{ vehicle.id }}" {% if request_obj.assigned_vehicle_id == vehicle.id %}selected{% endif %}>{{ vehicle }}</option>
+                    {% endfor %}
+                  </select>
+                  <label class="form-label fw-semibold" for="assigned_driver_transport">Водитель</label>
+                  <select class="form-select mb-2" id="assigned_driver_transport" name="assigned_driver" required>
+                    <option value="">Выберите водителя</option>
+                    {% for driver in drivers %}
+                      <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-primary w-100" type="submit">Назначить транспорт</button>
+                </form>
+              </div>
+            {% endif %}
+
+            {% if user.profile.role == "warehouse" %}
+              <div class="col-12 col-lg-4">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="warehouse_status">
+                  <label class="form-label fw-semibold" for="planned_ship_date_warehouse">Дата отгрузки</label>
+                  <input class="form-control mb-2" id="planned_ship_date_warehouse" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
+                  <label class="form-label fw-semibold" for="warehouse_status">Складской статус</label>
+                  <select class="form-select mb-2" id="warehouse_status" name="new_status" required>
+                    <option value="">Выберите статус</option>
+                    {% for status, label in warehouse_statuses %}
+                      <option value="{{ status }}" {% if request_obj.status == status %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-primary w-100" type="submit">Обновить статус</button>
+                </form>
+              </div>
+            {% endif %}
+
+            {% if user.profile.role == "driver" and request_obj.assigned_driver.user_id == user.id and request_obj.status != "delivered" %}
+              <div class="col-12 col-lg-4">
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="driver_delivered">
+                  <button class="btn btn-success w-100" type="submit">Доставлено</button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+          <div>
+            <h2 class="h5 mb-0">Файлы</h2>
+            <div class="text-muted small">PDF, JPG, PNG, WEBP</div>
+          </div>
+          <button class="btn btn-outline-primary btn-sm align-self-md-start" type="button" data-bs-toggle="collapse" data-bs-target="#attachmentForm" aria-expanded="{% if attachment_form.errors %}true{% else %}false{% endif %}" aria-controls="attachmentForm">
+            Загрузить файл
+          </button>
+        </div>
+
+        <div class="collapse mb-3 {% if attachment_form.errors %}show{% endif %}" id="attachmentForm">
+          <form method="post" enctype="multipart/form-data" class="border rounded p-3 bg-light">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="attachment">
+            {% if attachment_form.non_field_errors %}
+              <div class="alert alert-danger py-2">{{ attachment_form.non_field_errors }}</div>
+            {% endif %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ attachment_form.file_type.id_for_label }}">Тип файла</label>
+              {{ attachment_form.file_type }}
+              {% for error in attachment_form.file_type.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ attachment_form.description.id_for_label }}">Описание</label>
+              {{ attachment_form.description }}
+              {% for error in attachment_form.description.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ attachment_form.file.id_for_label }}">Файл</label>
+              {{ attachment_form.file }}
+              <div class="form-text">Разрешены только PDF, JPG, PNG и WEBP.</div>
+              {% for error in attachment_form.file.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-primary" type="submit">Загрузить</button>
+          </form>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Тип</th>
+                <th>Файл</th>
+                <th>Кто загрузил</th>
+                <th>Когда</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for attachment in request_obj.attachments.all %}
+                <tr>
+                  <td>{{ attachment.get_file_type_display }}</td>
+                  <td>{{ attachment.file.name|cut:"attachments/" }}</td>
+                  <td>{{ attachment.uploaded_by|default:"-" }}</td>
+                  <td>{{ attachment.uploaded_at|date:"d.m.Y H:i" }}</td>
+                  <td class="text-end">
+                    <a href="{{ attachment.file.url }}" target="_blank" rel="noopener">Открыть</a>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="text-muted">Файлы пока не загружены</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+          <h2 class="h5 mb-0">Проблемы</h2>
+          <button class="btn btn-danger btn-sm align-self-md-start" type="button" data-bs-toggle="collapse" data-bs-target="#problemForm" aria-expanded="{% if problem_form.errors %}true{% else %}false{% endif %}" aria-controls="problemForm">
+            Проблема
+          </button>
+        </div>
+
+        <div class="collapse mb-3 {% if problem_form.errors %}show{% endif %}" id="problemForm">
+          <form method="post" class="border rounded p-3 bg-light">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="problem">
+            {% if problem_form.non_field_errors %}
+              <div class="alert alert-danger py-2">{{ problem_form.non_field_errors }}</div>
+            {% endif %}
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ problem_form.problem_type.id_for_label }}">Тип проблемы</label>
+              {{ problem_form.problem_type }}
+              {% for error in problem_form.problem_type.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ problem_form.description.id_for_label }}">Описание</label>
+              {{ problem_form.description }}
+              {% for error in problem_form.description.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold" for="{{ problem_form.responsible_user.id_for_label }}">Ответственный</label>
+              {{ problem_form.responsible_user }}
+              {% for error in problem_form.responsible_user.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-danger" type="submit">Создать проблему</button>
+          </form>
+        </div>
+
+        {% for problem in request_obj.problems.all %}
+          <div class="border rounded p-3 mb-2 {% if problem.status == 'resolved' %}bg-light{% else %}border-danger-subtle bg-danger-subtle{% endif %}">
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+              <div class="fw-semibold">{{ problem.get_problem_type_display }}</div>
+              <span class="badge align-self-md-start text-bg-{% if problem.status == 'resolved' %}success{% else %}danger{% endif %}">
+                {{ problem.get_status_display }}
+              </span>
+            </div>
+            <div class="mt-2">{{ problem.description }}</div>
+            <div class="text-muted small mt-2">
+              Ответственный: {{ problem.responsible_user|default:"-" }} · Создал: {{ problem.created_by|default:"-" }} · {{ problem.created_at|date:"d.m.Y H:i" }}
+            </div>
+          </div>
+        {% empty %}
+          <div class="text-muted">Проблем пока нет</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h5 mb-3">История статусов</h2>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Когда</th>
+                <th>Переход</th>
+                <th>Пользователь</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in request_obj.status_history.all %}
+                <tr>
+                  <td>{{ item.created_at|date:"d.m.Y H:i" }}</td>
+                  <td>{{ item.get_old_status_display|default:"-" }} -> {{ item.get_new_status_display }}</td>
+                  <td>{{ item.changed_by|default:"-" }}</td>
+                  <td>{{ item.comment|default:"-" }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">Истории пока нет</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

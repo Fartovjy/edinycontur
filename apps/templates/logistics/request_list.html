@@ -1,0 +1,62 @@
+{% extends "logistics/base.html" %}
+{% block title %}Заявки - Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    {% if user.profile.role == "driver" %}
+      <h1 class="h3 mb-1">Мои доставки</h1>
+      <div class="text-muted">Показаны только заявки, назначенные вам</div>
+    {% else %}
+      <h1 class="h3 mb-1">Заявки</h1>
+      <div class="text-muted">Минимальный список логистических заявок</div>
+    {% endif %}
+  </div>
+  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
+    <a class="btn btn-primary align-self-md-start" href="{% url 'request_create' %}">Новая заявка</a>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Номер</th>
+          <th>Клиент</th>
+          <th>Адрес</th>
+          <th>Статус</th>
+          <th>Водитель</th>
+          <th>Даты</th>
+          <th>Обновлена</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in requests %}
+          <tr class="{% if item.status == 'delivered' or item.status == 'closed' or item.status == 'cancelled' %}table-secondary text-muted{% endif %}">
+            <td class="fw-semibold">
+              <a href="{{ item.get_absolute_url }}" class="link-dark">{{ item.request_number }}</a>
+            </td>
+            <td>{{ item.client_name }}</td>
+            <td>{{ item.client_address|default:"-" }}</td>
+            <td>
+              <span class="badge text-bg-{% if item.status == 'delivered' %}success{% elif item.status == 'closed' or item.status == 'cancelled' %}secondary{% else %}primary{% endif %}">
+                {{ item.get_status_display }}
+              </span>
+            </td>
+            <td>{{ item.assigned_driver|default:"-" }}</td>
+            <td class="small text-nowrap">
+              Отгрузка: {{ item.planned_ship_date|date:"d.m.Y"|default:"-" }}<br>
+              Доставка: {{ item.planned_delivery_date|date:"d.m.Y"|default:"-" }}
+            </td>
+            <td>{{ item.updated_at|date:"d.m.Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">Заявок пока нет</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

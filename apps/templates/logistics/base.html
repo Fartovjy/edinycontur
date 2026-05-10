@@ -1,0 +1,92 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Единый Контур{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f6f7f9; }
+    .navbar { background: #18202f; }
+    .content-shell {
+      max-width: none;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    @media (min-width: 992px) {
+      .content-shell {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+      }
+    }
+    .table td, .table th { vertical-align: middle; }
+    .form-control, .form-select, textarea, input, select { max-width: 100%; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand navbar-dark">
+    <div class="container-fluid content-shell">
+      <a class="navbar-brand fw-semibold" href="{% url 'request_list' %}">Единый Контур</a>
+      {% if user.is_authenticated %}
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Открыть меню">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+          <div class="navbar-nav me-auto">
+            <a class="nav-link" href="{% url 'request_list' %}">Заявки</a>
+            <a class="nav-link" href="{% url 'request_calendar' %}">В Календарь</a>
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+              <a class="nav-link" href="{% url 'client_list' %}">Клиенты</a>
+            {% endif %}
+            <span class="nav-link disabled">Уведомления: {{ unread_notifications_count|default:0 }}</span>
+            <a class="nav-link" href="/admin/">Админка</a>
+          </div>
+          <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2 gap-lg-3 text-white-50">
+            <div class="small text-lg-end">
+              <div class="text-white">{{ user.get_full_name|default:user.username }}</div>
+              <div>
+                Роль:
+                {% if user.profile %}
+                  {{ user.profile.get_role_display }}
+                {% else %}
+                  не задана
+                {% endif %}
+              </div>
+            </div>
+            <form method="post" action="{% url 'logout' %}" class="m-0">
+              {% csrf_token %}
+              <button class="btn btn-outline-light btn-sm" type="submit">Выйти</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container-fluid content-shell py-4">
+    {% if unread_notifications %}
+      <div class="alert alert-info shadow-sm" role="alert">
+        <div class="fw-semibold mb-1">Новые уведомления</div>
+        {% for notification in unread_notifications %}
+          <div>
+            <a class="alert-link" href="{{ notification.request.get_absolute_url }}">{{ notification.message }}</a>
+            <span class="text-muted small">{{ notification.created_at|date:"d.m.Y H:i" }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% extends "logistics/base.html" %}
+{% block title %}Dashboard - Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Dashboard</h1>
+    <div class="text-muted">Простые счётчики и списки заявок</div>
+  </div>
+  <a class="btn btn-outline-secondary align-self-md-start" href="{% url 'request_list' %}">К списку заявок</a>
+</div>
+
+<div class="row g-3 mb-3">
+  {% for metric in metrics %}
+    <div class="col-12 col-sm-6 col-xl">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted small">{{ metric.title }}</div>
+          <div class="display-6 fw-semibold text-{{ metric.tone }}">{{ metric.value }}</div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Активные заявки</h2>
+        {% include "logistics/includes/request_short_list.html" with items=active_requests empty_text="Активных заявок нет" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Проблемные</h2>
+        {% include "logistics/includes/request_short_list.html" with items=problem_requests empty_text="Проблемных заявок нет" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Доставленные сегодня</h2>
+        {% include "logistics/includes/request_short_list.html" with items=delivered_today empty_text="Сегодня доставок нет" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Без водителя</h2>
+        {% include "logistics/includes/request_short_list.html" with items=without_driver empty_text="Все активные заявки с водителем" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Просроченные</h2>
+        {% include "logistics/includes/request_short_list.html" with items=overdue empty_text="Просроченных заявок нет" %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Открытые проблемы</h2>
+        {% for problem in open_problems %}
+          <div class="border-bottom py-2">
+            <a class="fw-semibold" href="{{ problem.request.get_absolute_url }}">{{ problem.request.request_number }}</a>
+            <span class="text-muted">{{ problem.get_problem_type_display }}</span>
+            <div>{{ problem.description }}</div>
+            <div class="small text-muted">Ответственный: {{ problem.responsible_user|default:"-" }}</div>
+          </div>
+        {% empty %}
+          <div class="text-muted">Открытых проблем нет</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
