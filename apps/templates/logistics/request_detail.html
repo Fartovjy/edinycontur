@@ -121,7 +121,11 @@
   </div>
   <div class="d-flex flex-wrap gap-2 align-self-lg-start">
     <a class="btn btn-outline-secondary" href="{% url 'request_list' %}">К списку</a>
-    {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
+    {% if user.is_superuser or user.profile.role == "admin" %}
+      <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
+    {% elif request_obj.status != "delivered" and request_obj.status != "closed" and request_obj.status != "cancelled" and user.profile.role == "operator" %}
+      <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
+    {% elif request_obj.status != "delivered" and request_obj.status != "closed" and request_obj.status != "cancelled" and user.profile.role == "manager" %}
       <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
     {% endif %}
   </div>

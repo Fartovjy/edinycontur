@@ -726,6 +726,24 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertNotContains(response, "Честный Знак")
         self.assertContains(response, "Клиент")
 
+    def test_only_admin_can_edit_delivered_request(self):
+        request = self._request(status=STATUS_DELIVERED)
+
+        self.client.force_login(self.operator)
+        detail_response = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
+        edit_response = self.client.get(reverse("request_edit", kwargs={"pk": request.pk}))
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertNotContains(detail_response, "Редактировать")
+        self.assertEqual(edit_response.status_code, 403)
+
+        self.client.force_login(self.admin)
+        admin_detail_response = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
+        admin_edit_response = self.client.get(reverse("request_edit", kwargs={"pk": request.pk}))
+
+        self.assertContains(admin_detail_response, "Редактировать")
+        self.assertEqual(admin_edit_response.status_code, 200)
+
     def test_operator_create_form_hides_service_fields(self):
         self.client.force_login(self.operator)
 

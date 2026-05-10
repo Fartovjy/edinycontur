@@ -58,6 +58,7 @@ SUPPLY_EDIT_FIELDS = {"supply_eta_date", "warehouse_arrival_date", "status", "st
 TRANSPORT_EDIT_FIELDS = {"assigned_vehicle", "assigned_driver", "planned_ship_date", "actual_ship_date", "status", "status_comment"}
 WAREHOUSE_EDIT_FIELDS = {"warehouse_arrival_date", "actual_ship_date", "cz_required", "cz_checked", "cz_status", "cz_comment", "cz_problem", "status", "status_comment"}
 DRIVER_EDIT_FIELDS = {"actual_delivery_date", "status", "status_comment"}
+COMPLETED_STATUSES = {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED}
 
 ROLE_STATUS_TARGETS = {
     ROLE_SUPPLY: {STATUS_WAITING_SUPPLY, STATUS_WAITING_ARRIVAL, STATUS_PROBLEM},
@@ -809,6 +810,8 @@ def request_create(request):
 @role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, ROLE_SUPPLY, ROLE_TRANSPORT, ROLE_WAREHOUSE, ROLE_DRIVER)
 def request_edit(request, pk):
     request_obj = get_object_or_404(LogisticsRequest, pk=pk)
+    if request_obj.status in COMPLETED_STATUSES and not request.user.is_superuser and get_user_role(request.user) != ROLE_ADMIN:
+        raise PermissionDenied
     if not can_edit_request(request.user, request_obj):
         raise PermissionDenied
     editable_fields = _editable_fields_for_user(request.user, request_obj)
