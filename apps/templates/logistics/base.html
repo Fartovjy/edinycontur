@@ -40,7 +40,9 @@
               <a class="nav-link" href="{% url 'client_list' %}">Клиенты</a>
             {% endif %}
             <span class="nav-link disabled">Уведомления: {{ unread_notifications_count|default:0 }}</span>
-            <a class="nav-link" href="/admin/">Админка</a>
+            {% if user.is_superuser or user.profile.role == "admin" %}
+              <a class="nav-link" href="/admin/">Админка</a>
+            {% endif %}
           </div>
           <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2 gap-lg-3 text-white-50">
             <div class="small text-lg-end">
