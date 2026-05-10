@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -10,16 +11,25 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.constants import ROLE_DRIVER
+from apps.accounts.constants import ROLE_DRIVER, ROLE_TRANSPORT
 from apps.accounts.models import UserProfile
-from apps.logistics.constants import STATUS_CANCELLED, STATUS_CLOSED, STATUS_DELIVERED, STATUS_PROBLEM
+from apps.logistics.constants import (
+    STATUS_CANCELLED,
+    STATUS_CLOSED,
+    STATUS_DELIVERED,
+    STATUS_PROBLEM,
+    STATUS_READY_TO_SHIP,
+    STATUS_SHIPPED,
+    STATUS_TRANSPORT_ASSIGNED,
+)
 from apps.logistics.models import LogisticsRequest, RequestStatusHistory
 from apps.logistics.services import change_request_status
 from apps.problems.models import ProblemReport
-from apps.transport.models import Driver
+from apps.transport.models import Driver, Vehicle
 
 
 router = Router()
+PENDING_TRANSPORT_DATE = {}
 
 
 def _web_url(request_obj):
@@ -41,10 +51,18 @@ def _request_keyboard(request_obj):
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def _start_keyboard():
+def _driver_start_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Мои заявки", callback_data="driver:list")],
+        ]
+    )
+
+
+def _transport_start_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Заявки транспорта", callback_data="transport:list")],
         ]
     )
 
@@ -57,6 +75,31 @@ def _request_text(request_obj):
         f"Груз: {request_obj.cargo_description}\n"
         f"Статус: {request_obj.get_status_display()}\n"
         f"План доставки: {request_obj.planned_delivery_date.strftime('%d.%m.%Y') if request_obj.planned_delivery_date else '-'}"
+    )
+
+
+def _transport_request_text(request_obj):
+    return (
+        f"Заявка {request_obj.request_number}\n"
+        f"Клиент: {request_obj.client_name}\n"
+        f"Адрес: {request_obj.client_address or '-'}\n"
+        f"Статус: {request_obj.get_status_display()}\n"
+        f"Отправка: {request_obj.planned_ship_date.strftime('%d.%m.%Y') if request_obj.planned_ship_date else '-'}\n"
+        f"Машина: {request_obj.assigned_vehicle or '-'}\n"
+        f"Водитель: {request_obj.assigned_driver or '-'}"
+    )
+
+
+def _transport_request_keyboard(request_obj):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Машина", callback_data=f"transport:vehicles:{request_obj.id}"),
+                InlineKeyboardButton(text="Водитель", callback_data=f"transport:drivers:{request_obj.id}"),
+                InlineKeyboardButton(text="Дата", callback_data=f"transport:date:{request_obj.id}"),
+            ],
+            [InlineKeyboardButton(text="Открыть заявку", url=_web_url(request_obj))],
+        ]
     )
 
 
@@ -106,8 +149,36 @@ def _driver_for_telegram(telegram_id, chat_id):
     return driver
 
 
-@sync_to_async
-def get_driver_start_context(telegram_id, chat_id):
+def _profile_for_telegram(telegram_id, chat_id, role):
+    telegram_id = str(telegram_id)
+    chat_id = str(chat_id)
+    profile = (
+        UserProfile.objects.select_related("user")
+        .filter(telegram_id=telegram_id, role=role, is_active=True, user__is_active=True)
+        .first()
+    )
+    if not profile:
+        profile = (
+            UserProfile.objects.select_related("user")
+            .filter(user__telegram_chat_id=chat_id, role=role, is_active=True, user__is_active=True)
+            .first()
+        )
+    if not profile:
+        return None
+
+    changed_user = False
+    if profile.user.telegram_chat_id != chat_id:
+        profile.user.telegram_chat_id = chat_id
+        changed_user = True
+    if changed_user:
+        profile.user.save(update_fields=["telegram_chat_id"])
+    if profile.telegram_id != telegram_id:
+        profile.telegram_id = telegram_id
+        profile.save(update_fields=["telegram_id"])
+    return profile
+
+
+def _get_driver_start_context_sync(telegram_id, chat_id):
     driver = _driver_for_telegram(telegram_id, chat_id)
     if not driver:
         known_profile = UserProfile.objects.filter(telegram_id=str(telegram_id), is_active=True).first()
@@ -123,6 +194,31 @@ def get_driver_start_context(telegram_id, chat_id):
 
 
 @sync_to_async
+def get_driver_start_context(telegram_id, chat_id):
+    return _get_driver_start_context_sync(telegram_id, chat_id)
+
+
+@sync_to_async
+def get_start_context(telegram_id, chat_id):
+    driver_context = _get_driver_start_context_sync(telegram_id, chat_id)
+    if driver_context["is_driver"]:
+        driver_context["role"] = ROLE_DRIVER
+        return driver_context
+
+    transport_profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if transport_profile:
+        user = transport_profile.user
+        return {
+            "found": True,
+            "role": ROLE_TRANSPORT,
+            "full_name": user.get_full_name() or user.username,
+            "role_label": transport_profile.get_role_display(),
+        }
+
+    return {"found": driver_context["found"], "role": None}
+
+
+@sync_to_async
 def get_driver_requests(telegram_id, chat_id):
     driver = _driver_for_telegram(telegram_id, chat_id)
     if not driver:
@@ -135,6 +231,103 @@ def get_driver_requests(telegram_id, chat_id):
         .order_by("planned_delivery_date", "-updated_at")[:10]
     )
     return requests
+
+
+@sync_to_async
+def get_transport_requests(telegram_id, chat_id):
+    profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if not profile:
+        return None
+
+    return list(
+        LogisticsRequest.objects.filter(is_archived=False)
+        .exclude(status__in=[STATUS_CLOSED, STATUS_CANCELLED, STATUS_DELIVERED])
+        .select_related("assigned_vehicle", "assigned_driver")
+        .order_by("planned_ship_date", "-updated_at")[:10]
+    )
+
+
+def _get_transport_request_sync(request_id, telegram_id, chat_id):
+    profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if not profile:
+        return None, "Бот доступен только транспортному отделу."
+    request_obj = (
+        LogisticsRequest.objects.select_related("assigned_vehicle", "assigned_driver")
+        .filter(id=request_id, is_archived=False)
+        .first()
+    )
+    if not request_obj:
+        return None, "Заявка не найдена."
+    return request_obj, ""
+
+
+@sync_to_async
+def get_transport_request(request_id, telegram_id, chat_id):
+    return _get_transport_request_sync(request_id, telegram_id, chat_id)
+
+
+@sync_to_async
+def get_transport_vehicle_options(request_id, telegram_id, chat_id):
+    request_obj, error = _get_transport_request_sync(request_id, telegram_id, chat_id)
+    if error:
+        return None, [], error
+    vehicles = list(Vehicle.objects.filter(is_active=True).order_by("plate_number")[:10])
+    return request_obj, vehicles, ""
+
+
+@sync_to_async
+def get_transport_driver_options(request_id, telegram_id, chat_id):
+    request_obj, error = _get_transport_request_sync(request_id, telegram_id, chat_id)
+    if error:
+        return None, [], error
+    drivers = list(Driver.objects.filter(is_active=True).order_by("full_name")[:10])
+    return request_obj, drivers, ""
+
+
+@sync_to_async
+def set_transport_vehicle(request_id, vehicle_id, telegram_id, chat_id):
+    profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if not profile:
+        return None, "Бот доступен только транспортному отделу."
+    request_obj = LogisticsRequest.objects.filter(id=request_id, is_archived=False).first()
+    vehicle = Vehicle.objects.filter(id=vehicle_id, is_active=True).first()
+    if not request_obj or not vehicle:
+        return None, "Заявка или машина не найдена."
+    request_obj.assigned_vehicle = vehicle
+    request_obj.save(update_fields=["assigned_vehicle", "updated_at"])
+    return request_obj, ""
+
+
+@sync_to_async
+def set_transport_driver(request_id, driver_id, telegram_id, chat_id):
+    profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if not profile:
+        return None, "Бот доступен только транспортному отделу."
+    request_obj = LogisticsRequest.objects.filter(id=request_id, is_archived=False).first()
+    driver = Driver.objects.filter(id=driver_id, is_active=True).first()
+    if not request_obj or not driver:
+        return None, "Заявка или водитель не найдены."
+    request_obj.assigned_driver = driver
+    request_obj.save(update_fields=["assigned_driver", "updated_at"])
+    return request_obj, ""
+
+
+@sync_to_async
+def set_transport_ship_date(request_id, raw_date, telegram_id, chat_id):
+    profile = _profile_for_telegram(telegram_id, chat_id, ROLE_TRANSPORT)
+    if not profile:
+        return None, "Бот доступен только транспортному отделу."
+    request_obj = LogisticsRequest.objects.filter(id=request_id, is_archived=False).first()
+    if not request_obj:
+        return None, "Заявка не найдена."
+    try:
+        ship_date = datetime.strptime(raw_date.strip(), "%d.%m.%Y").date()
+    except ValueError:
+        return request_obj, "Введите дату в формате ДД.ММ.ГГГГ, например 25.05.2026."
+
+    request_obj.planned_ship_date = ship_date
+    request_obj.save(update_fields=["planned_ship_date", "updated_at"])
+    return request_obj, ""
 
 
 @sync_to_async
@@ -213,41 +406,179 @@ async def answer_driver_requests(message_or_callback):
         await message.answer(_request_text(request_obj), reply_markup=_request_keyboard(request_obj))
 
 
+async def answer_transport_requests(message_or_callback):
+    message = message_or_callback.message if isinstance(message_or_callback, CallbackQuery) else message_or_callback
+    telegram_id = message_or_callback.from_user.id if message_or_callback.from_user else message.chat.id
+    requests = await get_transport_requests(telegram_id, message.chat.id)
+    if requests is None:
+        await message.answer("Telegram ID не найден у транспортного отдела. Обратитесь к администратору.")
+        return
+    if not requests:
+        await message.answer("Активных заявок для транспортного отдела пока нет.")
+        return
+
+    await message.answer("Заявки транспортного отдела:")
+    for request_obj in requests:
+        await message.answer(_transport_request_text(request_obj), reply_markup=_transport_request_keyboard(request_obj))
+
+
 @router.message(F.text == "/start")
 async def start(message: Message):
     telegram_id = message.from_user.id if message.from_user else message.chat.id
-    context = await get_driver_start_context(telegram_id, message.chat.id)
+    context = await get_start_context(telegram_id, message.chat.id)
     if not context["found"]:
         await message.answer(
             "Telegram ID не найден в системе.\n"
-            "Обратитесь к администратору, чтобы он привязал Telegram ID к профилю водителя."
+            "Обратитесь к администратору, чтобы он привязал Telegram ID к профилю пользователя."
         )
         return
-    if not context["is_driver"]:
-        await message.answer("Этот Telegram-бот доступен только водителям.")
+
+    if context["role"] == ROLE_DRIVER:
+        await message.answer(
+            "Единый Контур: режим водителя.\n"
+            f"Пользователь: {context['full_name']}\n"
+            f"Роль: {context['role_label']}\n\n"
+            "Доступные команды:\n"
+            "- /start\n"
+            "- /requests - показать мои заявки\n\n"
+            "В заявке доступны кнопки: Доставлено, Проблема и ссылка на веб-карточку.",
+            reply_markup=_driver_start_keyboard(),
+        )
+        return
+    if context["role"] != ROLE_TRANSPORT:
+        await message.answer("Этот Telegram-бот доступен водителям и транспортному отделу.")
         return
 
     await message.answer(
-        "Единый Контур: режим водителя.\n"
+        "Единый Контур: транспортный отдел.\n"
         f"Пользователь: {context['full_name']}\n"
         f"Роль: {context['role_label']}\n\n"
         "Доступные команды:\n"
         "- /start\n"
-        "- /requests - показать мои заявки\n\n"
-        "В заявке доступны кнопки: Доставлено, Проблема и ссылка на веб-карточку.",
-        reply_markup=_start_keyboard(),
+        "- /requests - показать заявки транспорта\n\n"
+        "В заявке доступны кнопки: Машина, Водитель, Дата и ссылка на веб-карточку.",
+        reply_markup=_transport_start_keyboard(),
     )
 
 
 @router.message(F.text == "/requests")
 async def requests_command(message: Message):
-    await answer_driver_requests(message)
+    telegram_id = message.from_user.id if message.from_user else message.chat.id
+    context = await get_start_context(telegram_id, message.chat.id)
+    if context.get("role") == ROLE_TRANSPORT:
+        await answer_transport_requests(message)
+    else:
+        await answer_driver_requests(message)
 
 
 @router.callback_query(F.data == "driver:list")
 async def requests_callback(callback: CallbackQuery):
     await callback.answer()
     await answer_driver_requests(callback)
+
+
+@router.callback_query(F.data == "transport:list")
+async def transport_requests_callback(callback: CallbackQuery):
+    await callback.answer()
+    await answer_transport_requests(callback)
+
+
+@router.callback_query(F.data.startswith("transport:vehicles:"))
+async def transport_vehicles_callback(callback: CallbackQuery):
+    request_id = int(callback.data.rsplit(":", 1)[1])
+    telegram_id = callback.from_user.id if callback.from_user else callback.message.chat.id
+    request_obj, vehicles, error = await get_transport_vehicle_options(request_id, telegram_id, callback.message.chat.id)
+    if error:
+        await callback.answer("Не выполнено", show_alert=True)
+        await callback.message.answer(error)
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=str(vehicle), callback_data=f"transport:set_vehicle:{request_obj.id}:{vehicle.id}")]
+            for vehicle in vehicles
+        ]
+    )
+    await callback.answer()
+    await callback.message.answer(f"Выберите машину для заявки {request_obj.request_number}:", reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("transport:drivers:"))
+async def transport_drivers_callback(callback: CallbackQuery):
+    request_id = int(callback.data.rsplit(":", 1)[1])
+    telegram_id = callback.from_user.id if callback.from_user else callback.message.chat.id
+    request_obj, drivers, error = await get_transport_driver_options(request_id, telegram_id, callback.message.chat.id)
+    if error:
+        await callback.answer("Не выполнено", show_alert=True)
+        await callback.message.answer(error)
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=str(driver), callback_data=f"transport:set_driver:{request_obj.id}:{driver.id}")]
+            for driver in drivers
+        ]
+    )
+    await callback.answer()
+    await callback.message.answer(f"Выберите водителя для заявки {request_obj.request_number}:", reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("transport:set_vehicle:"))
+async def transport_set_vehicle_callback(callback: CallbackQuery):
+    _, _, request_id, vehicle_id = callback.data.split(":", 3)
+    telegram_id = callback.from_user.id if callback.from_user else callback.message.chat.id
+    request_obj, error = await set_transport_vehicle(int(request_id), int(vehicle_id), telegram_id, callback.message.chat.id)
+    if error:
+        await callback.answer("Не выполнено", show_alert=True)
+        await callback.message.answer(error)
+        return
+    await callback.answer("Готово")
+    await callback.message.answer(_transport_request_text(request_obj), reply_markup=_transport_request_keyboard(request_obj))
+
+
+@router.callback_query(F.data.startswith("transport:set_driver:"))
+async def transport_set_driver_callback(callback: CallbackQuery):
+    _, _, request_id, driver_id = callback.data.split(":", 3)
+    telegram_id = callback.from_user.id if callback.from_user else callback.message.chat.id
+    request_obj, error = await set_transport_driver(int(request_id), int(driver_id), telegram_id, callback.message.chat.id)
+    if error:
+        await callback.answer("Не выполнено", show_alert=True)
+        await callback.message.answer(error)
+        return
+    await callback.answer("Готово")
+    await callback.message.answer(_transport_request_text(request_obj), reply_markup=_transport_request_keyboard(request_obj))
+
+
+@router.callback_query(F.data.startswith("transport:date:"))
+async def transport_date_callback(callback: CallbackQuery):
+    request_id = int(callback.data.rsplit(":", 1)[1])
+    telegram_id = callback.from_user.id if callback.from_user else callback.message.chat.id
+    request_obj, error = await get_transport_request(request_id, telegram_id, callback.message.chat.id)
+    if error:
+        await callback.answer("Не выполнено", show_alert=True)
+        await callback.message.answer(error)
+        return
+
+    PENDING_TRANSPORT_DATE[callback.message.chat.id] = request_id
+    await callback.answer()
+    await callback.message.answer(
+        f"Введите дату отправки для заявки {request_obj.request_number} в формате ДД.ММ.ГГГГ."
+    )
+
+
+@router.message(F.text.regexp(r"^\d{2}\.\d{2}\.\d{4}$"))
+async def transport_date_message(message: Message):
+    request_id = PENDING_TRANSPORT_DATE.get(message.chat.id)
+    if not request_id:
+        return
+    telegram_id = message.from_user.id if message.from_user else message.chat.id
+    request_obj, error = await set_transport_ship_date(request_id, message.text, telegram_id, message.chat.id)
+    if error:
+        await message.answer(error)
+        return
+
+    PENDING_TRANSPORT_DATE.pop(message.chat.id, None)
+    await message.answer(_transport_request_text(request_obj), reply_markup=_transport_request_keyboard(request_obj))
 
 
 @router.callback_query(F.data.startswith("driver:delivered:"))
@@ -286,7 +617,7 @@ async def problem_callback(callback: CallbackQuery):
 
 
 class Command(BaseCommand):
-    help = "Runs aiogram Telegram bot for driver actions."
+    help = "Runs aiogram Telegram bot for driver and transport actions."
 
     def handle(self, *args, **options):
         if not settings.TELEGRAM_BOT_TOKEN:
