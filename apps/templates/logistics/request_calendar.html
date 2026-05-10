@@ -87,6 +87,19 @@
     height: .65rem;
     border-radius: .25rem;
   }
+  .calendar-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin-right: .75rem;
+    margin-bottom: .35rem;
+    font-size: .875rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .calendar-filter input {
+    margin: 0;
+  }
 </style>
 
 <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
@@ -105,14 +118,16 @@
       <a class="btn btn-outline-primary" href="{% url 'request_calendar' %}?month={{ next_month }}">Вперед</a>
     </div>
 
-    <div class="calendar-legend mb-3">
-      <span><i class="calendar-request-created"></i>создана</span>
-      <span><i class="calendar-request-supply"></i>ожидает снабжения</span>
-      <span><i class="calendar-request-shipment"></i>ожидает отгрузки</span>
-      <span><i class="calendar-request-delivery"></i>ожидает доставку</span>
-      <span><i class="calendar-request-done"></i>доставлена</span>
-      <span><i class="calendar-request-problem"></i>с ошибкой</span>
-    </div>
+    <form class="calendar-legend mb-3" method="get">
+      <input type="hidden" name="month" value="{{ current_month }}">
+      <input type="hidden" name="calendar_filters_submitted" value="1">
+      {% for filter in calendar_filters %}
+        <label class="calendar-filter">
+          <input class="form-check-input" type="checkbox" name="status_group" value="{{ filter.key }}" onchange="this.form.submit()" {% if filter.checked %}checked{% endif %}>
+          <i class="{{ filter.css_class }}"></i>{{ filter.label }}
+        </label>
+      {% endfor %}
+    </form>
 
     <div class="calendar-header mb-2">
       {% for weekday in weekdays %}
@@ -147,7 +162,7 @@
       <div class="row g-2">
         {% for item in undated_requests %}
           <div class="col-12 col-md-6 col-xl-4">
-            <a class="calendar-request calendar-request-supply mb-0" href="{{ item.get_absolute_url }}">
+            <a class="calendar-request {{ item.calendar_class }} mb-0" href="{{ item.get_absolute_url }}">
               {{ item.request_number }} · {{ item.client_name|default:"Без клиента" }}
             </a>
           </div>

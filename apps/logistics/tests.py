@@ -986,3 +986,23 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertContains(response, "Клиент снабжения в календаре")
         self.assertContains(response, request_obj.get_absolute_url())
         self.assertContains(response, "calendar-request-supply")
+
+    def test_calendar_status_filters_are_saved_for_user(self):
+        created_request = self._request(client_name="Клиент созданной заявки", status=STATUS_CREATED)
+        supply_request = self._request(client_name="Клиент снабжения", status=STATUS_WAITING_SUPPLY)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(f"{reverse('request_calendar')}?calendar_filters_submitted=1&status_group=created")
+        self.admin.profile.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.admin.profile.calendar_status_filters, ["created"])
+        self.assertContains(response, "Клиент созданной заявки")
+        self.assertNotContains(response, "Клиент снабжения")
+
+        self.client.logout()
+        self.client.force_login(self.admin)
+        saved_response = self.client.get(reverse("request_calendar"))
+
+        self.assertContains(saved_response, created_request.get_absolute_url())
+        self.assertNotContains(saved_response, supply_request.get_absolute_url())

@@ -99,6 +99,17 @@ FIXED_HOLIDAYS = {
     (11, 4),
 }
 
+CALENDAR_STATUS_FILTERS = [
+    {"key": "created", "label": "создана", "css_class": "calendar-request-created"},
+    {"key": "supply", "label": "ожидает снабжения", "css_class": "calendar-request-supply"},
+    {"key": "shipment", "label": "ожидает отгрузки", "css_class": "calendar-request-shipment"},
+    {"key": "delivery", "label": "ожидает доставку", "css_class": "calendar-request-delivery"},
+    {"key": "done", "label": "доставлена", "css_class": "calendar-request-done"},
+    {"key": "problem", "label": "с ошибкой", "css_class": "calendar-request-problem"},
+]
+CALENDAR_STATUS_FILTER_KEYS = [item["key"] for item in CALENDAR_STATUS_FILTERS]
+CALENDAR_STATUS_FILTER_CLASSES = {item["key"]: item["css_class"] for item in CALENDAR_STATUS_FILTERS}
+
 
 def _editable_fields_for_user(user, request_obj):
     role = get_user_role(user)
@@ -454,25 +465,46 @@ def _shift_month(month_start, delta):
     return date(year, month, 1)
 
 
-def _request_calendar_class(request_obj, index):
+def _request_calendar_group(request_obj):
     if request_obj.status == STATUS_PROBLEM or getattr(request_obj, "has_open_problem", False):
-        return "calendar-request-problem"
+        return "problem"
     if request_obj.status in {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED}:
-        return "calendar-request-done"
+        return "done"
     if request_obj.status == STATUS_CREATED:
-        return "calendar-request-created"
+        return "created"
     if request_obj.status in {STATUS_WAITING_SUPPLY, STATUS_WAITING_ARRIVAL}:
-        return "calendar-request-supply"
+        return "supply"
     if request_obj.status in {
         STATUS_IN_WAREHOUSE,
         STATUS_CZ_CHECK,
         STATUS_READY_TO_SHIP,
         STATUS_TRANSPORT_ASSIGNED,
     }:
-        return "calendar-request-shipment"
+        return "shipment"
     if request_obj.status in {STATUS_SHIPPED, STATUS_IN_TRANSIT}:
-        return "calendar-request-delivery"
-    return "calendar-request-created"
+        return "delivery"
+    return "created"
+
+
+def _request_calendar_class(request_obj, index):
+    return CALENDAR_STATUS_FILTER_CLASSES[_request_calendar_group(request_obj)]
+
+
+def _calendar_status_filters_for_request(request):
+    profile = getattr(request.user, "profile", None)
+    valid_keys = set(CALENDAR_STATUS_FILTER_KEYS)
+
+    if request.GET.get("calendar_filters_submitted") == "1":
+        selected = [key for key in request.GET.getlist("status_group") if key in valid_keys]
+        if profile:
+            profile.calendar_status_filters = selected
+            profile.save(update_fields=["calendar_status_filters"])
+        return selected
+
+    selected = getattr(profile, "calendar_status_filters", None) if profile else None
+    if selected is None:
+        return list(CALENDAR_STATUS_FILTER_KEYS)
+    return [key for key in selected if key in valid_keys]
 
 
 def _calendar_date_for_request(request_obj):
@@ -496,6 +528,15 @@ def request_calendar(request):
     month_start = _month_from_request(request)
     month_end = date(month_start.year, month_start.month, calendar_module.monthrange(month_start.year, month_start.month)[1])
     today = timezone.localdate()
+    active_status_filters = _calendar_status_filters_for_request(request)
+    active_status_filter_set = set(active_status_filters)
+    calendar_filters = [
+        {
+            **item,
+            "checked": item["key"] in active_status_filter_set,
+        }
+        for item in CALENDAR_STATUS_FILTERS
+    ]
 
     open_problem_qs = ProblemReport.objects.filter(
         request=OuterRef("pk"),
@@ -520,11 +561,14 @@ def request_calendar(request):
     )
     requests_by_date = {}
     for request_obj in dated_requests:
+        calendar_group = _request_calendar_group(request_obj)
+        if calendar_group not in active_status_filter_set:
+            continue
         calendar_date = _calendar_date_for_request(request_obj)
         if not calendar_date or calendar_date < month_start or calendar_date > month_end:
             continue
         day_items = requests_by_date.setdefault(calendar_date, [])
-        request_obj.calendar_class = _request_calendar_class(request_obj, len(day_items))
+        request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
         day_items.append(request_obj)
 
     weeks = []
@@ -544,12 +588,21 @@ def request_calendar(request):
             )
         weeks.append(days)
 
-    undated_requests = requests.filter(
+    undated_requests = []
+    undated_candidates = requests.filter(
         planned_delivery_date__isnull=True,
         planned_ship_date__isnull=True,
         supply_eta_date__isnull=True,
         actual_delivery_date__isnull=True,
-    ).order_by("-updated_at")[:20]
+    ).order_by("-updated_at")[:50]
+    for request_obj in undated_candidates:
+        calendar_group = _request_calendar_group(request_obj)
+        if calendar_group not in active_status_filter_set:
+            continue
+        request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
+        undated_requests.append(request_obj)
+        if len(undated_requests) >= 20:
+            break
 
     return render(
         request,
@@ -557,10 +610,12 @@ def request_calendar(request):
         {
             "weeks": weeks,
             "month_title": f"{MONTH_NAMES[month_start.month]} {month_start.year}",
+            "current_month": month_start.strftime("%Y-%m"),
             "prev_month": _shift_month(month_start, -1).strftime("%Y-%m"),
             "next_month": _shift_month(month_start, 1).strftime("%Y-%m"),
             "undated_requests": undated_requests,
             "weekdays": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+            "calendar_filters": calendar_filters,
         },
     )
 

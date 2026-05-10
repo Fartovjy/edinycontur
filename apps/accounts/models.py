@@ -5,6 +5,10 @@ from django.db import models
 from .constants import ROLE_CHOICES, USER_PROFILE_ROLE_CHOICES
 
 
+def default_calendar_status_filters():
+    return ["created", "supply", "shipment", "delivery", "done", "problem"]
+
+
 class Role(models.Model):
     code = models.CharField("Код", max_length=32, choices=ROLE_CHOICES, unique=True)
     title = models.CharField("Название", max_length=80)
@@ -33,6 +37,7 @@ class UserProfile(models.Model):
     phone = models.CharField("Телефон", max_length=40, blank=True)
     telegram_id = models.CharField("Telegram ID", max_length=64, blank=True)
     default_vehicle = models.ForeignKey("transport.Vehicle", on_delete=models.SET_NULL, null=True, blank=True, related_name="driver_profiles", verbose_name="Автомобиль по умолчанию")
+    calendar_status_filters = models.JSONField("Фильтры статусов календаря", default=default_calendar_status_filters, blank=True)
     is_active = models.BooleanField("Активен", default=True)
 
     class Meta:
