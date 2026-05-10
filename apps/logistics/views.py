@@ -707,9 +707,14 @@ def request_detail(request, pk):
                 raise PermissionDenied
             driver = get_object_or_404(Driver, pk=request.POST.get("assigned_driver"), is_active=True)
             vehicle = get_object_or_404(Vehicle, pk=request.POST.get("assigned_vehicle"), is_active=True)
+            planned_ship_date = parse_date(request.POST.get("planned_ship_date") or "")
             request_obj.assigned_driver = driver
             request_obj.assigned_vehicle = vehicle
-            request_obj.save(update_fields=["assigned_driver", "assigned_vehicle", "updated_at"])
+            update_fields = ["assigned_driver", "assigned_vehicle", "updated_at"]
+            if planned_ship_date:
+                request_obj.planned_ship_date = planned_ship_date
+                update_fields.append("planned_ship_date")
+            request_obj.save(update_fields=update_fields)
             messages.success(request, "Водитель и машина назначены.")
             return redirect(request_obj)
 

@@ -297,6 +297,8 @@
                       <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
                     {% endfor %}
                   </select>
+                  <label class="form-label fw-semibold" for="planned_ship_date_transport">Дата отправки</label>
+                  <input class="form-control mb-2" id="planned_ship_date_transport" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
                   <button class="btn btn-primary w-100" type="submit">Назначить транспорт</button>
                 </form>
               </div>

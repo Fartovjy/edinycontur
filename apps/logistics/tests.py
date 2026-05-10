@@ -566,10 +566,12 @@ class LogisticsRoleAccessTests(TestCase):
 
     def test_transport_can_assign_vehicle_and_driver_from_request_card(self):
         request = self._request(status=STATUS_READY_TO_SHIP)
+        ship_date = timezone.localdate() + timedelta(days=4)
         self.client.force_login(self.transport_user)
 
         page = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
         self.assertContains(page, "Назначить транспорт")
+        self.assertContains(page, "Дата отправки")
 
         response = self.client.post(
             reverse("request_detail", kwargs={"pk": request.pk}),
@@ -577,6 +579,7 @@ class LogisticsRoleAccessTests(TestCase):
                 "action": "assign_transport",
                 "assigned_vehicle": str(self.vehicle.pk),
                 "assigned_driver": str(self.driver.pk),
+                "planned_ship_date": ship_date.isoformat(),
             },
         )
         request.refresh_from_db()
@@ -584,6 +587,7 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(request.assigned_vehicle, self.vehicle)
         self.assertEqual(request.assigned_driver, self.driver)
+        self.assertEqual(request.planned_ship_date, ship_date)
 
     def test_warehouse_can_change_warehouse_status_from_request_card(self):
         request = self._request(status=STATUS_WAITING_ARRIVAL)
