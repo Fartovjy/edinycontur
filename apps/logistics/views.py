@@ -856,7 +856,11 @@ def request_create(request):
             messages.success(request, "Заявка создана.")
             return redirect(request_obj)
     else:
-        form = LogisticsRequestCreateForm(user_role=role)
+        initial = {}
+        planned_delivery_date = parse_date(request.GET.get("planned_delivery_date") or "")
+        if planned_delivery_date:
+            initial["planned_delivery_date"] = planned_delivery_date
+        form = LogisticsRequestCreateForm(initial=initial, user_role=role)
 
     return render(request, "logistics/request_form.html", {"form": form, "title": "Создание заявки"})
 

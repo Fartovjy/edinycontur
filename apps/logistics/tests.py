@@ -757,6 +757,15 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertNotContains(response, "Честный Знак")
         self.assertContains(response, "Клиент")
 
+    def test_operator_create_form_prefills_delivery_date_from_calendar(self):
+        delivery_date = timezone.localdate() + timedelta(days=5)
+        self.client.force_login(self.operator)
+
+        response = self.client.get(f"{reverse('request_create')}?planned_delivery_date={delivery_date.isoformat()}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'value="{delivery_date.isoformat()}"')
+
     def test_operator_can_save_visible_fields_when_transport_is_already_assigned(self):
         updated_client = Client.objects.create(name="Оператор обновил клиента", region="Москва")
         request = self._request(
@@ -1006,3 +1015,21 @@ class LogisticsRoleAccessTests(TestCase):
 
         self.assertContains(saved_response, created_request.get_absolute_url())
         self.assertNotContains(saved_response, supply_request.get_absolute_url())
+
+    def test_operator_calendar_days_open_create_form_with_delivery_date(self):
+        today = timezone.localdate()
+        self.client.force_login(self.operator)
+
+        response = self.client.get(reverse("request_calendar"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "calendar-day")
+        self.assertContains(response, f"{reverse('request_create')}?planned_delivery_date={today.isoformat()}")
+
+    def test_driver_calendar_days_do_not_open_create_form(self):
+        self.client.force_login(self.driver_user)
+
+        response = self.client.get(reverse("request_calendar"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "data-create-url")
