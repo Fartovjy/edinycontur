@@ -7,7 +7,7 @@
 set -euo pipefail
 
 APP_DIR="/home/deploy/app"
-COMPOSE="docker compose -f docker-compose.prod.yml"
+COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod"
 
 echo "▶ [$(date '+%Y-%m-%d %H:%M:%S')] Начало деплоя"
 
