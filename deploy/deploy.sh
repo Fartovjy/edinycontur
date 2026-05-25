@@ -13,6 +13,18 @@ echo "▶ [$(date '+%Y-%m-%d %H:%M:%S')] Начало деплоя"
 
 cd "$APP_DIR"
 
+# 0. Бэкап базы данных
+echo "▶ Создание бэкапа БД..."
+BACKUP_DIR="/home/deploy/backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/$(date '+%Y%m%d_%H%M%S').sql.gz"
+PG_USER=$(docker exec app-db-1 printenv POSTGRES_USER)
+PG_DB=$(docker exec app-db-1 printenv POSTGRES_DB)
+docker exec app-db-1 pg_dump -U "$PG_USER" "$PG_DB" | gzip > "$BACKUP_FILE"
+echo "  Бэкап сохранён: $BACKUP_FILE"
+# Удалить бэкапы старше 30 дней
+find "$BACKUP_DIR" -name "*.sql.gz" -mtime +30 -delete
+
 # 1. Получить свежий код
 echo "▶ Обновление кода из GitHub..."
 git fetch origin main
