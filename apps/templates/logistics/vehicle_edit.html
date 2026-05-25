@@ -1,0 +1,195 @@
+{% extends "logistics/base.html" %}
+{% block title %}{{ vehicle.plate_number }} — редактирование{% endblock %}
+{% block content %}
+<style>
+  /* Пустые поля — курсив */
+  .form-control:placeholder-shown:not([type="file"]):not(:disabled) {
+    font-style: italic;
+    color: var(--ek-muted, #9a8878);
+  }
+  .form-control:not(:placeholder-shown):not([type="file"]) {
+    font-style: normal;
+    color: var(--ek-text, inherit);
+  }
+  textarea.form-control:placeholder-shown {
+    font-style: italic;
+    color: var(--ek-muted, #9a8878);
+  }
+  textarea.form-control:not(:placeholder-shown) {
+    font-style: normal;
+    color: var(--ek-text, inherit);
+  }
+</style>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'vehicle_list' %}" class="btn btn-outline-secondary btn-sm">← Назад</a>
+  <h1 class="h4 mb-0">{{ vehicle.plate_number }} — {{ vehicle.name|default:"Автомобиль" }}</h1>
+</div>
+
+<div class="row g-4">
+  <!-- Photo preview -->
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-body p-0">
+        {% if vehicle.photo %}
+          <img src="{{ vehicle.photo.url }}" alt="{{ vehicle.plate_number }}"
+               style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:var(--ek-radius) var(--ek-radius) 0 0;display:block;">
+        {% else %}
+          <div style="width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#f5ede0,#ecdcc8);border-radius:var(--ek-radius) var(--ek-radius) 0 0;display:flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;opacity:.22;color:var(--brown-mid)">
+              <rect x="2" y="20" width="38" height="26" rx="3" stroke="currentColor" stroke-width="3"/>
+              <path d="M40 28h10l8 8v10H40V28z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <circle cx="14" cy="49" r="5" stroke="currentColor" stroke-width="3"/>
+              <circle cx="50" cy="49" r="5" stroke="currentColor" stroke-width="3"/>
+              <line x1="2" y1="36" x2="40" y2="36" stroke="currentColor" stroke-width="2.5"/>
+            </svg>
+          </div>
+        {% endif %}
+        <div class="p-3">
+          <div class="fw-semibold mb-1" style="font-size:.8rem;text-transform:uppercase;color:var(--ek-muted);letter-spacing:.05em">Фото</div>
+          <div class="text-muted small">
+            {% if vehicle.photo %}Загружено — можно заменить{% else %}Фото ещё не загружено{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="col-12 col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div class="row g-3">
+            <!-- Plate (readonly) -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Госномер</label>
+              <input class="form-control" type="text" value="{{ vehicle.plate_number }}" disabled>
+            </div>
+
+            <!-- Name -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-name">Название / Марка</label>
+              <input class="form-control" id="v-name" name="name" type="text" value="{{ vehicle.name }}" placeholder="Например: КАМАЗ 65115">
+            </div>
+
+            <!-- Type -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-type">Тип автомобиля</label>
+              <input class="form-control" id="v-type" name="vehicle_type" type="text" value="{{ vehicle.vehicle_type }}" placeholder="Например: грузовой, рефрижератор">
+            </div>
+
+            <!-- Color -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-color">Цвет</label>
+              <input class="form-control" id="v-color" name="color" type="text" value="{{ vehicle.color }}" placeholder="Например: белый">
+            </div>
+
+            <!-- Year -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-year">Год выпуска</label>
+              <input class="form-control" id="v-year" name="year" type="number" min="1990" max="2030"
+                     value="{% if vehicle.year %}{{ vehicle.year }}{% endif %}" placeholder="2020">
+            </div>
+
+            <!-- Weight -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-weight">Грузоподъёмность, кг</label>
+              <input class="form-control" id="v-weight" name="max_weight_kg" type="number" min="0"
+                     value="{% if vehicle.max_weight_kg %}{{ vehicle.max_weight_kg|stringformat:'d' }}{% endif %}" placeholder="5000">
+            </div>
+
+            <!-- Volume -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-vol">Объём кузова, м³</label>
+              <input class="form-control" id="v-vol" name="max_volume_m3" type="number" step="any" min="0"
+                     value="{% if vehicle.max_volume_m3 %}{{ vehicle.max_volume_m3|stringformat:'.3f' }}{% endif %}" placeholder="20.000">
+            </div>
+
+            <!-- Photo upload -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-photo">Загрузить фото</label>
+              <input class="form-control" id="v-photo" name="photo" type="file" accept="image/*">
+              <div class="form-text">JPG, PNG, WebP — рекомендуется пропорция 16:9</div>
+            </div>
+
+            <!-- Odometer -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-odo">Пробег, км</label>
+              <input class="form-control" id="v-odo" name="odometer_km" type="number" min="0"
+                     value="{% if vehicle.odometer_km %}{{ vehicle.odometer_km }}{% endif %}"
+                     placeholder="0">
+            </div>
+
+            <!-- Service due -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-svc">До следующего ТО, км</label>
+              <input class="form-control" id="v-svc" name="service_due_km" type="number" min="0"
+                     value="{% if vehicle.service_due_km is not None %}{{ vehicle.service_remaining_km }}{% endif %}"
+                     placeholder="например 15000">
+              <div class="form-text">
+                Введите интервал до ТО — система запомнит целевой пробег
+                (текущий + интервал) и будет автоматически пересчитывать остаток
+                по мере роста одометра.
+                {% if vehicle.service_due_km is not None %}
+                  Цель: {{ vehicle.service_due_km }} км.
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="col-12">
+              <label class="form-label" for="v-notes">Заметки</label>
+              <textarea class="form-control" id="v-notes" name="notes" rows="2"
+                        placeholder="Дополнительная информация об автомобиле…">{{ vehicle.notes }}</textarea>
+            </div>
+
+            <!-- Active toggle -->
+            <div class="col-12">
+              <label class="form-label">Статус</label>
+              <div class="d-flex align-items-center gap-3 px-3 py-2"
+                   style="background:var(--ek-bg);border:1px solid var(--ek-border);border-radius:var(--ek-radius-sm);">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" role="switch"
+                         name="is_active" id="v-active"
+                         {% if vehicle.is_active %}checked{% endif %}
+                         style="width:2.6em;height:1.4em;cursor:pointer;margin-top:.05em;">
+                </div>
+                <label class="form-check-label fw-semibold mb-0" for="v-active" style="cursor:pointer;">
+                  Автомобиль активен
+                </label>
+                <span id="v-status-badge" class="ms-auto badge"
+                      style="font-size:.75rem;{% if vehicle.is_active %}background:#dcfce7;color:#15803d;border:1px solid #86efac;{% else %}background:#f5f0e8;color:var(--brown-mid);border:1px solid #d4c4a8;{% endif %}">
+                  {% if vehicle.is_active %}Активен{% else %}Неактивен{% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="{% url 'vehicle_list' %}" class="btn btn-outline-secondary">Отмена</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var toggle = document.getElementById("v-active");
+  var badge  = document.getElementById("v-status-badge");
+  if (!toggle || !badge) return;
+  toggle.addEventListener("change", function () {
+    if (toggle.checked) {
+      badge.textContent = "Активен";
+      badge.style.cssText = "font-size:.75rem;background:#dcfce7;color:#15803d;border:1px solid #86efac;";
+    } else {
+      badge.textContent = "Неактивен";
+      badge.style.cssText = "font-size:.75rem;background:#f5f0e8;color:#7a5230;border:1px solid #d4c4a8;";
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,9 +1,8 @@
-from pathlib import Path
-
 from django import forms
-from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 
-from apps.documents.forms import ALLOWED_UPLOAD_EXTENSIONS
+from apps.accounts.constants import ROLE_DRIVER
+from apps.documents.forms import validate_uploaded_document
 from apps.logistics.constants import STATUS_CHOICES
 
 from .models import ProblemReport
@@ -19,9 +18,18 @@ class ProblemReportForm(forms.ModelForm):
             "description": forms.Textarea(attrs={"rows": 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["responsible_user"].required = True
+        role = ""
+        if user:
+            try:
+                role = user.profile.role
+            except ObjectDoesNotExist:
+                role = ""
+        if role == ROLE_DRIVER:
+            self.fields.pop("responsible_user", None)
+        elif "responsible_user" in self.fields:
+            self.fields["responsible_user"].required = True
         for field in self.fields.values():
             if isinstance(field.widget, forms.Select):
                 field.widget.attrs.setdefault("class", "form-select")
@@ -35,15 +43,7 @@ class ProblemReportForm(forms.ModelForm):
         if not uploaded_file:
             return uploaded_file
 
-        extension = Path(uploaded_file.name).suffix.lower()
-        if extension not in ALLOWED_UPLOAD_EXTENSIONS:
-            raise forms.ValidationError("Разрешены только PDF, JPG, PNG и WEBP.")
-
-        max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-        if uploaded_file.size > max_size:
-            raise forms.ValidationError(f"Файл больше {settings.MAX_UPLOAD_SIZE_MB} МБ.")
-
-        return uploaded_file
+        return validate_uploaded_document(uploaded_file)
 
 
 class CloseProblemForm(forms.Form):

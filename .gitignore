@@ -1,4 +1,5 @@
 .env
+.env.prod
 .venv/
 venv/
 env/
@@ -22,3 +23,7 @@ htmlcov/
 
 .DS_Store
 Thumbs.db
+
+node_modules/
+.claude/
+in/

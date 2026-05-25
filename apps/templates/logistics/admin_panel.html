@@ -1,0 +1,324 @@
+{% extends "logistics/base.html" %}
+{% block title %}Панель управления — Единый Контур{% endblock %}
+{% block content %}
+<style>
+  /* ── Page header ──────────────────────────────── */
+  .ap-head { margin-bottom: 2rem; }
+  .ap-head h1 { font-size: 1.5rem; margin-bottom: .2rem; }
+
+  /* ── Stat cards ───────────────────────────────── */
+  .ap-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .ap-stat {
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius);
+    box-shadow: var(--ek-shadow-sm);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+  }
+  .ap-stat-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ek-muted);
+  }
+  .ap-stat-value {
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.03em;
+  }
+  .ap-stat-sub {
+    font-size: .78rem;
+    color: var(--ek-muted);
+    margin-top: .15rem;
+  }
+  /* Accent left borders */
+  .ap-stat.ap-active   { border-left: 4px solid #0284c7; }
+  .ap-stat.ap-problem  { border-left: 4px solid #dc2626; }
+  .ap-stat.ap-overdue  { border-left: 4px solid #d97706; }
+  .ap-stat.ap-vehicles { border-left: 4px solid #7c3aed; }
+  .ap-stat.ap-drivers  { border-left: 4px solid #0891b2; }
+
+  .ap-stat.ap-active   .ap-stat-value { color: #0284c7; }
+  .ap-stat.ap-problem  .ap-stat-value { color: #dc2626; }
+  .ap-stat.ap-overdue  .ap-stat-value { color: #d97706; }
+  .ap-stat.ap-vehicles .ap-stat-value { color: #7c3aed; }
+  .ap-stat.ap-drivers  .ap-stat-value { color: #0891b2; }
+
+  /* ── Two-column body ──────────────────────────── */
+  .ap-body {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  @media (max-width: 991.98px) {
+    .ap-body { grid-template-columns: 1fr; }
+  }
+
+  /* ── Section headings ─────────────────────────── */
+  .ap-section-title {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--ek-muted);
+    margin-bottom: .75rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--ek-border);
+  }
+
+  /* ── Recent requests table ────────────────────── */
+  .ap-req-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    font-size: .84rem;
+  }
+  .ap-req-table tbody tr {
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-border);
+    cursor: pointer;
+    transition: filter .1s;
+  }
+  .ap-req-table tbody tr:hover { filter: brightness(.97); }
+  .ap-req-table td {
+    padding: .65rem .9rem;
+    vertical-align: middle;
+  }
+  .ap-req-table td:first-child {
+    border-left: 4px solid var(--ek-border);
+    border-radius: 8px 0 0 8px;
+  }
+  .ap-req-table td:last-child {
+    border-radius: 0 8px 8px 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+  /* Row accent colours matching request_list */
+  .apr-created td:first-child   { border-left-color: #d97706; }
+  .apr-supply  td:first-child   { border-left-color: #b45309; }
+  .apr-warehouse td:first-child { border-left-color: #0284c7; }
+  .apr-transit td:first-child   { border-left-color: #16a34a; }
+  .apr-delivered td:first-child { border-left-color: #15803d; }
+  .apr-problem td:first-child   { border-left-color: #dc2626; }
+  .apr-done td:first-child      { border-left-color: #71717a; }
+
+  .ap-req-client { font-weight: 700; }
+  .ap-req-date   { font-size: .75rem; color: var(--ek-muted); }
+
+  /* Status pill */
+  .ap-status-pill {
+    display: inline-block;
+    padding: .18em .6em;
+    border-radius: 6px;
+    font-size: .72rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .sp-created   { background: #d97706; }
+  .sp-supply    { background: #b45309; }
+  .sp-warehouse { background: #0284c7; }
+  .sp-transit   { background: #16a34a; }
+  .sp-delivered { background: #15803d; }
+  .sp-problem   { background: #dc2626; }
+  .sp-done      { background: #71717a; }
+
+  /* ── Status breakdown ─────────────────────────── */
+  .ap-breakdown { display: flex; flex-direction: column; gap: .55rem; }
+  .ap-br-row {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    font-size: .84rem;
+  }
+  .ap-br-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ap-br-label { flex: 1; color: var(--ek-text); }
+  .ap-br-count { font-weight: 700; font-size: .875rem; min-width: 1.5rem; text-align: right; }
+
+  /* ── Quick actions ────────────────────────────── */
+  .ap-actions { display: flex; flex-direction: column; gap: .5rem; margin-top: 1.5rem; }
+  .ap-action-btn {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .7rem 1rem;
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius-sm);
+    color: var(--ek-text);
+    text-decoration: none;
+    font-size: .875rem;
+    font-weight: 600;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .ap-action-btn:hover {
+    background: var(--brown-faint);
+    border-color: var(--brown-light);
+    color: var(--ek-text);
+    text-decoration: none;
+  }
+  .ap-action-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  /* Django admin — small discrete link at bottom */
+  .ap-django-link {
+    font-size: .75rem;
+    color: var(--ek-muted);
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 1.25rem;
+    padding: .3rem .6rem;
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius-sm);
+    transition: color .12s, border-color .12s;
+  }
+  .ap-django-link:hover { color: var(--ek-text); border-color: var(--ek-muted); }
+</style>
+
+<div class="ap-head">
+  <h1>Панель управления</h1>
+  <div class="text-muted">Обзор системы и быстрые действия</div>
+</div>
+
+<!-- ── Stat cards ── -->
+<div class="ap-stats">
+  <div class="ap-stat ap-active">
+    <div class="ap-stat-label">Активных заявок</div>
+    <div class="ap-stat-value">{{ active_count }}</div>
+    <div class="ap-stat-sub">не завершены</div>
+  </div>
+  <div class="ap-stat ap-problem">
+    <div class="ap-stat-label">С проблемой</div>
+    <div class="ap-stat-value">{{ problem_count }}</div>
+    <div class="ap-stat-sub">требуют внимания</div>
+  </div>
+  <div class="ap-stat ap-overdue">
+    <div class="ap-stat-label">Просрочено</div>
+    <div class="ap-stat-value">{{ overdue_count }}</div>
+    <div class="ap-stat-sub">дата доставки прошла</div>
+  </div>
+  <div class="ap-stat ap-vehicles">
+    <div class="ap-stat-label">Автомобили</div>
+    <div class="ap-stat-value">{{ vehicles_active }}</div>
+    <div class="ap-stat-sub">из {{ vehicles_total }} активны</div>
+  </div>
+  <div class="ap-stat ap-drivers">
+    <div class="ap-stat-label">Водители</div>
+    <div class="ap-stat-value">{{ drivers_active }}</div>
+    <div class="ap-stat-sub">из {{ drivers_total }} активны</div>
+  </div>
+</div>
+
+<!-- ── Main body: recent + sidebar ── -->
+<div class="ap-body">
+
+  <!-- Left: recent requests -->
+  <div>
+    <div class="ap-section-title">Последние заявки</div>
+    <table class="ap-req-table">
+      <tbody>
+        {% for item in recent_requests %}
+          <tr class="{% if item.status == 'created' %}apr-created{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}apr-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}apr-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}apr-transit{% elif item.status == 'delivered' %}apr-delivered{% elif item.status == 'problem' %}apr-problem{% else %}apr-done{% endif %}"
+              onclick="window.location='{{ item.get_absolute_url }}'">
+            <td>
+              <div class="ap-req-client">{{ item.client_name }}</div>
+              {% if item.client_address %}
+                <div class="ap-req-date">{{ item.client_address }}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.planned_delivery_date %}
+                <div class="ap-req-date">{{ item.planned_delivery_date|date:"d.m.Y" }}</div>
+              {% endif %}
+              <div class="ap-req-date">{{ item.updated_at|date:"d.m H:i" }}</div>
+            </td>
+            <td>
+              <span class="ap-status-pill {% if item.status == 'created' %}sp-created{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}sp-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}sp-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}sp-transit{% elif item.status == 'delivered' %}sp-delivered{% elif item.status == 'problem' %}sp-problem{% else %}sp-done{% endif %}">
+                {{ item.get_status_display }}
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-muted text-center py-4">Заявок пока нет</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="mt-2">
+      <a href="{% url 'request_list' %}" class="text-muted small" style="text-decoration:none">Все заявки →</a>
+    </div>
+  </div>
+
+  <!-- Right: breakdown + actions -->
+  <div>
+
+    <!-- Status breakdown -->
+    {% if status_breakdown %}
+    <div class="ap-section-title">По статусам</div>
+    <div class="ap-breakdown mb-4">
+      {% for row in status_breakdown %}
+        <div class="ap-br-row">
+          <div class="ap-br-dot" style="background:{% if row.status == 'created' %}#d97706{% elif row.status == 'waiting_supply' or row.status == 'waiting_arrival' %}#b45309{% elif row.status == 'in_warehouse' or row.status == 'cz_check' or row.status == 'ready_to_ship' or row.status == 'transport_assigned' %}#0284c7{% elif row.status == 'shipped' or row.status == 'in_transit' %}#16a34a{% elif row.status == 'delivered' %}#15803d{% elif row.status == 'problem' %}#dc2626{% else %}#71717a{% endif %}"></div>
+          <div class="ap-br-label">{{ row.label }}</div>
+          <div class="ap-br-count">{{ row.count }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Quick actions -->
+    <div class="ap-section-title">Быстрые действия</div>
+    <div class="ap-actions">
+      <a href="{% url 'request_create' %}" class="ap-action-btn">
+        <span class="ap-action-icon" style="background:#fef3c7">➕</span>
+        Новая заявка
+      </a>
+      <a href="{% url 'client_list' %}" class="ap-action-btn">
+        <span class="ap-action-icon" style="background:#eff6ff">👤</span>
+        Клиенты
+      </a>
+      <a href="{% url 'vehicle_list' %}" class="ap-action-btn">
+        <span class="ap-action-icon" style="background:#f3e8ff">🚚</span>
+        Автомобили
+      </a>
+      <a href="{% url 'driver_list' %}" class="ap-action-btn">
+        <span class="ap-action-icon" style="background:#e0f2fe">🧑‍✈️</span>
+        Водители
+      </a>
+      {% if user.is_superuser or user.profile.role == "admin" %}
+      <a href="/admin/accounts/user/" class="ap-action-btn">
+        <span class="ap-action-icon" style="background:#f5f4f2">⚙️</span>
+        Пользователи и роли
+      </a>
+      {% endif %}
+    </div>
+
+    {% if user.is_superuser or user.profile.role == "admin" %}
+    <a href="/admin/" class="ap-django-link">Django admin →</a>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

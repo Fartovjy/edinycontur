@@ -1,6 +1,15 @@
+from pathlib import Path
+from uuid import uuid4
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+
+def upload_attachment_path(instance, filename):
+    extension = Path(filename).suffix.lower()
+    request_id = instance.request_id or "pending"
+    return f"attachments/{request_id}/{uuid4().hex}{extension}"
 
 
 class Attachment(models.Model):
@@ -20,7 +29,7 @@ class Attachment(models.Model):
     ]
 
     request = models.ForeignKey("logistics.LogisticsRequest", on_delete=models.CASCADE, related_name="attachments", verbose_name="Заявка")
-    file = models.FileField("Файл", upload_to="attachments/%Y/%m/")
+    file = models.FileField("Файл", upload_to=upload_attachment_path)
     file_type = models.CharField("Тип файла", max_length=32, choices=FILE_TYPE_CHOICES, default=OTHER)
     description = models.TextField("Описание", blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="attachments", verbose_name="Загрузил")

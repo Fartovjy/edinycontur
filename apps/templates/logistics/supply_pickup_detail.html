@@ -1,0 +1,150 @@
+{% extends "logistics/base.html" %}
+{% block title %}{{ pickup.request_number }} — забор - Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'supply_pickup_list' %}" class="btn btn-outline-secondary btn-sm">← Назад</a>
+  <h1 class="h4 mb-0">Забор {{ pickup.request_number }}</h1>
+  {% if pickup.status == STATUS_PENDING %}
+    <span class="badge ms-1" style="background:#fef9ec;color:#b45309;border:1px solid #fbbf24">Новая</span>
+  {% elif pickup.status == STATUS_TRANSPORT_ASSIGNED %}
+    <span class="badge ms-1" style="background:#e0f2fe;color:#0284c7;border:1px solid #7dd3fc">Транспорт назначен</span>
+  {% else %}
+    <span class="badge ms-1" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Доставлено на склад</span>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+
+  <!-- Основная информация -->
+  <div class="col-12 col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-uppercase fw-semibold mb-3" style="color:var(--ek-muted);letter-spacing:.05em">Основная информация</h2>
+        <dl class="row g-0 mb-0" style="font-size:.9rem">
+          <dt class="col-5 text-muted fw-normal">Поставщик</dt>
+          <dd class="col-7 fw-semibold mb-2">{{ pickup.supplier }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Дата забора</dt>
+          <dd class="col-7 fw-semibold mb-2">{{ pickup.pickup_date|date:"d.m.Y"|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Вес, кг</dt>
+          <dd class="col-7 mb-2">{{ pickup.weight_kg|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Создал</dt>
+          <dd class="col-7 mb-2 text-muted small">{{ pickup.created_by.get_full_name|default:pickup.created_by.username|default:"—" }}, {{ pickup.created_at|date:"d.m.Y H:i" }}</dd>
+
+          {% if pickup.logistics_request %}
+          <dt class="col-5 text-muted fw-normal">Заявка клиента</dt>
+          <dd class="col-7 mb-2">
+            <a href="{{ pickup.logistics_request.get_absolute_url }}">
+              {{ pickup.logistics_request.request_number }} — {{ pickup.logistics_request.client_name }}
+            </a>
+          </dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Перечень товаров -->
+  <div class="col-12 col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h2 class="h6 text-uppercase fw-semibold mb-3" style="color:var(--ek-muted);letter-spacing:.05em">Перечень товаров</h2>
+        {% if pickup.cargo_notes %}
+          <p style="white-space:pre-wrap;font-size:.9rem;margin-bottom:0">{{ pickup.cargo_notes }}</p>
+        {% else %}
+          <p class="text-muted small mb-0">Перечень не указан</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Транспорт -->
+  <div class="col-12 col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 text-uppercase fw-semibold mb-3" style="color:var(--ek-muted);letter-spacing:.05em">Транспорт</h2>
+        <dl class="row g-0 mb-0" style="font-size:.9rem">
+          <dt class="col-5 text-muted fw-normal">Автомобиль</dt>
+          <dd class="col-7 fw-semibold mb-2">{{ pickup.assigned_vehicle|default:"Не назначен" }}</dd>
+
+          <dt class="col-5 text-muted fw-normal">Водитель</dt>
+          <dd class="col-7 fw-semibold mb-2">{{ pickup.assigned_driver|default:"Не назначен" }}</dd>
+
+          {% if pickup.odometer_km %}
+          <dt class="col-5 text-muted fw-normal">Пробег (факт)</dt>
+          <dd class="col-7 mb-2">{{ pickup.odometer_km|floatformat:0 }} км</dd>
+          {% endif %}
+        </dl>
+
+        {% if pickup.status != STATUS_DELIVERED %}
+          {% if user.is_superuser or role == "admin" or role == "transport" %}
+          <hr class="my-3">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign_transport">
+            <div class="row g-2 mb-2">
+              {% for field in assign_form %}
+              <div class="col-12 col-sm-6">
+                <label class="form-label small fw-semibold">{{ field.label }}</label>
+                {{ field }}
+              </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Назначить транспорт</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Режим водителя -->
+  {% if pickup.status == STATUS_TRANSPORT_ASSIGNED %}
+    {% if user.is_superuser or role == "admin" or role == "transport" or role == "driver" %}
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase fw-semibold mb-3" style="color:var(--ek-muted);letter-spacing:.05em">Режим водителя</h2>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="driver_delivered">
+            <label class="form-label fw-semibold" for="drv-odo-pickup">Показания одометра, км</label>
+            <div class="input-group mb-2">
+              <input type="number" class="form-control drv-odo-input" id="drv-odo-pickup"
+                     name="odometer_km" min="1" step="1"
+                     placeholder="Введите текущий пробег">
+              {% if pickup.assigned_vehicle and pickup.assigned_vehicle.odometer_km %}
+              <span class="input-group-text text-muted" style="font-size:.8rem">
+                был {{ pickup.assigned_vehicle.odometer_km|floatformat:0 }} км
+              </span>
+              {% endif %}
+            </div>
+            <div class="form-text mb-2">Заполните пробег, чтобы активировать кнопку.</div>
+            <button class="btn btn-success w-100 drv-delivered-submit" type="submit" disabled>
+              ✓ &nbsp;Товар доставлен на склад
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+
+</div>
+<script>
+(function () {
+  document.querySelectorAll('.drv-odo-input').forEach(function (inp) {
+    function sync() {
+      var v = parseInt(inp.value, 10);
+      var ok = !isNaN(v) && v > 0;
+      var form = inp.closest('form');
+      if (form) form.querySelectorAll('.drv-delivered-submit').forEach(function (btn) { btn.disabled = !ok; });
+    }
+    inp.addEventListener('input', sync);
+    sync();
+  });
+})();
+</script>
+{% endblock %}

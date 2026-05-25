@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 import zipfile
 from datetime import timedelta
@@ -16,6 +17,7 @@ from .models import LogisticsRequest
 
 ARCHIVE_FOLDER_NAME = "archives"
 WORK_FOLDER_NAME = "archive_work"
+logger = logging.getLogger(__name__)
 
 
 def _json_default(value):
@@ -226,6 +228,9 @@ def archive_requests_for_date(target_date):
             source_path.unlink(missing_ok=True)
 
         return {"date": target_date, "requests": len(requests), "archive": zip_path}
+    except Exception:
+        logger.exception("Failed to archive requests for date %s", target_date)
+        raise
     finally:
         if work_folder.exists():
             shutil.rmtree(work_folder)

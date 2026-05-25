@@ -2,112 +2,283 @@
 {% block title %}{{ request_obj.request_number }} - Единый Контур{% endblock %}
 {% block content %}
 <style>
-  .request-detail-page .card-body {
-    font-weight: 600;
+  /* ── Progress stepper ────────────────────────── */
+  .stepper {
+    display: flex;
+    align-items: flex-start;
   }
-  .request-detail-page .text-muted,
-  .request-detail-page .form-text,
-  .request-detail-page label,
-  .request-detail-page th {
-    font-weight: 400;
+  .step-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
   }
-  .request-detail-page h2,
-  .request-detail-page .fw-semibold,
-  .request-detail-page .btn,
-  .request-detail-page .badge {
-    font-weight: 700;
-  }
-  .workflow-chain {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .35rem;
-    align-items: stretch;
-  }
-  .workflow-step {
+  .step-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2.5px solid var(--ek-border);
+    background: var(--ek-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: .95rem;
+    color: var(--ek-muted);
     position: relative;
-    border: 1px solid transparent;
-    border-radius: 0;
-    background: #fff;
-    padding: .75rem 2rem .75rem 1rem;
-    min-height: 64px;
-    clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 50%, calc(100% - 24px) 100%, 0 100%);
+    z-index: 1;
+    flex-shrink: 0;
   }
-  .workflow-step:last-child {
-    border-radius: 0 .5rem .5rem 0;
-    clip-path: none;
-    padding-right: 1rem;
+  .step-circle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .step-item.s-done .step-circle {
+    border-color: var(--green);
+    background: var(--green);
+    color: #fff;
   }
-  .workflow-step:first-child {
-    border-radius: .5rem 0 0 .5rem;
+  .step-item.s-active .step-circle {
+    border-color: var(--amber);
+    background: var(--amber);
+    color: var(--brown-darkest);
+    box-shadow: 0 0 0 5px rgba(245,158,11,.22);
   }
-  .workflow-step.active {
-    border-color: #0d6efd;
-    background: #eef5ff;
+  /* Arrow connector */
+  .step-arrow {
+    display: flex;
+    align-items: center;
+    padding-top: 11px;
+    flex-shrink: 0;
+    color: var(--ek-border);
   }
-  .workflow-step.done {
-    border-color: #198754;
-    background: #effaf3;
+  .step-arrow.s-done { color: var(--green); }
+  .step-arrow svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
+  /* Step labels */
+  .step-label {
+    margin-top: .6rem;
+    text-align: center;
+    padding: 0 .2rem;
   }
+  .step-num {
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ek-muted);
+    margin-bottom: .12rem;
+  }
+  .step-item.s-done .step-num  { color: var(--green-dark); opacity: .75; }
+  .step-item.s-active .step-num { color: var(--amber-darker); }
+  .step-title {
+    font-weight: 700;
+    font-size: .875rem;
+    color: var(--ek-muted);
+    line-height: 1.2;
+  }
+  .step-item.s-done   .step-title { color: var(--green-dark); }
+  .step-item.s-active .step-title { color: var(--brown-darkest); font-size: 1rem; font-weight: 800; }
+  .step-date {
+    font-size: .72rem;
+    color: var(--ek-muted);
+    margin-top: .18rem;
+  }
+  .step-item.s-done   .step-date { color: var(--green-dark); opacity: .7; }
+  .step-item.s-active .step-date { color: var(--brown-mid); font-weight: 500; }
+  @media (max-width: 479.98px) {
+    .step-num { display: none; }
+    .step-title { font-size: .75rem; }
+    .step-arrow svg { width: 15px; height: 15px; }
+  }
+
+  /* ── Info grid ────────────────────────────────── */
   .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: .85rem 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem 1.5rem;
   }
-  .info-grid .info-item-wide {
-    grid-column: 1 / -1;
-  }
+  .info-grid .info-item-wide { grid-column: 1 / -1; }
   .info-label {
-    color: #6c757d;
-    font-size: .875rem;
-    font-weight: 400;
+    color: var(--ek-muted);
+    font-size: .78rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .2rem;
   }
   .info-value {
-    font-weight: 700;
-    line-height: 1.25;
+    font-weight: 600;
+    font-size: .9375rem;
+    line-height: 1.3;
+    color: var(--ek-text);
   }
+
+  /* ── Layout grids ─────────────────────────────── */
   .top-card-grid {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr) minmax(220px, 1fr);
     gap: 1rem;
   }
+  /* Cargo items table */
+  .cargo-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+  }
+  .cargo-items-table th {
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ek-muted);
+    padding: .4rem .75rem;
+    border-bottom: 1px solid var(--ek-border);
+    background: var(--brown-faint);
+    white-space: nowrap;
+  }
+  .cargo-items-table td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--ek-border);
+    vertical-align: middle;
+  }
+  .cargo-items-table tr:last-child td { border-bottom: none; }
+  .cargo-items-table .ci-name { font-weight: 500; line-height: 1.35; }
+  .cargo-items-table .ci-qty  { color: var(--ek-muted); font-size: .82rem; white-space: nowrap; }
+  /* Supply toggle — same style as driver/vehicle toggles */
+  .ci-toggle-wrap .form-check { padding-left: 0; min-height: 0; display: inline-flex; align-items: center; gap: .4rem; }
+  .ci-toggle-wrap .form-check-input { float: none; margin: 0; width: 2.2em; height: 1.2em; cursor: pointer; flex-shrink: 0; }
+  /* needs_supply = off → muted row */
+  .ci-row-nosupply .ci-name { color: var(--ek-muted); }
+  .ci-row-nosupply .ci-qty  { color: var(--ek-border); }
+  .transport-action-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(200px, 1fr);
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .transport-assignment-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+  }
+  .transport-stats {
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius-sm);
+    padding: 1rem 1.1rem;
+    background: var(--brown-faint);
+  }
+
+  /* ── Dates card ───────────────────────────────── */
   .dates-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: .75rem;
+    gap: .85rem;
   }
   .service-dates {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: .5rem;
-    border-top: 1px solid #edf0f5;
-    padding-top: .65rem;
-    margin-top: .2rem;
+    border-top: 1px solid var(--ek-border);
+    padding-top: .75rem;
+    margin-top: .15rem;
   }
-  .service-dates .info-label {
-    font-size: .72rem;
-  }
+  .service-dates .info-label { font-size: .7rem; }
   .service-dates .info-value {
-    color: #6c757d;
-    font-size: .78rem;
+    color: var(--ek-muted);
+    font-size: .8rem;
     font-weight: 600;
   }
+
+  /* ── Phone link ───────────────────────────────── */
+  .phone-link { color: var(--ek-primary); text-decoration: none; }
+  .phone-link:hover { text-decoration: underline; }
+
+  /* ── Problem cards ────────────────────────────── */
+  .problem-card {
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius-sm);
+    padding: 1rem 1.1rem;
+    background: var(--ek-surface);
+  }
+  .problem-card.problem-open {
+    border-color: #fca5a5;
+    background: #fff5f5;
+  }
+
   @media (max-width: 767.98px) {
-    .workflow-chain {
-      grid-template-columns: 1fr;
+    .stepper { flex-wrap: wrap; gap: .5rem; }
+    .step-arrow { display: none; }
+    .step-item { flex: 0 0 calc(33% - .4rem); }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+    .top-card-grid,
+    .transport-assignment-fields { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 479.98px) {
+    .info-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Driver address link (all breakpoints) ──────────── */
+  .drv-addr-link {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: .4rem;
+    color: #0284c7;
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1.4;
+  }
+  .drv-addr-link svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: .15rem; }
+  .drv-addr-link:hover { text-decoration: underline; }
+
+  /* ── Driver mobile action bar ────────────────────── */
+  .drv-bar { display: none; }
+  @media (max-width: 767.98px) {
+    .drv-bar {
+      display: block;
+      background: var(--ek-surface);
+      border: 1px solid var(--ek-border);
+      border-radius: var(--ek-radius);
+      box-shadow: var(--ek-shadow-sm);
+      overflow: hidden;
+      margin-bottom: 1rem;
     }
-    .workflow-step,
-    .workflow-step:first-child,
-    .workflow-step:last-child {
-      border-radius: .5rem;
-      clip-path: none;
-      padding-right: 1rem;
+    /* Big delivered button */
+    .drv-delivered-btn {
+      width: 100%;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 1.1rem 1rem;
+      border-radius: 0;
+      letter-spacing: .01em;
+      border: none;
     }
-    .info-grid {
-      grid-template-columns: 1fr;
+    /* Quick action row */
+    .drv-quick {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid var(--ek-border);
     }
-    .top-card-grid {
-      grid-template-columns: 1fr;
+    .drv-quick a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: .85rem 1rem;
+      font-weight: 700;
+      font-size: .95rem;
+      text-decoration: none;
+      border-bottom: 1px solid var(--ek-border);
+      color: var(--ek-text);
+      background: var(--ek-surface);
+      transition: background .1s;
     }
+    .drv-quick a:last-child { border-bottom: none; }
+    .drv-quick a:active { background: var(--ek-bg); }
+    .drv-quick a svg { width: 18px; height: 18px; stroke: currentColor; fill: none; flex-shrink: 0; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .drv-quick .drv-call { color: #15803d; }
+    .drv-quick .drv-call-op { color: var(--brown-mid); }
+    .drv-quick .drv-maps { color: #0284c7; }
+
+    /* Hide stepper on very small screens for drivers */
+    .drv-hide-sm { display: none; }
   }
 </style>
 
@@ -120,35 +291,114 @@
     </span>
   </div>
   <div class="d-flex flex-wrap gap-2 align-self-lg-start">
-    <a class="btn btn-outline-secondary" href="{% url 'request_list' %}">К списку</a>
+    <a class="btn btn-outline-secondary" href="{{ back_url }}">Назад</a>
     {% if user.is_superuser or user.profile.role == "admin" %}
       <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
     {% elif request_obj.status != "delivered" and request_obj.status != "closed" and request_obj.status != "cancelled" and user.profile.role == "operator" %}
-      <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
-    {% elif request_obj.status != "delivered" and request_obj.status != "closed" and request_obj.status != "cancelled" and user.profile.role == "manager" %}
       <a class="btn btn-outline-primary" href="{% url 'request_edit' request_obj.pk %}">Редактировать</a>
     {% endif %}
   </div>
 </div>
 
+{% if user.profile.role == "driver" or user.profile.role == "viewer" %}
+<div class="drv-bar">
+  {% if request_obj.assigned_driver and request_obj.assigned_driver.user_id == user.id and request_obj.status != "delivered" and request_obj.status != "closed" and request_obj.status != "cancelled" %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="driver_delivered">
+      <div style="display:flex;gap:.5rem;padding:.75rem 1rem .6rem;align-items:center;border-bottom:1px solid var(--ek-border)">
+        <div style="flex:1;min-width:0">
+          <label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ek-muted);display:block;margin-bottom:.2rem">Одометр, км</label>
+          <input type="number" class="form-control form-control-sm drv-odo-input" name="odometer_km"
+                 min="1" step="1" placeholder="Введите пробег"
+                 style="font-weight:700">
+        </div>
+        <button class="btn btn-success drv-delivered-submit" type="submit" disabled
+                style="flex-shrink:0;font-weight:800;padding:.55rem 1.1rem;white-space:nowrap">
+          ✓ &nbsp;Доставлено
+        </button>
+      </div>
+    </form>
+  {% endif %}
+  <div class="drv-quick">
+    {% if driver_contact_phones.client.href %}
+      <a href="tel:{{ driver_contact_phones.client.href }}" class="drv-call">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012.07 0h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.16-1.16a2 2 0 012.11-.45c.94.35 1.92.59 2.92.72A2 2 0 0122 16.92z"/></svg>
+        Позвонить клиенту &nbsp;<span style="font-weight:400;font-size:.85rem;opacity:.7">{{ driver_contact_phones.client.label }}</span>
+      </a>
+    {% endif %}
+    {% if driver_contact_phones.operator.href %}
+      <a href="tel:{{ driver_contact_phones.operator.href }}" class="drv-call-op">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012.07 0h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.16-1.16a2 2 0 012.11-.45c.94.35 1.92.59 2.92.72A2 2 0 0122 16.92z"/></svg>
+        Позвонить оператору &nbsp;<span style="font-weight:400;font-size:.85rem;opacity:.7">{{ driver_contact_phones.operator.label }}</span>
+      </a>
+    {% endif %}
+    {% if request_obj.client_address %}
+      <a href="https://yandex.ru/maps/?text={{ request_obj.client_address|urlencode }}" target="_blank" class="drv-maps">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Открыть адрес на карте
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <div class="workflow-chain" aria-label="Маршрут заявки">
-      <div class="workflow-step {% if request_obj.status == 'waiting_supply' or request_obj.status == 'waiting_arrival' %}active{% elif request_obj.status != 'created' %}done{% endif %}">
-        <div class="text-muted small">Этап 1</div>
-        <div>Отдел снабжения</div>
-        <div class="small text-muted">{{ request_obj.supply_eta_date|date:"d.m.Y"|default:"Дата поставки не указана" }}</div>
+    <div class="stepper" aria-label="Маршрут заявки">
+
+      {# ── Step 1: Снабжение ── #}
+      <div class="step-item {% if request_obj.status == 'created' or request_obj.status == 'waiting_supply' or request_obj.status == 'waiting_arrival' %}s-active{% else %}s-done{% endif %}">
+        <div class="step-circle">
+          {% if request_obj.status != 'created' and request_obj.status != 'waiting_supply' and request_obj.status != 'waiting_arrival' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          {% else %}1{% endif %}
+        </div>
+        <div class="step-label">
+          <div class="step-num">Этап 1</div>
+          <div class="step-title">Снабжение</div>
+          <div class="step-date">{{ request_obj.supply_eta_date|date:"d.m.Y"|default:"—" }}</div>
+        </div>
       </div>
-      <div class="workflow-step {% if request_obj.status == 'in_warehouse' or request_obj.status == 'cz_check' or request_obj.status == 'ready_to_ship' %}active{% elif request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' or request_obj.status == 'delivered' or request_obj.status == 'closed' %}done{% endif %}">
-        <div class="text-muted small">Этап 2</div>
-        <div>Склад</div>
-        <div class="small text-muted">{{ request_obj.planned_ship_date|date:"d.m.Y"|default:"Дата отгрузки не указана" }}</div>
+
+      {# ── Connector 1 → 2 ── #}
+      <div class="step-arrow {% if request_obj.status != 'created' and request_obj.status != 'waiting_supply' and request_obj.status != 'waiting_arrival' %}s-done{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
-      <div class="workflow-step {% if request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' %}active{% elif request_obj.status == 'delivered' or request_obj.status == 'closed' %}done{% endif %}">
-        <div class="text-muted small">Этап 3</div>
-        <div>Доставка</div>
-        <div class="small text-muted">{{ request_obj.planned_delivery_date|date:"d.m.Y"|default:"Дата доставки не указана" }}</div>
+
+      {# ── Step 2: Склад ── #}
+      <div class="step-item {% if request_obj.status == 'in_warehouse' or request_obj.status == 'cz_check' or request_obj.status == 'ready_to_ship' %}s-active{% elif request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' or request_obj.status == 'delivered' or request_obj.status == 'closed' %}s-done{% else %}s-pending{% endif %}">
+        <div class="step-circle">
+          {% if request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' or request_obj.status == 'delivered' or request_obj.status == 'closed' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          {% else %}2{% endif %}
+        </div>
+        <div class="step-label">
+          <div class="step-num">Этап 2</div>
+          <div class="step-title">Склад</div>
+          <div class="step-date">{{ request_obj.planned_ship_date|date:"d.m.Y"|default:"—" }}</div>
+        </div>
       </div>
+
+      {# ── Connector 2 → 3 ── #}
+      <div class="step-arrow {% if request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' or request_obj.status == 'delivered' or request_obj.status == 'closed' %}s-done{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      {# ── Step 3: Доставка ── #}
+      <div class="step-item {% if request_obj.status == 'transport_assigned' or request_obj.status == 'shipped' or request_obj.status == 'in_transit' %}s-active{% elif request_obj.status == 'delivered' or request_obj.status == 'closed' %}s-done{% else %}s-pending{% endif %}">
+        <div class="step-circle">
+          {% if request_obj.status == 'delivered' or request_obj.status == 'closed' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          {% else %}3{% endif %}
+        </div>
+        <div class="step-label">
+          <div class="step-num">Этап 3</div>
+          <div class="step-title">Доставка</div>
+          <div class="step-date">{{ request_obj.planned_delivery_date|date:"d.m.Y"|default:"—" }}</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -156,18 +406,38 @@
 <div class="request-detail-page row g-3">
   <div class="col-12">
     <div class="top-card-grid mb-3">
+      <!-- Col 1: Клиент / Адрес / Описание -->
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <h2 class="h5 mb-3">Основная информация</h2>
           <div class="info-grid">
-            <div>
+            <div class="info-item-wide">
               <div class="info-label">Клиент</div>
               <div class="info-value">{{ request_obj.client_name }}</div>
             </div>
-            <div>
-              <div class="info-label">Статус</div>
-              <div class="info-value">{{ request_obj.get_status_display }}</div>
+            <div class="info-item-wide">
+              <div class="info-label">Адрес / GPS</div>
+              <div class="info-value">
+                {% if request_obj.client_address and user.profile.role == "driver" or request_obj.client_address and user.profile.role == "viewer" %}
+                  <a href="https://yandex.ru/maps/?text={{ request_obj.client_address|urlencode }}"
+                     target="_blank" class="drv-addr-link">
+                    <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ request_obj.client_address }}
+                  </a>
+                {% else %}
+                  {{ request_obj.client_address|default:"-" }}
+                {% endif %}
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 2: Транспорт и груз -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Транспорт и груз</h2>
+          <div class="info-grid">
             <div>
               <div class="info-label">Водитель</div>
               <div class="info-value">{{ request_obj.assigned_driver|default:"Не назначен" }}</div>
@@ -176,18 +446,19 @@
               <div class="info-label">Автомобиль</div>
               <div class="info-value">{{ request_obj.assigned_vehicle|default:"Не назначен" }}</div>
             </div>
-            <div class="info-item-wide">
-              <div class="info-label">Адрес</div>
-              <div class="info-value">{{ request_obj.client_address|default:"-" }}</div>
+            <div>
+              <div class="info-label">Вес груза</div>
+              <div class="info-value">{% if request_obj.cargo_weight_kg %}{{ request_obj.cargo_weight_kg }} кг{% else %}—{% endif %}</div>
             </div>
-            <div class="info-item-wide">
-              <div class="info-label">Описание груза</div>
-              <div class="info-value">{{ request_obj.cargo_description }}</div>
+            <div>
+              <div class="info-label">Мест / Объём</div>
+              <div class="info-value">{{ request_obj.cargo_places_count }} шт{% if request_obj.cargo_volume_m3 %} · {{ request_obj.cargo_volume_m3 }} м³{% endif %}</div>
             </div>
           </div>
         </div>
       </div>
 
+      <!-- Col 3: Даты -->
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <h2 class="h5 mb-3">Даты</h2>
@@ -217,41 +488,185 @@
           </div>
         </div>
       </div>
+
     </div>
 
-    {% if user.profile.role == "supply" %}
-      <div class="top-card-grid mb-3">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h2 class="h5 mb-3">Действия</h2>
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="supply_date">
-              <label class="form-label fw-semibold" for="supply_eta_date">Дата поступления</label>
-              <input class="form-control" id="supply_eta_date" name="supply_eta_date" type="date" value="{{ request_obj.supply_eta_date|date:'Y-m-d' }}" onchange="this.form.submit()" required>
-            </form>
-          </div>
-        </div>
+    <!-- ── Перечень товаров — на всю ширину ─────────────────────── -->
+    <div class="card border-0 shadow-sm mb-3" id="cargo-items-section">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Перечень товаров</h2>
+        {% if cargo_items %}
+          <table class="cargo-items-table">
+            <thead>
+              <tr>
+                <th style="width:2rem">№</th>
+                <th>Наименование</th>
+                <th style="width:120px">Количество</th>
+                <th style="width:110px;text-align:center">К обеспечению</th>
+                <th style="width:110px;text-align:center">Честный Знак</th>
+                <th style="width:160px">Дата поступления</th>
+                <th style="width:130px;text-align:center">Оприходовано</th>
+                {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+                <th style="width:2rem"></th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in cargo_items %}
+              <tr class="{% if not item.needs_supply %}ci-row-nosupply{% endif %}" id="ci-row-{{ item.pk }}">
+                <td class="text-muted" style="font-size:.82rem">{{ forloop.counter }}</td>
+                <td><div class="ci-name">{{ item.name }}</div></td>
+                <td><div class="ci-qty">{{ item.qty|default:"—" }}</div></td>
 
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h2 class="h5 mb-3">Честный Знак</h2>
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="supply_cz">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="cz_required" id="cz_required_yes" value="yes" onchange="this.form.submit()" {% if request_obj.cz_required %}checked{% endif %}>
-                <label class="form-check-label" for="cz_required_yes">Да</label>
+                <!-- К обеспечению -->
+                <td style="text-align:center">
+                  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+                  <div class="ci-toggle-wrap">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input ci-supply-toggle" type="checkbox"
+                             data-pk="{{ item.pk }}" data-req="{{ request_obj.pk }}"
+                             {% if item.needs_supply %}checked{% endif %}>
+                    </div>
+                  </div>
+                  {% else %}
+                    {% if item.needs_supply %}<span class="badge" style="background:#0284c7;color:#fff">Да</span>
+                    {% else %}<span class="text-muted small">—</span>{% endif %}
+                  {% endif %}
+                </td>
+
+                <!-- Честный Знак -->
+                <td style="text-align:center">
+                  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "supply" %}
+                  <div class="ci-toggle-wrap">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input ci-cz-toggle" type="checkbox"
+                             data-pk="{{ item.pk }}" data-req="{{ request_obj.pk }}"
+                             {% if item.needs_cz %}checked{% endif %}>
+                    </div>
+                  </div>
+                  {% else %}
+                    {% if item.needs_cz %}<span class="badge" style="background:#7c3aed;color:#fff">ЧЗ</span>
+                    {% else %}<span class="text-muted small">—</span>{% endif %}
+                  {% endif %}
+                </td>
+
+                <!-- Дата поступления -->
+                <td>
+                  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "supply" %}
+                  <input type="date" class="form-control form-control-sm ci-supply-date"
+                         data-pk="{{ item.pk }}" data-req="{{ request_obj.pk }}"
+                         data-item-name="{{ item.name|escapejs }}"
+                         value="{{ item.supply_date|date:'Y-m-d' }}"
+                         style="min-width:130px">
+                  {% else %}
+                    <span class="ci-qty">{{ item.supply_date|date:"d.m.Y"|default:"—" }}</span>
+                  {% endif %}
+                </td>
+
+                <!-- Оприходовано -->
+                <td style="text-align:center" id="ci-stocked-cell-{{ item.pk }}">
+                  {% if not item.needs_supply %}
+                    {# Товар без обеспечения — всегда на складе #}
+                    <span class="badge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.72rem">На складе</span>
+                  {% elif user.is_superuser or user.profile.role == "admin" or user.profile.role == "warehouse" %}
+                    <div class="ci-toggle-wrap">
+                      <div class="form-check form-switch d-flex align-items-center justify-content-center gap-1 mb-0">
+                        <input class="form-check-input ci-stocked-toggle" type="checkbox"
+                               id="ci-stocked-{{ item.pk }}"
+                               data-pk="{{ item.pk }}" data-req="{{ request_obj.pk }}"
+                               {% if item.is_stocked %}checked{% endif %}
+                               style="cursor:pointer">
+                        <label class="form-check-label mb-0" for="ci-stocked-{{ item.pk }}"
+                               style="font-size:.72rem;color:{% if item.is_stocked %}#15803d{% else %}var(--ek-muted){% endif %};cursor:pointer;white-space:nowrap">
+                          {% if item.is_stocked %}Да{% else %}Нет{% endif %}
+                        </label>
+                      </div>
+                    </div>
+                  {% else %}
+                    {% if item.is_stocked %}
+                      <span class="badge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.72rem">Да</span>
+                    {% else %}
+                      <span class="text-muted small">—</span>
+                    {% endif %}
+                  {% endif %}
+                </td>
+
+                {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+                <td>
+                  <form method="post" action="{% url 'cargo_item_delete' request_obj.pk item.pk %}" class="d-inline m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Удалить" onclick="return confirm('Удалить позицию?')">✕</button>
+                  </form>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="text-muted small mb-3">Товары не добавлены</p>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- ── Наблюдатели ────────────────────────────────────────────── -->
+    {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Наблюдатели</h2>
+        {% if current_viewers %}
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for viewer in current_viewers %}
+              <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:var(--ek-bg);border:1px solid var(--ek-border);font-size:.875rem;">
+                <span>{{ viewer.get_full_name|default:viewer.username }}</span>
+                <form method="post" class="d-inline m-0">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="remove_viewer">
+                  <input type="hidden" name="viewer_user_id" value="{{ viewer.pk }}">
+                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="line-height:1;" title="Удалить">✕</button>
+                </form>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="cz_required" id="cz_required_no" value="no" onchange="this.form.submit()" {% if not request_obj.cz_required %}checked{% endif %}>
-                <label class="form-check-label" for="cz_required_no">Нет</label>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted small mb-3">Наблюдатели не добавлены</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if user.profile.role == "driver" %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Контакты</h2>
+          <div class="info-grid">
+            <div>
+              <div class="info-label">Телефон оператора</div>
+              <div class="info-value">
+                {% if driver_contact_phones.operator.href %}
+                  <a class="phone-link" href="tel:{{ driver_contact_phones.operator.href }}">{{ driver_contact_phones.operator.label }}</a>
+                {% else %}
+                  -
+                {% endif %}
               </div>
-            </form>
+            </div>
+            <div>
+              <div class="info-label">Телефон клиента</div>
+              <div class="info-value">
+                {% if driver_contact_phones.client.href %}
+                  <a class="phone-link" href="tel:{{ driver_contact_phones.client.href }}">{{ driver_contact_phones.client.label }}</a>
+                {% else %}
+                  -
+                {% endif %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    {% elif user.is_superuser or user.profile.role == "admin" or user.profile.role == "transport" or user.profile.role == "warehouse" or user.profile.role == "driver" %}
+    {% endif %}
+
+    {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "transport" or user.profile.role == "warehouse" or user.profile.role == "driver" %}
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
           {% if user.profile.role == "driver" %}
@@ -279,56 +694,93 @@
             {% endif %}
 
             {% if user.profile.role == "transport" %}
-              <div class="col-12 col-lg-4">
+              <div class="col-12">
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="assign_transport">
-                  <label class="form-label fw-semibold" for="assigned_vehicle_transport">Машина</label>
-                  <select class="form-select mb-2" id="assigned_vehicle_transport" name="assigned_vehicle" required>
-                    <option value="">Выберите машину</option>
-                    {% for vehicle in vehicles %}
-                      <option value="{{ vehicle.id }}" {% if request_obj.assigned_vehicle_id == vehicle.id %}selected{% endif %}>{{ vehicle }}</option>
-                    {% endfor %}
-                  </select>
-                  <label class="form-label fw-semibold" for="assigned_driver_transport">Водитель</label>
-                  <select class="form-select mb-2" id="assigned_driver_transport" name="assigned_driver" required>
-                    <option value="">Выберите водителя</option>
-                    {% for driver in drivers %}
-                      <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
-                    {% endfor %}
-                  </select>
-                  <label class="form-label fw-semibold" for="planned_ship_date_transport">Дата отправки</label>
-                  <input class="form-control mb-2" id="planned_ship_date_transport" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
-                  <button class="btn btn-primary w-100" type="submit">Назначить транспорт</button>
+                  <div class="transport-assignment-fields">
+                    <div>
+                      <label class="form-label fw-semibold" for="assigned_vehicle_transport">Машина</label>
+                      <select class="form-select" id="assigned_vehicle_transport" name="assigned_vehicle" required>
+                        <option value="">Выберите машину</option>
+                        {% for vehicle in vehicles %}
+                          <option value="{{ vehicle.id }}" {% if request_obj.assigned_vehicle_id == vehicle.id %}selected{% endif %}>{{ vehicle }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label fw-semibold" for="assigned_driver_transport">Водитель</label>
+                      <select class="form-select" id="assigned_driver_transport" name="assigned_driver" required>
+                        <option value="">Выберите водителя</option>
+                        {% for driver in drivers %}
+                          <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label fw-semibold" for="planned_ship_date_transport">Дата отправки</label>
+                      <input class="form-control" id="planned_ship_date_transport" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
+                    </div>
+                  </div>
+                  <button class="btn btn-primary mt-3" type="submit">Назначить транспорт</button>
                 </form>
               </div>
             {% endif %}
 
             {% if user.profile.role == "warehouse" %}
               <div class="col-12 col-lg-4">
-                <form method="post">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="warehouse_status">
-                  <label class="form-label fw-semibold" for="planned_ship_date_warehouse">Дата отгрузки</label>
-                  <input class="form-control mb-2" id="planned_ship_date_warehouse" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
-                  <label class="form-label fw-semibold" for="warehouse_status">Складской статус</label>
-                  <select class="form-select mb-2" id="warehouse_status" name="new_status" required>
-                    <option value="">Выберите статус</option>
-                    {% for status, label in warehouse_statuses %}
-                      <option value="{{ status }}" {% if request_obj.status == status %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                  <button class="btn btn-primary w-100" type="submit">Обновить статус</button>
-                </form>
+                {% if request_obj.status == "waiting_arrival" %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="warehouse_receive">
+                    <div class="form-check mb-2">
+                      <input class="form-check-input" id="goods_received" name="goods_received" type="checkbox" required>
+                      <label class="form-check-label fw-semibold" for="goods_received">Товар принят</label>
+                    </div>
+                    {% if request_obj.cz_required %}
+                      <div class="form-check mb-3">
+                        <input class="form-check-input" id="cz_checked_warehouse" name="cz_checked" type="checkbox" required>
+                        <label class="form-check-label fw-semibold" for="cz_checked_warehouse">Честный знак соответствует</label>
+                      </div>
+                    {% endif %}
+                    <button class="btn btn-primary w-100" type="submit">Подтвердить поступление</button>
+                  </form>
+                {% elif request_obj.status == "transport_assigned" %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="warehouse_ship">
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" id="goods_shipped" name="goods_shipped" type="checkbox" required>
+                      <label class="form-check-label fw-semibold" for="goods_shipped">Товар отгружен</label>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Подтвердить отгрузку</button>
+                  </form>
+                {% else %}
+                  <div class="text-muted">Для текущего статуса складских действий нет.</div>
+                {% endif %}
               </div>
             {% endif %}
 
             {% if user.profile.role == "driver" and request_obj.assigned_driver.user_id == user.id and request_obj.status != "delivered" %}
-              <div class="col-12 col-lg-4">
+              <div class="col-12 col-lg-5">
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="driver_delivered">
-                  <button class="btn btn-success w-100" type="submit">Доставлено</button>
+                  <label class="form-label fw-semibold" for="driver-odo-km">Показания одометра, км</label>
+                  <div class="input-group mb-2">
+                    <input type="number" class="form-control drv-odo-input" id="driver-odo-km"
+                           name="odometer_km" min="1" step="1"
+                           placeholder="Введите текущий пробег">
+                    {% if request_obj.assigned_vehicle and request_obj.assigned_vehicle.odometer_km %}
+                    <span class="input-group-text text-muted" style="font-size:.8rem">
+                      был {{ request_obj.assigned_vehicle.odometer_km|floatformat:0 }} км
+                    </span>
+                    {% endif %}
+                  </div>
+                  <div class="form-text mb-2">Заполните пробег, чтобы активировать кнопку.</div>
+                  <button class="btn btn-success w-100 drv-delivered-submit" type="submit" disabled>
+                    ✓ &nbsp;Доставлено
+                  </button>
                 </form>
               </div>
             {% endif %}
@@ -337,6 +789,7 @@
       </div>
     {% endif %}
 
+
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
         <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
@@ -344,13 +797,15 @@
             <h2 class="h5 mb-0">Файлы</h2>
             <div class="text-muted small">PDF, JPG, PNG, WEBP</div>
           </div>
+          {% if user.profile.role != "viewer" %}
           <button class="btn btn-outline-primary btn-sm align-self-md-start" type="button" data-bs-toggle="collapse" data-bs-target="#attachmentForm" aria-expanded="{% if attachment_form.errors %}true{% else %}false{% endif %}" aria-controls="attachmentForm">
             Загрузить файл
           </button>
+          {% endif %}
         </div>
 
         <div class="collapse mb-3 {% if attachment_form.errors %}show{% endif %}" id="attachmentForm">
-          <form method="post" enctype="multipart/form-data" class="border rounded p-3 bg-light">
+          <form method="post" enctype="multipart/form-data" class="card border-0 p-3" style="background:var(--ek-bg)">
             {% csrf_token %}
             <input type="hidden" name="action" value="attachment">
             {% if attachment_form.non_field_errors %}
@@ -401,7 +856,7 @@
                   <td>{{ attachment.uploaded_by|default:"-" }}</td>
                   <td>{{ attachment.uploaded_at|date:"d.m.Y H:i" }}</td>
                   <td class="text-end">
-                    <a href="{{ attachment.file.url }}" target="_blank" rel="noopener">Открыть</a>
+                    <a href="{% url 'attachment_download' attachment.pk %}" target="_blank" rel="noopener">Открыть</a>
                   </td>
                 </tr>
               {% empty %}
@@ -419,13 +874,15 @@
       <div class="card-body">
         <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
           <h2 class="h5 mb-0">Проблемы</h2>
+          {% if user.profile.role != "viewer" %}
           <button class="btn btn-danger btn-sm align-self-md-start" type="button" data-bs-toggle="collapse" data-bs-target="#problemForm" aria-expanded="{% if problem_form.errors %}true{% else %}false{% endif %}" aria-controls="problemForm">
             Проблема
           </button>
+          {% endif %}
         </div>
 
         <div class="collapse mb-3 {% if problem_form.errors %}show{% endif %}" id="problemForm">
-          <form method="post" class="border rounded p-3 bg-light">
+          <form method="post" class="card border-0 p-3" style="background:var(--ek-bg)">
             {% csrf_token %}
             <input type="hidden" name="action" value="problem">
             {% if problem_form.non_field_errors %}
@@ -456,21 +913,28 @@
           </form>
         </div>
 
-        {% for problem in request_obj.problems.all %}
-          <div class="border rounded p-3 mb-2 {% if problem.status == 'resolved' %}bg-light{% else %}border-danger-subtle bg-danger-subtle{% endif %}">
+        {% for problem in open_problems %}
+          <div class="problem-card mb-2 problem-open">
             <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
               <div class="fw-semibold">{{ problem.get_problem_type_display }}</div>
-              <span class="badge align-self-md-start text-bg-{% if problem.status == 'resolved' %}success{% else %}danger{% endif %}">
-                {{ problem.get_status_display }}
-              </span>
+              <span class="badge align-self-md-start text-bg-danger">{{ problem.get_status_display }}</span>
             </div>
             <div class="mt-2">{{ problem.description }}</div>
-            <div class="text-muted small mt-2">
+            <div class="text-muted small mt-1">
               Ответственный: {{ problem.responsible_user|default:"-" }} · Создал: {{ problem.created_by|default:"-" }} · {{ problem.created_at|date:"d.m.Y H:i" }}
             </div>
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "manager" or user.profile.role == "operator" or user.profile.role == "supply" or user.profile.role == "transport" %}
+              <form method="post" class="mt-3 d-flex gap-2 align-items-start">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="resolve_problem">
+                <input type="hidden" name="problem_id" value="{{ problem.pk }}">
+                <textarea name="resolution_reply" class="form-control form-control-sm" rows="1" placeholder="Ответ: например, Документы отправлены заказчику" required style="resize:none;min-width:0;flex:1"></textarea>
+                <button type="submit" class="btn btn-sm btn-success flex-shrink-0">Закрыть</button>
+              </form>
+            {% endif %}
           </div>
         {% empty %}
-          <div class="text-muted">Проблем пока нет</div>
+          <div class="text-muted small">Открытых проблем нет</div>
         {% endfor %}
       </div>
     </div>
@@ -508,4 +972,254 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  function getCsrf() {
+    return (document.cookie.split(';').map(c => c.trim())
+      .find(c => c.startsWith('csrftoken=')) || '').split('=')[1] || '';
+  }
+
+  // ── Кнопка «Доставлено»: активна только при заполненном одометре ──────────
+  document.querySelectorAll('.drv-odo-input').forEach(function (inp) {
+    function sync() {
+      var v = parseInt(inp.value, 10);
+      var ok = !isNaN(v) && v > 0;
+      var form = inp.closest('form');
+      if (form) {
+        form.querySelectorAll('.drv-delivered-submit').forEach(function (btn) {
+          btn.disabled = !ok;
+        });
+      }
+    }
+    inp.addEventListener('input', sync);
+    sync();
+  });
+  document.querySelectorAll('.ci-supply-toggle').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var pk    = this.dataset.pk;
+      var reqPk = this.dataset.req;
+      var row   = document.getElementById('ci-row-' + pk);
+      fetch('/requests/' + reqPk + '/cargo/' + pk + '/toggle/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (row) row.classList.toggle('ci-row-nosupply', !data.needs_supply);
+      })
+      .catch(() => { this.checked = !this.checked; });
+    });
+  });
+
+  document.querySelectorAll('.ci-cz-toggle').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var pk    = this.dataset.pk;
+      var reqPk = this.dataset.req;
+      var orig  = this.checked;
+      fetch('/requests/' + reqPk + '/cargo/' + pk + '/toggle-cz/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+      })
+      .then(r => r.json())
+      .then(data => { this.checked = data.needs_cz; })
+      .catch(() => { this.checked = !orig; });
+    });
+  });
+
+  var _isPickupRole = {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}true{% else %}false{% endif %};
+  var _pendingPickupPk   = null;
+  var _pendingPickupDate = null;
+
+  document.querySelectorAll('.ci-supply-date').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var pk       = this.dataset.pk;
+      var reqPk    = this.dataset.req;
+      var itemName = this.dataset.itemName || '';
+      var val      = this.value;
+      var body     = new FormData();
+      body.append('supply_date', val);
+      fetch('/requests/' + reqPk + '/cargo/' + pk + '/supply-date/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+        body: body,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!_isPickupRole || !data.supply_date) return;
+        if (data.pickup_request_id) {
+          // Existing active pickup — offer to update date
+          _pendingPickupPk   = data.pickup_request_id;
+          _pendingPickupDate = val;
+          document.getElementById('pickupUpdateNumber').textContent  = data.pickup_request_number;
+          document.getElementById('pickupUpdateNewDate').textContent = data.supply_date;
+          new bootstrap.Modal(document.getElementById('pickupUpdateModal')).show();
+        } else {
+          // No pickup yet — offer to create
+          document.getElementById('pickupItemPk').value       = pk;
+          document.getElementById('pickupReqPk').value        = reqPk;
+          document.getElementById('pickupDate').value         = val;
+          document.getElementById('pickupCargoNotes').value   = itemName;
+          document.getElementById('pickupCreateError').classList.add('d-none');
+          new bootstrap.Modal(document.getElementById('pickupCreateModal')).show();
+        }
+      })
+      .catch(function () {});
+    });
+  });
+
+  if (_isPickupRole) {
+    document.getElementById('pickupCreateSubmit').addEventListener('click', function () {
+      var pk    = document.getElementById('pickupItemPk').value;
+      var reqPk = document.getElementById('pickupReqPk').value;
+      var form  = document.getElementById('pickupCreateForm');
+      var body  = new FormData(form);
+      var errEl = document.getElementById('pickupCreateError');
+      errEl.classList.add('d-none');
+      fetch('/requests/' + reqPk + '/cargo/' + pk + '/pickup/create/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+        body: body,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          bootstrap.Modal.getInstance(document.getElementById('pickupCreateModal')).hide();
+          var banner = document.createElement('div');
+          banner.className = 'alert alert-success alert-dismissible mt-3';
+          banner.innerHTML = 'Заявка на забор <a href="' + data.pickup_url + '">' + data.pickup_number + '</a> создана.' +
+            ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+          var target = document.getElementById('cargo-items-section');
+          if (target) target.insertAdjacentElement('beforebegin', banner);
+        } else {
+          var msgs = Object.values(data.errors || {}).join(' ');
+          errEl.textContent = msgs || 'Ошибка при создании заявки.';
+          errEl.classList.remove('d-none');
+        }
+      })
+      .catch(function () {
+        errEl.textContent = 'Ошибка сети.';
+        errEl.classList.remove('d-none');
+      });
+    });
+
+    document.getElementById('pickupUpdateConfirm').addEventListener('click', function () {
+      if (!_pendingPickupPk || !_pendingPickupDate) return;
+      var body = new FormData();
+      body.append('pickup_date', _pendingPickupDate);
+      var pk = _pendingPickupPk;
+      _pendingPickupPk = null;
+      fetch('/pickups/' + pk + '/update-date/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+        body: body,
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        bootstrap.Modal.getInstance(document.getElementById('pickupUpdateModal')).hide();
+        if (!data.ok) alert(data.error || 'Ошибка при обновлении даты.');
+      })
+      .catch(function () {
+        bootstrap.Modal.getInstance(document.getElementById('pickupUpdateModal')).hide();
+      });
+    });
+  }
+
+  document.querySelectorAll('.ci-stocked-toggle').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+      var pk    = this.dataset.pk;
+      var reqPk = this.dataset.req;
+      var orig  = this.checked;
+      var lbl   = this.parentElement.querySelector('label');
+      this.disabled = true;
+      fetch('/requests/' + reqPk + '/cargo/' + pk + '/toggle-stocked/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+      })
+      .then(r => r.json())
+      .then(data => {
+        this.checked = data.is_stocked;
+        this.disabled = false;
+        if (lbl) {
+          lbl.textContent = data.is_stocked ? 'Да' : 'Нет';
+          lbl.style.color = data.is_stocked ? '#15803d' : 'var(--ek-muted)';
+        }
+        if (data.auto_advanced) {
+          location.reload();
+        }
+      })
+      .catch(() => {
+        this.checked = orig;
+        this.disabled = false;
+      });
+    });
+  });
+})();
+</script>
+
+{% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}
+<!-- Modal: Создать заявку на забор у поставщика -->
+<div class="modal fade" id="pickupCreateModal" tabindex="-1" aria-labelledby="pickupCreateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pickupCreateModalLabel">Заявка на забор у поставщика</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div id="pickupCreateError" class="alert alert-danger d-none"></div>
+        <form id="pickupCreateForm" class="row g-3" novalidate>
+          <input type="hidden" id="pickupItemPk" name="item_pk">
+          <input type="hidden" id="pickupReqPk"  name="req_pk">
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="pickupSupplier">Поставщик <span class="text-danger">*</span></label>
+            <select class="form-select" id="pickupSupplier" name="supplier" required>
+              <option value="">— выберите поставщика —</option>
+              {% for s in suppliers %}
+                <option value="{{ s.pk }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold" for="pickupDate">Дата забора <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="pickupDate" name="pickup_date" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold" for="pickupWeight">Вес, кг</label>
+            <input type="number" class="form-control" id="pickupWeight" name="weight_kg" min="0" step="0.01" value="0">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="pickupCargoNotes">Перечень товаров</label>
+            <textarea class="form-control" id="pickupCargoNotes" name="cargo_notes" rows="3" placeholder="Комментарий для транспортного отдела…"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" id="pickupCreateSubmit">Создать заявку</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Обновить дату в существующей заявке на забор -->
+<div class="modal fade" id="pickupUpdateModal" tabindex="-1" aria-labelledby="pickupUpdateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pickupUpdateModalLabel">Обновить дату забора?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Заявка <strong id="pickupUpdateNumber"></strong> уже существует.<br>
+        Заменить дату забора на <strong id="pickupUpdateNewDate"></strong>?<br>
+        <span class="text-muted small">Транспортный отдел получит уведомление об изменении.</span></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Нет</button>
+        <button type="button" class="btn btn-primary" id="pickupUpdateConfirm">Да, обновить</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

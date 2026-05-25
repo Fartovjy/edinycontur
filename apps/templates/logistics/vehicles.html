@@ -1,0 +1,427 @@
+{% extends "logistics/base.html" %}
+{% block title %}Автомобили — Единый Контур{% endblock %}
+{% block content %}
+<style>
+  /* ── Grid ───────────────────────────────── */
+  .veh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1.25rem;
+  }
+
+  /* ── Card ───────────────────────────────── */
+  .veh-card {
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius);
+    box-shadow: var(--ek-shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow .15s, transform .15s;
+  }
+  .veh-card:hover   { box-shadow: var(--ek-shadow); transform: translateY(-2px); }
+  .veh-card.inactive { opacity: .55; }
+
+  /* ── Photo ───────────────────────────────── */
+  .veh-photo {
+    width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+  }
+  .veh-photo-placeholder {
+    width: 100%; aspect-ratio: 16/9;
+    background: linear-gradient(135deg, #f5ede0 0%, #ecdcc8 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Body: 2-column grid ─────────────────── */
+  .veh-body {
+    padding: .85rem 1rem .8rem;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: .75rem;
+    row-gap: .45rem;
+  }
+
+  /* Left col — identity */
+  .veh-identity {
+    grid-column: 1; grid-row: 1;
+    display: flex; flex-direction: column; gap: .15rem; min-width: 0;
+  }
+  .veh-plate {
+    font-size: 1.1rem; font-weight: 800; letter-spacing: .06em; line-height: 1.25;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .veh-name {
+    font-size: .82rem; color: var(--ek-muted); font-weight: 500; line-height: 1.3;
+  }
+  .veh-type {
+    font-size: .78rem; color: var(--ek-text); font-weight: 600;
+    display: inline-flex; align-items: center; gap: .25rem; margin-top: .1rem;
+  }
+  .veh-type svg { width:11px; height:11px; stroke:currentColor; fill:none; flex-shrink:0; opacity:.6; }
+
+  /* Right col — capacity */
+  .veh-capacity {
+    grid-column: 2; grid-row: 1;
+    display: flex; flex-direction: column; align-items: flex-end;
+    justify-content: flex-start; gap: .3rem; flex-shrink: 0;
+  }
+  .veh-cap-row {
+    display: flex; align-items: center; gap: .3rem;
+    font-size: .8rem; font-weight: 700; color: var(--amber-darker);
+    white-space: nowrap;
+  }
+  .veh-cap-row svg { width:12px; height:12px; stroke:currentColor; fill:none; flex-shrink:0; opacity:.7; }
+  .veh-cap-val { font-size: .9rem; font-weight: 800; color: var(--ek-text); }
+
+  /* Meta row (year, color) — spans full width below the two columns */
+  .veh-meta {
+    grid-column: 1 / -1; grid-row: 2;
+    display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: center;
+  }
+  .veh-meta-item {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: .75rem; color: var(--ek-muted);
+  }
+  .veh-meta-item svg  { width:11px; height:11px; stroke:currentColor; fill:none; flex-shrink:0; }
+  .veh-meta-item .val { font-weight: 600; color: var(--ek-text); }
+
+  /* ── Notes ──────────────────────────────── */
+  .veh-notes {
+    font-size: .78rem; color: var(--ek-muted); font-style: italic;
+    line-height: 1.45; padding-top: .45rem; border-top: 1px solid var(--ek-border);
+    margin-top: auto;
+  }
+
+  /* ── Odometer section ───────────────────── */
+  .odo-section {
+    border-top: 1px solid var(--ek-border);
+    padding: .6rem 1rem;
+    background: #faf7f2;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .odo-row {
+    display: flex; align-items: center; gap: .55rem;
+  }
+  .odo-lbl {
+    font-size: .67rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ek-muted); font-weight: 700; width: 52px; flex-shrink: 0;
+  }
+  /* Drum display */
+  .odo-drum {
+    display: inline-flex; align-items: stretch;
+    border-radius: 5px; overflow: hidden;
+    border: 1.5px solid #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+    line-height: 1;
+  }
+  .odo-digit {
+    width: 1.3rem; height: 1.75rem;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Courier New', 'Lucida Console', monospace;
+    font-size: .8rem; font-weight: 700;
+    color: #f0dc78;
+    background: linear-gradient(180deg,
+      #1c1c1c 0%, #242424 46%,
+      #1a1a1a 50%,
+      #242424 54%, #1c1c1c 100%);
+    border-right: 1px solid #2d2d2d;
+    position: relative;
+  }
+  .odo-digit::after {           /* centre groove */
+    content: '';
+    position: absolute; left: 0; right: 0;
+    top: calc(50% - .5px); height: 1px;
+    background: rgba(0,0,0,.55);
+    pointer-events: none;
+  }
+  .odo-digit:last-of-type { border-right: none; }
+  .odo-km {
+    padding: 0 .38rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .6rem; font-weight: 700; color: #666; letter-spacing: .03em;
+    background: #0f0f0f; border-left: 1px solid #2a2a2a;
+  }
+  /* service-due: amber tint */
+  .odo-svc .odo-digit {
+    color: #fbbf24;
+    background: linear-gradient(180deg,
+      #1a1507 0%, #22190c 46%,
+      #1a1507 50%,
+      #22190c 54%, #1a1507 100%);
+  }
+  .odo-svc { border-color: #3a2a0a; }
+  .odo-svc .odo-km { background: #100e06; border-color: #3a2a0a; }
+
+  /* ── Footer ─────────────────────────────── */
+  .veh-footer {
+    padding: .55rem 1rem;
+    border-top: 1px solid var(--ek-border);
+    background: #fdf8f2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem;
+  }
+  /* Toggle */
+  .veh-toggle-wrap {
+    display: flex; align-items: center; gap: .45rem; flex-shrink: 0;
+  }
+  .veh-toggle-wrap .form-check {
+    padding-left: 0; min-height: 0;
+    display: inline-flex; align-items: center;
+  }
+  .veh-toggle-wrap .form-check-input {
+    width: 2.2em; height: 1.2em; cursor: pointer;
+    float: none; margin: 0; flex-shrink: 0;
+  }
+  .veh-toggle-lbl {
+    font-size: .76rem; font-weight: 700; cursor: pointer;
+    line-height: 1; user-select: none; white-space: nowrap;
+  }
+  .veh-toggle-lbl.on  { color: #15803d; }
+  .veh-toggle-lbl.off { color: var(--brown-mid); }
+  /* Edit button: always right */
+  .veh-edit-btn { margin-left: auto; flex-shrink: 0; }
+
+  /* ── Static badge (non-editor) ───────────── */
+  .veh-badge {
+    display: inline-flex; align-items: center; gap: .28rem;
+    border-radius: 6px; padding: .18rem .55rem;
+    font-size: .7rem; font-weight: 700;
+  }
+  .veh-badge svg { width:8px; height:8px; fill:currentColor; }
+  .veh-badge.on  { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+  .veh-badge.off { background:#f5f0e8; color:var(--brown-mid); border:1px solid #d4c4a8; }
+
+  /* ── Stats ───────────────────────────────── */
+  .veh-stats { display:flex; gap:1.5rem; flex-wrap:wrap; }
+  .veh-stat  { display:flex; flex-direction:column; }
+  .veh-stat-val   { font-size:1.4rem; font-weight:800; line-height:1; }
+  .veh-stat-label { font-size:.73rem; color:var(--ek-muted); margin-top:.15rem; }
+
+  /* ── Empty ──────────────────────────────── */
+  .veh-empty { text-align:center; padding:4rem 1rem; color:var(--ek-muted); font-size:.95rem; }
+</style>
+
+<!-- Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Автомобили</h1>
+    <div class="text-muted">Транспортный парк компании</div>
+  </div>
+  {% if can_edit %}
+    <a class="btn btn-primary align-self-md-start" href="/admin/transport/vehicle/add/">+ Добавить</a>
+  {% endif %}
+</div>
+
+{% if vehicles %}
+
+<!-- Stats -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="veh-stats">
+      <div class="veh-stat">
+        <div class="veh-stat-val">{{ vehicles|length }}</div>
+        <div class="veh-stat-label">Всего ТС</div>
+      </div>
+      <div class="veh-stat">
+        <div class="veh-stat-val" style="color:var(--green)" id="veh-stat-active">{{ active_count }}</div>
+        <div class="veh-stat-label">Активных</div>
+      </div>
+      <div class="veh-stat" id="veh-stat-inactive-wrap"{% if not inactive_count %} style="display:none"{% endif %}>
+        <div class="veh-stat-val" style="color:#ef4444" id="veh-stat-inactive">{{ inactive_count }}</div>
+        <div class="veh-stat-label">Неактивных</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grid -->
+<div class="veh-grid">
+  {% for v in vehicles %}
+    <div class="veh-card{% if not v.is_active %} inactive{% endif %}">
+
+      <!-- Photo -->
+      {% if v.photo %}
+        <img class="veh-photo" src="{{ v.photo.url }}" alt="{{ v.plate_number }}">
+      {% else %}
+        <div class="veh-photo-placeholder">
+          <svg viewBox="0 0 64 64" fill="none" style="width:76px;height:76px;opacity:.22;color:var(--brown-mid)">
+            <rect x="2" y="20" width="38" height="26" rx="3" stroke="currentColor" stroke-width="3"/>
+            <path d="M40 28h10l8 8v10H40V28z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+            <circle cx="14" cy="49" r="5" stroke="currentColor" stroke-width="3"/>
+            <circle cx="50" cy="49" r="5" stroke="currentColor" stroke-width="3"/>
+            <line x1="2" y1="36" x2="40" y2="36" stroke="currentColor" stroke-width="2.5"/>
+          </svg>
+        </div>
+      {% endif %}
+
+      <!-- Body: 2-column grid -->
+      <div class="veh-body">
+
+        <!-- LEFT: identity -->
+        <div class="veh-identity">
+          <div class="veh-plate">{{ v.plate_number }}</div>
+          {% if v.name %}<div class="veh-name">{{ v.name }}</div>{% endif %}
+          {% if v.vehicle_type %}
+            <div class="veh-type">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              {{ v.vehicle_type }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- RIGHT: capacity -->
+        <div class="veh-capacity">
+          {% if v.max_weight_kg %}
+            <div class="veh-cap-row">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <span class="veh-cap-val">{{ v.max_weight_kg|floatformat:0 }}</span> кг
+            </div>
+          {% endif %}
+          {% if v.max_volume_m3 and v.max_volume_m3 != 0 %}
+            <div class="veh-cap-row">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              <span class="veh-cap-val">{{ v.max_volume_m3|floatformat:1 }}</span> м³
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- BOTTOM: year, color (full width) -->
+        {% if v.year or v.color %}
+          <div class="veh-meta">
+            {% if v.year %}
+              <div class="veh-meta-item">
+                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span class="val">{{ v.year }} г.</span>
+              </div>
+            {% endif %}
+            {% if v.color %}
+              <div class="veh-meta-item">
+                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                <span>{{ v.color }}</span>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+      </div>
+
+      <!-- Notes (outside body grid, full width) -->
+      {% if v.notes %}
+        <div class="veh-notes" style="padding:.45rem 1rem .5rem;border-top:1px solid var(--ek-border);font-size:.78rem;color:var(--ek-muted);font-style:italic;line-height:1.45;">
+          {{ v.notes }}
+        </div>
+      {% endif %}
+
+      <!-- Odometer block -->
+      {% if v.odometer_km or v.service_due_km %}
+        <div class="odo-section">
+          {% if v.odometer_km %}
+            <div class="odo-row">
+              <span class="odo-lbl">Пробег</span>
+              <div class="odo-drum">
+                {% with s=v.odometer_km|stringformat:"06d" %}{% for c in s %}<div class="odo-digit">{{ c }}</div>{% endfor %}{% endwith %}
+                <div class="odo-km">км</div>
+              </div>
+            </div>
+          {% endif %}
+          {% if v.service_due_km is not None %}
+            <div class="odo-row">
+              <span class="odo-lbl">До ТО</span>
+              <div class="odo-drum odo-svc">
+                {% with s=v.service_remaining_km|stringformat:"d" %}{% for c in s %}<div class="odo-digit">{{ c }}</div>{% endfor %}{% endwith %}
+                <div class="odo-km">км</div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <!-- Footer -->
+      <div class="veh-footer">
+        {% if can_edit %}
+          <div class="veh-toggle-wrap"
+               data-toggle-url="{% url 'vehicle_toggle_active' v.pk %}"
+               data-vehicle-id="{{ v.pk }}">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input veh-active-toggle" type="checkbox" role="switch"
+                     id="vt-{{ v.pk }}" {% if v.is_active %}checked{% endif %}>
+            </div>
+            <label class="veh-toggle-lbl {% if v.is_active %}on{% else %}off{% endif %}"
+                   id="vtl-{{ v.pk }}" for="vt-{{ v.pk }}">
+              {% if v.is_active %}Активен{% else %}Неактивен{% endif %}
+            </label>
+          </div>
+          <a href="{% url 'vehicle_edit' v.pk %}" class="btn btn-sm btn-outline-secondary veh-edit-btn">
+            Редактировать
+          </a>
+        {% else %}
+          <span class="veh-badge {% if v.is_active %}on{% else %}off{% endif %}">
+            <svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>
+            {% if v.is_active %}Активен{% else %}Неактивен{% endif %}
+          </span>
+        {% endif %}
+      </div>
+
+    </div>
+  {% endfor %}
+</div>
+
+{% else %}
+  <div class="veh-empty">
+    <div style="font-size:3rem;margin-bottom:.5rem">🚚</div>
+    Автомобилей пока нет.
+    {% if can_edit %}<br><a href="/admin/transport/vehicle/add/" class="btn btn-primary mt-3">Добавить первый</a>{% endif %}
+  </div>
+{% endif %}
+
+{% if can_edit %}
+<script>
+(function () {
+  var csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || "";
+
+  document.querySelectorAll(".veh-toggle-wrap").forEach(function (wrap) {
+    var cb   = wrap.querySelector(".veh-active-toggle");
+    var lbl  = wrap.querySelector(".veh-toggle-lbl");
+    var url  = wrap.dataset.toggleUrl;
+    var card = wrap.closest(".veh-card");
+    if (!cb || !lbl || !url) return;
+
+    cb.addEventListener("change", function () {
+      cb.disabled = true;
+      fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var on = d.is_active;
+          cb.checked  = on;
+          cb.disabled = false;
+          lbl.textContent = on ? "Активен" : "Неактивен";
+          lbl.className   = "veh-toggle-lbl " + (on ? "on" : "off");
+          if (card) card.classList.toggle("inactive", !on);
+          // Update stat counters
+          var nActive   = document.querySelectorAll(".veh-card:not(.inactive)").length;
+          var nInactive = document.querySelectorAll(".veh-card.inactive").length;
+          var elA = document.getElementById("veh-stat-active");
+          var elI = document.getElementById("veh-stat-inactive");
+          var elW = document.getElementById("veh-stat-inactive-wrap");
+          if (elA) elA.textContent = nActive;
+          if (elI) elI.textContent = nInactive;
+          if (elW) elW.style.display = nInactive ? "" : "none";
+        })
+        .catch(function () { cb.checked = !cb.checked; cb.disabled = false; });
+    });
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

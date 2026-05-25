@@ -13,7 +13,7 @@ def create_user_profile(sender, instance, created, **kwargs):
             user=instance,
             defaults={
                 "role": ROLE_OPERATOR,
-                "telegram_id": getattr(instance, "telegram_chat_id", ""),
+                "telegram_id": "",
                 "is_active": instance.is_active,
             },
         )

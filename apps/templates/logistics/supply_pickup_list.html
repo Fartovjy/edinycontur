@@ -1,0 +1,91 @@
+{% extends "logistics/base.html" %}
+{% block title %}Заборы у поставщиков - Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Заборы у поставщиков</h1>
+    <div class="text-muted">Заявки транспортному отделу на забор товара</div>
+  </div>
+  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}
+  <a class="btn btn-primary align-self-md-start" href="{% url 'supply_pickup_create' %}">Создать заявку</a>
+  {% endif %}
+</div>
+
+<!-- Фильтр статуса -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="text-muted small fw-semibold me-1">Статус:</span>
+      <a href="?" class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline-secondary{% endif %}">Все</a>
+      <a href="?status={{ STATUS_PENDING }}" class="btn btn-sm {% if status_filter == STATUS_PENDING %}btn-warning{% else %}btn-outline-secondary{% endif %}">Новые</a>
+      <a href="?status={{ STATUS_TRANSPORT_ASSIGNED }}" class="btn btn-sm {% if status_filter == STATUS_TRANSPORT_ASSIGNED %}btn-info{% else %}btn-outline-secondary{% endif %}">Транспорт назначен</a>
+      <a href="?status={{ STATUS_DELIVERED }}" class="btn btn-sm {% if status_filter == STATUS_DELIVERED %}btn-success{% else %}btn-outline-secondary{% endif %}">Доставлено</a>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Номер</th>
+            <th>Поставщик</th>
+            <th>Дата забора</th>
+            <th>Вес, кг</th>
+            <th>Автомобиль / Водитель</th>
+            <th style="width:130px;text-align:center">Статус</th>
+            <th>Заявка-источник</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pickups %}
+            <tr>
+              <td class="fw-semibold">{{ p.request_number }}</td>
+              <td>{{ p.supplier }}</td>
+              <td>{{ p.pickup_date|date:"d.m.Y"|default:"—" }}</td>
+              <td>{{ p.weight_kg|default:"—" }}</td>
+              <td>
+                {% if p.assigned_vehicle %}
+                  <div class="small">{{ p.assigned_vehicle.plate_number }}</div>
+                {% endif %}
+                {% if p.assigned_driver %}
+                  <div class="small text-muted">{{ p.assigned_driver.full_name }}</div>
+                {% endif %}
+                {% if not p.assigned_vehicle and not p.assigned_driver %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td style="text-align:center">
+                {% if p.status == STATUS_PENDING %}
+                  <span class="badge" style="background:#fef9ec;color:#b45309;border:1px solid #fbbf24">Новая</span>
+                {% elif p.status == STATUS_TRANSPORT_ASSIGNED %}
+                  <span class="badge" style="background:#e0f2fe;color:#0284c7;border:1px solid #7dd3fc">Транспорт</span>
+                {% else %}
+                  <span class="badge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac">Доставлено</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if p.logistics_request %}
+                  <a href="{{ p.logistics_request.get_absolute_url }}" class="small text-muted">{{ p.logistics_request.request_number }}</a>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <a class="btn btn-sm btn-outline-primary" href="{{ p.get_absolute_url }}">Открыть</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td class="text-muted" colspan="8">Заявок на забор нет</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

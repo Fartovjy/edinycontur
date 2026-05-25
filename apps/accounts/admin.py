@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Role, User, UserProfile
+from .models import User, UserProfile
 
 
 class UserProfileInline(admin.StackedInline):
@@ -12,10 +12,13 @@ class UserProfileInline(admin.StackedInline):
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    fieldsets = UserAdmin.fieldsets + (("Единый Контур", {"fields": ("role", "telegram_chat_id")}),)
-    list_display = ("username", "email", "first_name", "last_name", "role", "is_staff")
-    list_filter = UserAdmin.list_filter + ("role",)
+    list_display = ("username", "email", "first_name", "last_name", "is_staff")
     inlines = (UserProfileInline,)
+
+    def get_inline_instances(self, request, obj=None):
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
 
 
 @admin.register(UserProfile)
@@ -32,6 +35,3 @@ class UserProfileAdmin(admin.ModelAdmin):
         "default_vehicle__plate_number",
     )
     list_select_related = ("user", "default_vehicle")
-
-
-admin.site.register(Role)

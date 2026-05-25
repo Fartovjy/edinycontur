@@ -6,13 +6,20 @@
     <h1 class="h3 mb-1">{{ title }}</h1>
     <div class="text-muted">Карточка клиента</div>
   </div>
-  <a class="btn btn-outline-secondary" href="{% url 'client_list' %}">К списку</a>
+  {% if popup %}
+    <button class="btn btn-outline-secondary" type="button" onclick="window.close()">Закрыть</button>
+  {% else %}
+    <a class="btn btn-outline-secondary" href="{% url 'client_list' %}">К списку</a>
+  {% endif %}
 </div>
 
 <div class="card border-0 shadow-sm">
   <div class="card-body">
     <form method="post" class="row g-3">
       {% csrf_token %}
+      {% if popup %}
+        <input type="hidden" name="popup" value="1">
+      {% endif %}
       {% for field in form %}
         <div class="col-12 col-md-6">
           <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -30,7 +37,11 @@
       {% endif %}
       <div class="col-12 d-flex gap-2">
         <button class="btn btn-primary" type="submit">Сохранить</button>
-        <a class="btn btn-outline-secondary" href="{% url 'client_list' %}">Отмена</a>
+        {% if popup %}
+          <button class="btn btn-outline-secondary" type="button" onclick="window.close()">Отмена</button>
+        {% else %}
+          <a class="btn btn-outline-secondary" href="{% url 'client_list' %}">Отмена</a>
+        {% endif %}
       </div>
     </form>
   </div>

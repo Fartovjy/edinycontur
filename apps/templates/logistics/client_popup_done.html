@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>Клиент добавлен</title>
+  </head>
+  <body>
+    <script>
+      if (window.opener && !window.opener.closed && window.opener.receiveNewClient) {
+        window.opener.receiveNewClient({
+          id: "{{ client_obj.pk }}",
+          name: "{{ client_obj.name|escapejs }}",
+          address: ""
+        });
+      }
+      window.close();
+    </script>
+    Клиент добавлен. Это окно можно закрыть.
+  </body>
+</html>

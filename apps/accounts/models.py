@@ -2,30 +2,26 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from .constants import ROLE_CHOICES, USER_PROFILE_ROLE_CHOICES
+from .constants import USER_PROFILE_ROLE_CHOICES
 
 
 def default_calendar_status_filters():
     return ["created", "supply", "shipment", "delivery", "done", "problem"]
 
 
-class Role(models.Model):
-    code = models.CharField("Код", max_length=32, choices=ROLE_CHOICES, unique=True)
-    title = models.CharField("Название", max_length=80)
-
-    class Meta:
-        ordering = ["code"]
-        verbose_name = "Роль"
-        verbose_name_plural = "Роли"
-
-    def __str__(self):
-        return self.title
+REQUEST_LIST_PERIOD_DAY = "day"
+REQUEST_LIST_PERIOD_WEEK = "week"
+REQUEST_LIST_PERIOD_TWO_WEEKS = "two_weeks"
+REQUEST_LIST_PERIOD_MONTH = "month"
+REQUEST_LIST_PERIOD_CHOICES = [
+    (REQUEST_LIST_PERIOD_DAY, "День"),
+    (REQUEST_LIST_PERIOD_WEEK, "Рабочая неделя"),
+    (REQUEST_LIST_PERIOD_TWO_WEEKS, "2 недели"),
+    (REQUEST_LIST_PERIOD_MONTH, "Месяц"),
+]
 
 
 class User(AbstractUser):
-    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, related_name="users", verbose_name="Роль")
-    telegram_chat_id = models.CharField("Telegram chat ID", max_length=64, blank=True)
-
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
@@ -38,6 +34,7 @@ class UserProfile(models.Model):
     telegram_id = models.CharField("Telegram ID", max_length=64, blank=True)
     default_vehicle = models.ForeignKey("transport.Vehicle", on_delete=models.SET_NULL, null=True, blank=True, related_name="driver_profiles", verbose_name="Автомобиль по умолчанию")
     calendar_status_filters = models.JSONField("Фильтры статусов календаря", default=default_calendar_status_filters, blank=True)
+    request_list_period = models.CharField("Период списка заявок", max_length=16, choices=REQUEST_LIST_PERIOD_CHOICES, default=REQUEST_LIST_PERIOD_MONTH)
     is_active = models.BooleanField("Активен", default=True)
 
     class Meta:

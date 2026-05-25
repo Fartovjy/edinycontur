@@ -1,6 +1,190 @@
 {% extends "logistics/base.html" %}
 {% block title %}Заявки - Единый Контур{% endblock %}
 {% block content %}
+<style>
+  /* ── Row-card table ─────────────────────────────── */
+  .req-table {
+    border-collapse: separate;
+    border-spacing: 0 7px;
+    width: 100%;
+    table-layout: auto;
+  }
+  .req-table th:last-child,
+  .req-row td:last-child {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .req-table thead th {
+    background: transparent !important;
+    border: none !important;
+    color: var(--brown-mid);
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+    padding: .15rem 1rem .4rem;
+  }
+  .req-row td {
+    background: var(--ek-surface);
+    border-top: 1px solid var(--ek-border);
+    border-bottom: 1px solid var(--ek-border);
+    border-left: none;
+    border-right: none;
+    padding: .85rem 1rem;
+    vertical-align: middle;
+    font-size: .875rem;
+    transition: background .12s ease;
+  }
+  .req-row td:first-child {
+    border-left: 6px solid var(--ek-border);
+    border-radius: 10px 0 0 10px;
+  }
+  .req-row td:last-child {
+    border-right: 1px solid var(--ek-border);
+    border-radius: 0 10px 10px 0;
+    overflow: hidden;
+  }
+  .req-row { cursor: pointer; }
+  .req-row:hover td { filter: brightness(.975); }
+  .req-row:focus-within td { outline: 2px solid var(--amber); outline-offset: -1px; }
+
+  /* ── Stage colour coding ────────────────────────── */
+  .s-created td               { background: #fffbeb; }
+  .s-created td:first-child   { border-left-color: #d97706; }
+
+  .s-supply td                { background: #fef3c7; }
+  .s-supply td:first-child    { border-left-color: #b45309; }
+
+  .s-warehouse td             { background: #e0f2fe; }
+  .s-warehouse td:first-child { border-left-color: #0284c7; }
+
+  .s-transit td               { background: #dcfce7; }
+  .s-transit td:first-child   { border-left-color: #16a34a; }
+
+  .s-delivered td             { background: #f0fdf4; }
+  .s-delivered td:first-child { border-left-color: #15803d; }
+
+  .s-problem td               { background: #fee2e2; }
+  .s-problem td:first-child   { border-left-color: #dc2626; }
+
+  .s-done td                  { background: #f5f4f2; color: var(--brown-mid); }
+  .s-done td:first-child      { border-left-color: #71717a; }
+
+  /* ── Status cell — solid colour ─────────────────── */
+  .sc-created   { background: #d97706 !important; }
+  .sc-supply    { background: #b45309 !important; }
+  .sc-warehouse { background: #0284c7 !important; }
+  .sc-transit   { background: #16a34a !important; }
+  .sc-delivered { background: #15803d !important; }
+  .sc-problem   { background: #dc2626 !important; }
+  .sc-done      { background: #71717a !important; }
+
+  /* Status name — same style as client name, white */
+  .sc-status-name {
+    font-weight: 700;
+    font-size: .875rem;
+    color: #fff;
+    display: block;
+    line-height: 1.25;
+  }
+
+  /* ── Date cell ──────────────────────────────────── */
+  .d-label {
+    font-size: .68rem;
+    font-style: italic;
+    color: var(--ek-muted);
+    display: block;
+    line-height: 1.2;
+    margin-bottom: .05rem;
+  }
+  .d-val {
+    font-weight: 700;
+    font-size: .875rem;
+    display: block;
+    line-height: 1.25;
+  }
+  .d-pair + .d-pair { margin-top: .4rem; }
+
+  /* ── Updated timestamp — white on colour bg ─────── */
+  .s-updated {
+    font-size: .72rem;
+    color: rgba(255,255,255,.6);
+    margin-top: .3rem;
+    display: block;
+    font-style: italic;
+  }
+
+  /* ── Client name ────────────────────────────────── */
+  .cl-name { font-weight: 700; line-height: 1.25; }
+  .cl-addr { font-size: .8rem; color: var(--ek-muted); margin-top: .1rem; }
+
+  /* ── Empty state ────────────────────────────────── */
+  .empty-row td {
+    background: transparent;
+    border: none;
+    text-align: center;
+    color: var(--ek-muted);
+    padding: 3rem 1rem;
+    font-size: .9rem;
+  }
+
+  /* ── Mobile: cards instead of table ─────────────── */
+  @media (max-width: 767.98px) {
+    .req-table { border-spacing: 0 .55rem; }
+    .req-table thead { display: none; }
+
+    /* Turn row into flex column */
+    .req-row {
+      display: flex !important;
+      flex-direction: column;
+      border-radius: var(--ek-radius) !important;
+      overflow: hidden;
+    }
+    .req-row td {
+      display: block !important;
+      width: 100% !important;
+      border: none !important;
+      border-radius: 0 !important;
+      white-space: normal !important;
+    }
+    /* Hide address & driver columns */
+    .req-row td:nth-child(2),
+    .req-row td:nth-child(3) { display: none !important; }
+
+    /* Status → top of card */
+    .req-row td:nth-child(5) {
+      order: 1;
+      padding: .55rem 1rem;
+    }
+    /* Client → second */
+    .req-row td:nth-child(1) {
+      order: 2;
+      padding: .7rem 1rem .4rem;
+      font-size: 1rem;
+      border-left: none !important;
+    }
+    /* Dates → bottom */
+    .req-row td:nth-child(4) {
+      order: 3;
+      padding: .35rem 1rem .65rem;
+      border-top: 1px solid rgba(0,0,0,.06) !important;
+    }
+    /* Inline date pairs on mobile */
+    .d-pair { display: inline-block; margin-right: 1.2rem; }
+    .d-pair + .d-pair { margin-top: 0; }
+    .d-label { display: inline; margin-right: .2rem; }
+    .d-val   { display: inline; }
+
+    /* Width reset for status cell rule */
+    .req-table th:last-child,
+    .req-row td:last-child { width: 100% !important; }
+
+    /* Period bar compact */
+    .table-responsive { overflow-x: unset; }
+  }
+</style>
+
 <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
   <div>
     {% if user.profile.role == "driver" %}
@@ -8,55 +192,78 @@
       <div class="text-muted">Показаны только заявки, назначенные вам</div>
     {% else %}
       <h1 class="h3 mb-1">Заявки</h1>
-      <div class="text-muted">Минимальный список логистических заявок</div>
+      <div class="text-muted">Список логистических заявок</div>
     {% endif %}
   </div>
   {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
-    <a class="btn btn-primary align-self-md-start" href="{% url 'request_create' %}">Новая заявка</a>
+    <div class="d-flex gap-2 align-self-md-start">
+      <a class="btn btn-primary" href="{% url 'request_create' %}">Новая заявка</a>
+      <a class="btn btn-outline-secondary" href="{% url 'request_create_from_pdf' %}">Создать из файла</a>
+    </div>
   {% endif %}
 </div>
 
-<div class="card border-0 shadow-sm">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Номер</th>
-          <th>Клиент</th>
-          <th>Адрес</th>
-          <th>Статус</th>
-          <th>Водитель</th>
-          <th>Даты</th>
-          <th>Обновлена</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in requests %}
-          <tr class="{% if item.status == 'delivered' or item.status == 'closed' or item.status == 'cancelled' %}table-secondary text-muted{% endif %}">
-            <td class="fw-semibold">
-              <a href="{{ item.get_absolute_url }}" class="link-dark">{{ item.request_number }}</a>
-            </td>
-            <td>{{ item.client_name }}</td>
-            <td>{{ item.client_address|default:"-" }}</td>
-            <td>
-              <span class="badge text-bg-{% if item.status == 'delivered' %}success{% elif item.status == 'closed' or item.status == 'cancelled' %}secondary{% else %}primary{% endif %}">
-                {{ item.get_status_display }}
-              </span>
-            </td>
-            <td>{{ item.assigned_driver|default:"-" }}</td>
-            <td class="small text-nowrap">
-              Отгрузка: {{ item.planned_ship_date|date:"d.m.Y"|default:"-" }}<br>
-              Доставка: {{ item.planned_delivery_date|date:"d.m.Y"|default:"-" }}
-            </td>
-            <td>{{ item.updated_at|date:"d.m.Y H:i" }}</td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="7" class="text-center text-muted py-4">Заявок пока нет</td>
-          </tr>
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div>
+        <div class="fw-semibold">Период</div>
+        <div class="text-muted small">{{ period_start|date:"d.m.Y" }} — {{ period_end|date:"d.m.Y" }}</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for tab in period_tabs %}
+          <a class="btn btn-sm {% if tab.active %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?{{ tab.query }}">
+            {{ tab.label }}
+          </a>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </div>
   </div>
+</div>
+
+<div class="table-responsive">
+  <table class="req-table">
+    <thead>
+      <tr>
+        <th>Клиент</th>
+        <th>Адрес / GPS</th>
+        <th>Водитель</th>
+        <th>Даты</th>
+        <th>Статус / Обновлена</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in requests %}
+        <tr class="req-row {% if item.status == 'created' %}s-created{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}s-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}s-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}s-transit{% elif item.status == 'delivered' %}s-delivered{% elif item.status == 'problem' %}s-problem{% else %}s-done{% endif %}"
+            onclick="window.location='{{ item.get_absolute_url }}'"
+            tabindex="0"
+            onkeydown="if(event.key==='Enter')window.location='{{ item.get_absolute_url }}'">
+          <td>
+            <div class="cl-name">{{ item.client_name }}</div>
+          </td>
+          <td class="fw-bold">{{ item.client_address|default:"—" }}</td>
+          <td class="fw-bold">{{ item.assigned_driver|default:"—" }}</td>
+          <td>
+            <div class="d-pair">
+              <span class="d-label">Отгрузка</span>
+              <span class="d-val">{{ item.planned_ship_date|date:"d.m.Y"|default:"—" }}</span>
+            </div>
+            <div class="d-pair">
+              <span class="d-label">Доставка</span>
+              <span class="d-val">{{ item.planned_delivery_date|date:"d.m.Y"|default:"—" }}</span>
+            </div>
+          </td>
+          <td class="{% if item.status == 'problem' %}sc-problem{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}sc-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}sc-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}sc-transit{% elif item.status == 'delivered' %}sc-delivered{% elif item.status == 'closed' or item.status == 'cancelled' %}sc-done{% else %}sc-created{% endif %}">
+            <span class="sc-status-name">{{ item.get_status_display }}</span>
+            <span class="s-updated">{{ item.updated_at|date:"d.m.Y H:i" }}</span>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty-row">
+          <td colspan="5">Заявок пока нет</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 {% endblock %}

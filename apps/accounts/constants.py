@@ -5,6 +5,7 @@ ROLE_TRANSPORT = "transport"
 ROLE_WAREHOUSE = "warehouse"
 ROLE_DRIVER = "driver"
 ROLE_MANAGER = "manager"
+ROLE_VIEWER = "viewer"
 
 ROLE_CHOICES = [
     (ROLE_ADMIN, "Администратор"),
@@ -14,6 +15,7 @@ ROLE_CHOICES = [
     (ROLE_WAREHOUSE, "Склад"),
     (ROLE_DRIVER, "Водитель"),
     (ROLE_MANAGER, "Руководитель"),
+    (ROLE_VIEWER, "Наблюдатель"),
 ]
 
 USER_PROFILE_ROLE_CHOICES = [
@@ -24,4 +26,5 @@ USER_PROFILE_ROLE_CHOICES = [
     (ROLE_WAREHOUSE, "Склад"),
     (ROLE_DRIVER, "Водитель"),
     (ROLE_MANAGER, "Руководитель"),
+    (ROLE_VIEWER, "Наблюдатель"),
 ]

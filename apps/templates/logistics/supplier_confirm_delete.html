@@ -1,0 +1,15 @@
+{% extends "logistics/base.html" %}
+{% block title %}Удаление поставщика - Единый Контур{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h1 class="h4 mb-3">Удалить поставщика?</h1>
+    <p class="mb-4">Поставщик <strong>{{ supplier_obj.name }}</strong> будет удалён из справочника.</p>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Удалить</button>
+      <a class="btn btn-outline-secondary" href="{% url 'supplier_list' %}">Отмена</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

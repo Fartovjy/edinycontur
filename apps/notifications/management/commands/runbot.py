@@ -24,6 +24,7 @@ from apps.logistics.constants import (
 )
 from apps.logistics.models import LogisticsRequest, RequestStatusHistory
 from apps.logistics.services import change_request_status
+from apps.notifications.services import create_role_notification
 from apps.problems.models import ProblemReport
 from apps.transport.models import Driver, Vehicle
 
@@ -114,14 +115,6 @@ def _driver_for_telegram(telegram_id, chat_id):
     )
     user = profile.user if profile else None
 
-    if not user:
-        profile = (
-            UserProfile.objects.select_related("user", "user__driver_profile")
-            .filter(user__telegram_chat_id=chat_id, role=ROLE_DRIVER, is_active=True, user__is_active=True)
-            .first()
-        )
-        user = profile.user if profile else None
-
     driver = getattr(user, "driver_profile", None) if user else None
     if not driver:
         driver = Driver.objects.select_related("user", "user__profile").filter(telegram_chat_id=chat_id, is_active=True).first()
@@ -130,13 +123,6 @@ def _driver_for_telegram(telegram_id, chat_id):
 
     if not driver or not user or not profile or profile.role != ROLE_DRIVER:
         return None
-
-    changed_user = False
-    if user.telegram_chat_id != chat_id:
-        user.telegram_chat_id = chat_id
-        changed_user = True
-    if changed_user:
-        user.save(update_fields=["telegram_chat_id"])
 
     if profile.telegram_id != telegram_id:
         profile.telegram_id = telegram_id
@@ -158,20 +144,8 @@ def _profile_for_telegram(telegram_id, chat_id, role):
         .first()
     )
     if not profile:
-        profile = (
-            UserProfile.objects.select_related("user")
-            .filter(user__telegram_chat_id=chat_id, role=role, is_active=True, user__is_active=True)
-            .first()
-        )
-    if not profile:
         return None
 
-    changed_user = False
-    if profile.user.telegram_chat_id != chat_id:
-        profile.user.telegram_chat_id = chat_id
-        changed_user = True
-    if changed_user:
-        profile.user.save(update_fields=["telegram_chat_id"])
     if profile.telegram_id != telegram_id:
         profile.telegram_id = telegram_id
         profile.save(update_fields=["telegram_id"])
@@ -356,6 +330,11 @@ def mark_driver_delivered(request_id, telegram_id, chat_id):
                 new_status=STATUS_DELIVERED,
                 changed_by=driver.user,
                 comment="Доставка отмечена водителем из Telegram",
+            )
+            create_role_notification(
+                ROLE_TRANSPORT,
+                request_obj,
+                f"Заявка {request_obj.request_number} доставлена водителем.",
             )
     return request_obj, ""
 

@@ -9,6 +9,14 @@ class Notification(models.Model):
         "logistics.LogisticsRequest",
         verbose_name="Заявка",
         on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name="notifications",
+    )
+    pickup_request = models.ForeignKey(
+        "logistics.SupplyPickupRequest",
+        verbose_name="Заявка на забор",
+        on_delete=models.CASCADE,
+        null=True, blank=True,
         related_name="notifications",
     )
     message = models.CharField("Сообщение", max_length=255)

@@ -1,20 +1,74 @@
 {% extends "logistics/base.html" %}
 {% block title %}Вход - Единый Контур{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-sm-10 col-md-6 col-lg-4">
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-4">
-        <h1 class="h4 mb-3">Вход</h1>
+<style>
+  .login-wrap {
+    min-height: calc(100vh - 130px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+  }
+  .login-card { width: 100%; max-width: 400px; }
+  .login-heading {
+    font-size: 1.375rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--ek-text);
+    margin-bottom: .25rem;
+  }
+  .login-sub {
+    font-size: .875rem;
+    color: var(--ek-muted);
+    margin-bottom: 1.75rem;
+  }
+  .login-card .form-control {
+    padding: .625rem .9rem;
+    font-size: .9375rem;
+  }
+  .login-card .btn-primary {
+    padding: .65rem;
+    font-size: .9375rem;
+    letter-spacing: .01em;
+  }
+  .login-divider {
+    height: 3px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--amber) 0%, var(--green) 100%);
+    margin-bottom: 1.75rem;
+  }
+</style>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="card border-0">
+      <div class="card-body p-4 p-sm-5">
+        <div class="login-heading">Единый Контур</div>
+        <div class="login-sub">Войдите в систему</div>
+        <div class="login-divider"></div>
         {% if form.errors %}
-          <div class="alert alert-danger py-2">Проверьте логин и пароль.</div>
+          <div class="alert mb-3 py-2" style="background:#fef9c3;color:#78350f;">
+            Неверный логин или пароль.
+          </div>
         {% endif %}
         <form method="post">
           {% csrf_token %}
-          {{ form.as_p }}
+          <div class="mb-3">
+            <label class="form-label" for="id_username">Логин</label>
+            <input class="form-control" id="id_username" name="username"
+                   type="text" autocomplete="username" autofocus>
+          </div>
+          <div class="mb-4">
+            <label class="form-label" for="id_password">Пароль</label>
+            <input class="form-control" id="id_password" name="password"
+                   type="password" autocomplete="current-password">
+          </div>
           <button class="btn btn-primary w-100" type="submit">Войти</button>
         </form>
-        <div class="text-muted small mt-3">Демо: admin / admin</div>
+        {% if debug %}
+          <div class="text-center mt-3" style="font-size:.8rem;color:var(--ek-muted)">
+            Демо: admin / admin
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

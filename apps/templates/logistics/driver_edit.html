@@ -1,0 +1,164 @@
+{% extends "logistics/base.html" %}
+{% block title %}{{ driver.full_name }} — редактирование{% endblock %}
+{% block content %}
+<style>
+  /* Пустые поля — курсив */
+  .form-control:placeholder-shown:not([type="file"]):not(:disabled) {
+    font-style: italic;
+    color: var(--ek-muted, #9a8878);
+  }
+  .form-control:not(:placeholder-shown):not([type="file"]) {
+    font-style: normal;
+    color: var(--ek-text, inherit);
+  }
+  textarea.form-control:placeholder-shown {
+    font-style: italic;
+    color: var(--ek-muted, #9a8878);
+  }
+  textarea.form-control:not(:placeholder-shown) {
+    font-style: normal;
+    color: var(--ek-text, inherit);
+  }
+</style>
+
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'driver_list' %}" class="btn btn-outline-secondary btn-sm">← Назад</a>
+  <h1 class="h4 mb-0">{{ driver.full_name }}</h1>
+</div>
+
+<div class="row g-4">
+  <!-- Photo preview -->
+  <div class="col-12 col-md-4">
+    <div class="card">
+      <div class="card-body p-0">
+        {% if driver.photo %}
+          <img src="{{ driver.photo.url }}" alt="{{ driver.full_name }}"
+               style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:var(--ek-radius) var(--ek-radius) 0 0;display:block;">
+        {% else %}
+          <div style="width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#eef3f8,#dbe6f0);border-radius:var(--ek-radius) var(--ek-radius) 0 0;display:flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+                 style="width:72px;height:72px;opacity:.22;color:#4a7a9b">
+              <circle cx="32" cy="22" r="12" stroke="currentColor" stroke-width="3"/>
+              <path d="M8 56c0-13.255 10.745-24 24-24s24 10.745 24 24"
+                    stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+        {% endif %}
+        <div class="p-3">
+          <div class="fw-semibold mb-1" style="font-size:.8rem;text-transform:uppercase;color:var(--ek-muted);letter-spacing:.05em">Фото</div>
+          <div class="text-muted small">
+            {% if driver.photo %}Загружено — можно заменить{% else %}Фото ещё не загружено{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="col-12 col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div class="row g-3">
+
+            <!-- Full name -->
+            <div class="col-12">
+              <label class="form-label" for="d-name">ФИО</label>
+              <input class="form-control" id="d-name" name="full_name" type="text"
+                     value="{{ driver.full_name }}" placeholder="Иванов Иван Иванович">
+            </div>
+
+            <!-- Phone -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="d-phone">Телефон</label>
+              <input class="form-control" id="d-phone" name="phone" type="text"
+                     value="{{ driver.phone }}" placeholder="+7 900 000 00 00">
+            </div>
+
+            <!-- Telegram -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="d-tg">Telegram chat ID</label>
+              <input class="form-control" id="d-tg" name="telegram_chat_id" type="text"
+                     value="{{ driver.telegram_chat_id }}" placeholder="@username или числовой ID">
+            </div>
+
+            <!-- License number -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="d-lic">Номер ВУ</label>
+              <input class="form-control" id="d-lic" name="license_number" type="text"
+                     value="{{ driver.license_number }}" placeholder="12 AB 345678">
+            </div>
+
+            <!-- License category -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="d-cat">Категории прав</label>
+              <input class="form-control" id="d-cat" name="license_category" type="text"
+                     value="{{ driver.license_category }}" placeholder="B, C, CE">
+            </div>
+
+            <!-- Photo upload -->
+            <div class="col-12">
+              <label class="form-label" for="d-photo">Загрузить фото</label>
+              <input class="form-control" id="d-photo" name="photo" type="file" accept="image/*">
+              <div class="form-text">JPG, PNG, WebP — рекомендуется пропорция 16:9</div>
+            </div>
+
+            <!-- Notes -->
+            <div class="col-12">
+              <label class="form-label" for="d-notes">Заметки</label>
+              <textarea class="form-control" id="d-notes" name="notes" rows="2"
+                        placeholder="Дополнительная информация о водителе…">{{ driver.notes }}</textarea>
+            </div>
+
+            <!-- Active toggle -->
+            <div class="col-12">
+              <label class="form-label">Статус</label>
+              <div class="d-flex align-items-center gap-3 px-3 py-2"
+                   style="background:var(--ek-bg);border:1px solid var(--ek-border);border-radius:var(--ek-radius-sm);">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" role="switch"
+                         name="is_active" id="d-active"
+                         {% if driver.is_active %}checked{% endif %}
+                         style="width:2.6em;height:1.4em;cursor:pointer;margin-top:.05em;">
+                </div>
+                <label class="form-check-label fw-semibold mb-0" for="d-active" style="cursor:pointer;">
+                  Водитель активен
+                </label>
+                <span id="d-status-badge" class="ms-auto badge"
+                      style="font-size:.75rem;{% if driver.is_active %}background:#dcfce7;color:#15803d;border:1px solid #86efac;{% else %}background:#f5f0e8;color:var(--brown-mid);border:1px solid #d4c4a8;{% endif %}">
+                  {% if driver.is_active %}Активен{% else %}Неактивен{% endif %}
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="{% url 'driver_list' %}" class="btn btn-outline-secondary">Отмена</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var toggle = document.getElementById("d-active");
+  var badge  = document.getElementById("d-status-badge");
+  if (!toggle || !badge) return;
+  toggle.addEventListener("change", function () {
+    if (toggle.checked) {
+      badge.textContent = "Активен";
+      badge.style.cssText = "font-size:.75rem;background:#dcfce7;color:#15803d;border:1px solid #86efac;";
+    } else {
+      badge.textContent = "Неактивен";
+      badge.style.cssText = "font-size:.75rem;background:#f5f0e8;color:#7a5230;border:1px solid #d4c4a8;";
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -15,12 +15,43 @@
   {% endif %}
 </div>
 
+{% if parse_info %}
+<div class="card border-0 shadow-sm mb-3" style="border-left:4px solid var(--amber) !important">
+  <div class="card-body py-3">
+    <div class="fw-semibold mb-1" style="color:var(--amber-darker)">
+      Разобран: Заказ клиента № {{ parse_info.order_number }}{% if parse_info.order_date %} от {{ parse_info.order_date|date:"d.m.Y" }}{% endif %}
+    </div>
+    <div class="small text-muted d-flex flex-wrap gap-3">
+      <span>
+        Грузополучатель: <strong>{{ parse_info.client_name_raw }}</strong>
+        {% if parse_info.client_matched %}
+          — <span class="text-success fw-semibold">✓ найден в базе</span>
+        {% else %}
+          — <span class="text-danger fw-semibold">не найден, выберите вручную</span>
+        {% endif %}
+      </span>
+      <span>Позиций в заказе: <strong>{{ parse_info.items|length }}</strong></span>
+    </div>
+    {% if parse_info.items %}
+    <details class="mt-2">
+      <summary class="small" style="cursor:pointer;color:var(--ek-muted)">Показать позиции</summary>
+      <ol class="small mt-1 mb-0 ps-3" style="color:var(--ek-text)">
+        {% for item in parse_info.items %}
+          <li>{{ item.name }}{% if item.qty %} — <em>{{ item.qty }}</em>{% endif %}</li>
+        {% endfor %}
+      </ol>
+    </details>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <div class="card border-0 shadow-sm">
   <div class="card-body">
-    <form method="post" class="row g-3">
+    <form method="post" {% if form_action %}action="{{ form_action }}"{% endif %} class="row g-3" id="request-edit-form">
       {% csrf_token %}
       {% for field in form %}
-        <div class="col-12 col-md-6 {% if field.name == 'cargo_description' or field.name == 'cz_comment' or field.name == 'status_comment' %}col-md-12{% endif %}">
+        <div class="col-12 {% if operator_create_layout and field.name == 'cargo_places_count' or operator_create_layout and field.name == 'cargo_weight_kg' or operator_create_layout and field.name == 'cargo_volume_m3' or operator_create_layout and field.name == 'dimensions_text' %}col-md-3{% else %}col-md-6 {% if field.name == 'cargo_description' and not operator_create_layout or field.name == 'cz_comment' or field.name == 'status_comment' %}col-md-12{% endif %}{% endif %}">
           {% if field.field.widget.input_type == "checkbox" %}
             <div class="form-check mt-4">
               {{ field }}
@@ -28,10 +59,18 @@
             </div>
           {% else %}
             <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
+            {% if enable_client_tools and field.name == "client" %}
+              <input class="form-control form-control-sm mb-2" id="client-search" type="search" placeholder="Поиск клиента по названию">
+              <div class="input-group">
+                {{ field }}
+                <button class="btn btn-outline-primary" id="create-client-popup" type="button" title="Добавить клиента" data-url="{% url 'client_create' %}?popup=1">+</button>
+              </div>
+            {% else %}
+              {{ field }}
+            {% endif %}
           {% endif %}
           {% if field.help_text %}
-            <div class="form-text">{{ field.help_text }}</div>
+            <div class="form-text {% if field.name == 'skip_supply_to_warehouse' or field.name == 'client_address' %}fst-italic{% endif %}">{{ field.help_text }}</div>
           {% endif %}
           {% for error in field.errors %}
             <div class="text-danger small">{{ error }}</div>
@@ -41,11 +80,291 @@
       {% if form.non_field_errors %}
         <div class="col-12 text-danger">{{ form.non_field_errors }}</div>
       {% endif %}
-      <div class="col-12 d-flex gap-2">
-        <button class="btn btn-primary" type="submit">Сохранить</button>
-        <a class="btn btn-outline-secondary" href="{% url 'request_list' %}">Отмена</a>
+
+      <!-- ── Позиции груза ── -->
+      <div class="col-12">
+        <div class="mb-2 d-flex align-items-center justify-content-between">
+          <span class="fw-semibold">Позиции груза</span>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="cargo-add-row">+ Добавить позицию</button>
+        </div>
+        <div style="border:1px solid var(--ek-border);border-radius:var(--ek-radius-sm);overflow:hidden">
+          <table class="table table-sm mb-0" id="cargo-table">
+            <thead>
+              <tr style="background:var(--brown-faint)">
+                <th style="width:2.5rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ek-muted)">№</th>
+                <th style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ek-muted)">Наименование</th>
+                <th style="width:160px;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ek-muted)">Количество</th>
+                <th style="width:120px;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ek-muted);text-align:center">К обеспечению</th>
+                <th style="width:2.5rem"></th>
+              </tr>
+            </thead>
+            <tbody id="cargo-tbody">
+              {% if parse_info and parse_info.items %}
+                {% for item in parse_info.items %}
+                <tr class="cargo-row">
+                  <td class="cargo-num text-muted" style="vertical-align:middle">{{ forloop.counter }}</td>
+                  <td style="vertical-align:middle">
+                    <input type="text" name="cargo_item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
+                  </td>
+                  <td style="vertical-align:middle">
+                    <input type="text" name="cargo_item_qty" class="form-control form-control-sm" value="{{ item.qty }}">
+                  </td>
+                  <td style="vertical-align:middle;text-align:center">
+                    <div class="form-check form-switch d-inline-flex align-items-center" style="padding-left:0;gap:.5rem">
+                      <input class="form-check-input supply-chk" type="checkbox"
+                             name="cargo_supply_idx" value="{{ forloop.counter0 }}"
+                             style="float:none;margin:0;width:2.2em;height:1.2em" checked>
+                    </div>
+                  </td>
+                  <td style="vertical-align:middle">
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 cargo-del" title="Удалить">✕</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% elif request_obj %}
+                {% for item in request_obj.cargo_items.all %}
+                <tr class="cargo-row">
+                  <td class="cargo-num text-muted" style="vertical-align:middle">{{ forloop.counter }}</td>
+                  <td style="vertical-align:middle">
+                    <input type="text" name="cargo_item_name" class="form-control form-control-sm" value="{{ item.name }}" required>
+                  </td>
+                  <td style="vertical-align:middle">
+                    <input type="text" name="cargo_item_qty" class="form-control form-control-sm" value="{{ item.qty }}">
+                  </td>
+                  <td style="vertical-align:middle;text-align:center">
+                    <div class="form-check form-switch d-inline-flex align-items-center" style="padding-left:0;gap:.5rem">
+                      <input class="form-check-input supply-chk" type="checkbox"
+                             name="cargo_supply_idx" value="{{ forloop.counter0 }}"
+                             style="float:none;margin:0;width:2.2em;height:1.2em" {% if item.needs_supply %}checked{% endif %}>
+                    </div>
+                  </td>
+                  <td style="vertical-align:middle">
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 cargo-del" title="Удалить">✕</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+          <div id="cargo-empty" class="text-muted text-center py-3 small"
+               {% if parse_info and parse_info.items or request_obj and request_obj.cargo_items.exists %}style="display:none"{% endif %}>
+            Нет позиций — нажмите «Добавить позицию»
+          </div>
+        </div>
       </div>
+
     </form>
+
+    <!-- ── Наблюдатели (только при редактировании) ─────────────────── -->
+    {% if request_obj and user.is_superuser or request_obj and user.profile.role == "admin" or request_obj and user.profile.role == "operator" %}
+    <div class="mt-3 pt-3" style="border-top:1px solid var(--ek-border)">
+      <div class="fw-semibold mb-2" style="font-size:.9rem">Наблюдатели</div>
+      {% if current_viewers %}
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          {% for viewer in current_viewers %}
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill"
+                 style="background:var(--ek-bg);border:1px solid var(--ek-border);font-size:.875rem;">
+              <span>{{ viewer.get_full_name|default:viewer.username }}</span>
+              <form method="post" action="{{ request_obj.get_absolute_url }}" class="d-inline m-0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove_viewer">
+                <input type="hidden" name="viewer_user_id" value="{{ viewer.pk }}">
+                <button type="submit" class="btn btn-link btn-sm p-0 text-danger"
+                        style="line-height:1;" title="Удалить">✕</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted small mb-2">Наблюдатели не добавлены</p>
+      {% endif %}
+      {% if available_viewers %}
+        <form method="post" action="{{ request_obj.get_absolute_url }}"
+              class="d-flex gap-2 align-items-center flex-wrap">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_viewer">
+          <select name="viewer_user_id" class="form-select form-select-sm" style="max-width:220px">
+            <option value="">— Выберите наблюдателя —</option>
+            {% for v in available_viewers %}
+              <option value="{{ v.pk }}">{{ v.get_full_name|default:v.username }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Добавить</button>
+        </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Кнопки вынесены за пределы основной формы — нельзя вкладывать <form> в <form> -->
+    <div class="d-flex gap-2 flex-wrap align-items-center justify-content-between mt-3">
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit" form="request-edit-form">Сохранить</button>
+        <a class="btn btn-outline-secondary" href="{% if request_obj %}{{ request_obj.get_absolute_url }}{% else %}{% url 'request_list' %}{% endif %}">Отмена</a>
+      </div>
+      {% if request_obj and user.is_superuser or request_obj and user.profile.role == "admin" or request_obj and user.profile.role == "operator" %}
+      <form method="post" action="{% url 'request_delete' request_obj.pk %}" class="m-0">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger btn-sm"
+                onclick="return confirm('Удалить заявку {{ request_obj.request_number }}? Это действие необратимо.')">
+          Удалить заявку
+        </button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 </div>
+<script>
+(function () {
+  var tbody   = document.getElementById("cargo-tbody");
+  var empty   = document.getElementById("cargo-empty");
+  var addBtn  = document.getElementById("cargo-add-row");
+  if (!tbody || !addBtn) return;
+
+  function renumber() {
+    tbody.querySelectorAll(".cargo-row").forEach(function (tr, i) {
+      var numEl = tr.querySelector(".cargo-num");
+      if (numEl) numEl.textContent = i + 1;
+      // sync supply checkbox value to row index
+      var chk = tr.querySelector(".supply-chk");
+      if (chk) chk.value = i;
+    });
+    empty.style.display = tbody.querySelectorAll(".cargo-row").length ? "none" : "";
+  }
+
+  tbody.addEventListener("click", function (e) {
+    if (e.target.classList.contains("cargo-del")) {
+      e.target.closest("tr").remove();
+      renumber();
+    }
+  });
+
+  addBtn.addEventListener("click", function () {
+    var idx = tbody.querySelectorAll(".cargo-row").length;
+    var tr = document.createElement("tr");
+    tr.className = "cargo-row";
+    tr.innerHTML =
+      '<td class="cargo-num text-muted" style="vertical-align:middle">' + (idx + 1) + '</td>' +
+      '<td style="vertical-align:middle"><input type="text" name="cargo_item_name" class="form-control form-control-sm" required></td>' +
+      '<td style="vertical-align:middle"><input type="text" name="cargo_item_qty" class="form-control form-control-sm"></td>' +
+      '<td style="vertical-align:middle;text-align:center">' +
+        '<div class="form-check form-switch d-inline-flex align-items-center" style="padding-left:0;gap:.5rem">' +
+          '<input class="form-check-input supply-chk" type="checkbox" name="cargo_supply_idx" value="' + idx + '" style="float:none;margin:0;width:2.2em;height:1.2em" checked>' +
+        '</div></td>' +
+      '<td style="vertical-align:middle"><button type="button" class="btn btn-link btn-sm text-danger p-0 cargo-del" title="Удалить">✕</button></td>';
+    tbody.appendChild(tr);
+    renumber();
+    tr.querySelector("input[name='cargo_item_name']").focus();
+  });
+})();
+</script>
+
+{% if inactive_vehicle_ids %}
+{{ inactive_vehicle_ids|json_script:"inactive-vehicle-ids" }}
+<script>
+(function () {
+  var select = document.getElementById("id_assigned_vehicle");
+  var form   = select && select.closest("form");
+  if (!select || !form) return;
+  var inactive = new Set(JSON.parse(document.getElementById("inactive-vehicle-ids").textContent || "[]").map(String));
+  form.addEventListener("submit", function (e) {
+    var val = select.value;
+    if (val && inactive.has(val)) {
+      var ok = confirm("Автомобиль не активен. Всё равно назначить?");
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% if enable_client_tools %}
+  {{ client_last_addresses|json_script:"client-last-addresses" }}
+  <script>
+    (function() {
+      const clientSelect = document.getElementById("id_client");
+      const addressInput = document.getElementById("id_client_address");
+      const searchInput = document.getElementById("client-search");
+      const createButton = document.getElementById("create-client-popup");
+      const lastAddresses = JSON.parse(document.getElementById("client-last-addresses").textContent || "{}");
+      let allOptions = [];
+
+      function rememberOptions() {
+        if (!clientSelect) {
+          return;
+        }
+        allOptions = Array.from(clientSelect.options).map(function(option) {
+          return {
+            value: option.value,
+            text: option.text,
+            selected: option.selected,
+          };
+        });
+      }
+
+      function rebuildClientOptions(query) {
+        const selectedValue = clientSelect.value;
+        const normalizedQuery = (query || "").trim().toLowerCase();
+        clientSelect.innerHTML = "";
+        allOptions.forEach(function(optionData) {
+          const isEmptyOption = optionData.value === "";
+          const isMatch = optionData.text.toLowerCase().includes(normalizedQuery);
+          if (!isEmptyOption && normalizedQuery && !isMatch) {
+            return;
+          }
+          const option = new Option(optionData.text, optionData.value);
+          option.selected = optionData.value === selectedValue;
+          clientSelect.add(option);
+        });
+      }
+
+      function fillLastAddress() {
+        if (!clientSelect || !addressInput) {
+          return;
+        }
+        const lastAddress = lastAddresses[clientSelect.value];
+        if (lastAddress) {
+          addressInput.value = lastAddress;
+        }
+      }
+
+      if (clientSelect) {
+        rememberOptions();
+        clientSelect.addEventListener("change", fillLastAddress);
+      }
+
+      if (searchInput && clientSelect) {
+        searchInput.addEventListener("input", function() {
+          rebuildClientOptions(searchInput.value);
+        });
+      }
+
+      window.receiveNewClient = function(client) {
+        if (!clientSelect || !client || !client.id) {
+          return;
+        }
+        const clientId = String(client.id);
+        if (!allOptions.some(function(optionData) { return optionData.value === clientId; })) {
+          allOptions.push({value: clientId, text: client.name, selected: false});
+        }
+        if (client.address) {
+          lastAddresses[clientId] = client.address;
+        }
+        if (searchInput) {
+          searchInput.value = "";
+        }
+        rebuildClientOptions("");
+        clientSelect.value = clientId;
+        fillLastAddress();
+      };
+
+      if (createButton) {
+        createButton.addEventListener("click", function() {
+          window.open(createButton.dataset.url, "clientCreate", "width=760,height=720");
+        });
+      }
+    })();
+  </script>
+{% endif %}
 {% endblock %}

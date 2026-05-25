@@ -1,6 +1,7 @@
+import logging
+
 import requests
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -19,6 +20,8 @@ from apps.logistics.constants import (
 from apps.logistics.models import RequestStatusHistory
 from apps.problems.models import ProblemReport
 
+
+logger = logging.getLogger(__name__)
 
 ROLE_RECIPIENTS_BY_STATUS = {
     STATUS_CREATED: {ROLE_SUPPLY},
@@ -39,7 +42,7 @@ def _chat_id_for_user(user):
         profile = user.profile
     except ObjectDoesNotExist:
         profile = None
-    return getattr(user, "telegram_chat_id", "") or getattr(profile, "telegram_id", "")
+    return getattr(profile, "telegram_id", "")
 
 
 def _users_by_roles(roles):
@@ -47,15 +50,10 @@ def _users_by_roles(roles):
         return []
 
     users_by_id = {}
-    User = get_user_model()
 
     for profile in UserProfile.objects.select_related("user").filter(role__in=roles, is_active=True, user__is_active=True):
         if _chat_id_for_user(profile.user):
             users_by_id[profile.user_id] = profile.user
-
-    for user in User.objects.select_related("role", "profile").filter(role__code__in=roles, is_active=True):
-        if _chat_id_for_user(user):
-            users_by_id[user.id] = user
 
     return list(users_by_id.values())
 
@@ -87,6 +85,10 @@ def _recipient_chat_ids(status, request_obj):
         responsible_chat_id = _chat_id_for_user(request_obj.created_by)
         if responsible_chat_id:
             chat_ids.add(str(responsible_chat_id))
+        for user in _users_by_roles({ROLE_TRANSPORT}):
+            chat_id = _chat_id_for_user(user)
+            if chat_id:
+                chat_ids.add(str(chat_id))
 
     if status == STATUS_PROBLEM:
         problem = _latest_open_problem(request_obj)
@@ -127,8 +129,8 @@ def _send_message(chat_id, text, keyboard):
             json={"chat_id": chat_id, "text": text, "reply_markup": keyboard},
             timeout=5,
         )
-    except requests.RequestException:
-        pass
+    except requests.RequestException as exc:
+        logger.warning("Telegram notification failed for chat_id=%s: %s", chat_id, exc)
 
 
 @receiver(post_save, sender=RequestStatusHistory)

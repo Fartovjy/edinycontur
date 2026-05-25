@@ -17,18 +17,17 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate &&
-             python manage.py seed_demo_data &&
              python manage.py runserver 0.0.0.0:8000"
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-me}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,79.174.46.33}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
       POSTGRES_DB: ${POSTGRES_DB:-ediny_kontur}
       POSTGRES_USER: ${POSTGRES_USER:-ediny_kontur}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ediny_kontur}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
-      WEB_APP_BASE_URL: ${WEB_APP_BASE_URL:-http://79.174.46.33:8000}
+      WEB_APP_BASE_URL: ${WEB_APP_BASE_URL:-http://localhost:8000}
     volumes:
       - .:/app
       - media_data:/app/media

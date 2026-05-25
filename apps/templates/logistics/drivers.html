@@ -1,0 +1,328 @@
+{% extends "logistics/base.html" %}
+{% block title %}Водители — Единый Контур{% endblock %}
+{% block content %}
+<style>
+  /* ── Grid ───────────────────────────────── */
+  .drv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  /* ── Card ───────────────────────────────── */
+  .drv-card {
+    background: var(--ek-surface);
+    border: 1px solid var(--ek-border);
+    border-radius: var(--ek-radius);
+    box-shadow: var(--ek-shadow-sm);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow .15s, transform .15s;
+  }
+  .drv-card:hover   { box-shadow: var(--ek-shadow); transform: translateY(-2px); }
+  .drv-card.inactive { opacity: .55; }
+
+  /* ── Photo ───────────────────────────────── */
+  .drv-photo {
+    width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+  }
+  .drv-photo-placeholder {
+    width: 100%; aspect-ratio: 16/9;
+    background: linear-gradient(135deg, #eef3f8 0%, #dbe6f0 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Body: 2-column grid ─────────────────── */
+  .drv-body {
+    padding: .85rem 1rem .8rem;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: .75rem;
+    row-gap: .45rem;
+  }
+
+  /* Left col — identity */
+  .drv-identity {
+    grid-column: 1; grid-row: 1;
+    display: flex; flex-direction: column; gap: .15rem; min-width: 0;
+  }
+  .drv-name {
+    font-size: 1rem; font-weight: 800; line-height: 1.25;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .drv-phone {
+    font-size: .82rem; color: var(--ek-muted); font-weight: 500;
+    display: inline-flex; align-items: center; gap: .25rem; margin-top: .05rem;
+  }
+  .drv-phone svg { width:11px; height:11px; stroke:currentColor; fill:none; flex-shrink:0; opacity:.6; }
+
+  /* Right col — license */
+  .drv-license {
+    grid-column: 2; grid-row: 1;
+    display: flex; flex-direction: column; align-items: flex-end;
+    justify-content: flex-start; gap: .3rem; flex-shrink: 0;
+  }
+  .drv-cat {
+    display: inline-flex; align-items: center; gap: .2rem;
+    font-size: .72rem; font-weight: 800; letter-spacing: .04em;
+    background: var(--brown-faint); color: var(--brown-mid);
+    border: 1px solid var(--ek-border);
+    border-radius: 5px; padding: .12rem .45rem;
+    white-space: nowrap;
+  }
+  .drv-vu {
+    font-size: .74rem; font-weight: 600; color: var(--ek-muted);
+    white-space: nowrap; text-align: right;
+  }
+
+  /* Meta row (telegram) — spans full width */
+  .drv-meta {
+    grid-column: 1 / -1; grid-row: 2;
+    display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: center;
+  }
+  .drv-meta-item {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: .75rem; color: var(--ek-muted);
+  }
+  .drv-meta-item svg  { width:11px; height:11px; stroke:currentColor; fill:none; flex-shrink:0; }
+  .drv-meta-item .val { font-weight: 600; color: var(--ek-text); }
+
+  /* ── Notes ──────────────────────────────── */
+  .drv-notes {
+    font-size: .78rem; color: var(--ek-muted); font-style: italic;
+    line-height: 1.45;
+    padding: .45rem 1rem .5rem;
+    border-top: 1px solid var(--ek-border);
+  }
+
+  /* ── Footer ─────────────────────────────── */
+  .drv-footer {
+    padding: .55rem 1rem;
+    border-top: 1px solid var(--ek-border);
+    background: #fdf8f2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem;
+  }
+  .drv-toggle-wrap {
+    display: flex; align-items: center; gap: .45rem; flex-shrink: 0;
+  }
+  .drv-toggle-wrap .form-check {
+    padding-left: 0; min-height: 0;
+    display: inline-flex; align-items: center;
+  }
+  .drv-toggle-wrap .form-check-input {
+    width: 2.2em; height: 1.2em; cursor: pointer;
+    float: none; margin: 0; flex-shrink: 0;
+  }
+  .drv-toggle-lbl {
+    font-size: .76rem; font-weight: 700; cursor: pointer;
+    line-height: 1; user-select: none; white-space: nowrap;
+  }
+  .drv-toggle-lbl.on  { color: #15803d; }
+  .drv-toggle-lbl.off { color: var(--brown-mid); }
+  .drv-edit-btn { margin-left: auto; flex-shrink: 0; }
+
+  /* ── Static badge (non-editor) ───────────── */
+  .drv-badge {
+    display: inline-flex; align-items: center; gap: .28rem;
+    border-radius: 6px; padding: .18rem .55rem;
+    font-size: .7rem; font-weight: 700;
+  }
+  .drv-badge svg { width:8px; height:8px; fill:currentColor; }
+  .drv-badge.on  { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+  .drv-badge.off { background:#f5f0e8; color:var(--brown-mid); border:1px solid #d4c4a8; }
+
+  /* ── Stats ───────────────────────────────── */
+  .drv-stats { display:flex; gap:1.5rem; flex-wrap:wrap; }
+  .drv-stat  { display:flex; flex-direction:column; }
+  .drv-stat-val   { font-size:1.4rem; font-weight:800; line-height:1; }
+  .drv-stat-label { font-size:.73rem; color:var(--ek-muted); margin-top:.15rem; }
+
+  /* ── Empty ──────────────────────────────── */
+  .drv-empty { text-align:center; padding:4rem 1rem; color:var(--ek-muted); font-size:.95rem; }
+</style>
+
+<!-- Header -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Водители</h1>
+    <div class="text-muted">Водительский состав компании</div>
+  </div>
+  {% if can_edit %}
+    <a class="btn btn-primary align-self-md-start" href="/admin/transport/driver/add/">+ Добавить</a>
+  {% endif %}
+</div>
+
+{% if drivers %}
+
+<!-- Stats -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <div class="drv-stats">
+      <div class="drv-stat">
+        <div class="drv-stat-val">{{ drivers|length }}</div>
+        <div class="drv-stat-label">Всего водителей</div>
+      </div>
+      <div class="drv-stat">
+        <div class="drv-stat-val" style="color:var(--green)" id="drv-stat-active">{{ active_count }}</div>
+        <div class="drv-stat-label">Активных</div>
+      </div>
+      <div class="drv-stat" id="drv-stat-inactive-wrap"{% if not inactive_count %} style="display:none"{% endif %}>
+        <div class="drv-stat-val" style="color:#ef4444" id="drv-stat-inactive">{{ inactive_count }}</div>
+        <div class="drv-stat-label">Неактивных</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grid -->
+<div class="drv-grid">
+  {% for d in drivers %}
+    <div class="drv-card{% if not d.is_active %} inactive{% endif %}">
+
+      <!-- Photo -->
+      {% if d.photo %}
+        <img class="drv-photo" src="{{ d.photo.url }}" alt="{{ d.full_name }}">
+      {% else %}
+        <div class="drv-photo-placeholder">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+               style="width:68px;height:68px;opacity:.22;color:#4a7a9b">
+            <circle cx="32" cy="22" r="12" stroke="currentColor" stroke-width="3"/>
+            <path d="M8 56c0-13.255 10.745-24 24-24s24 10.745 24 24"
+                  stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+      {% endif %}
+
+      <!-- Body -->
+      <div class="drv-body">
+
+        <!-- LEFT: name + phone -->
+        <div class="drv-identity">
+          <div class="drv-name">{{ d.full_name }}</div>
+          {% if d.phone %}
+            <div class="drv-phone">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.08 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.13 1 .37 1.98.72 2.92a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.16-1.16a2 2 0 012.11-.45c.94.35 1.92.59 2.92.72A2 2 0 0122 16.92z"/>
+              </svg>
+              {{ d.phone }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- RIGHT: license -->
+        <div class="drv-license">
+          {% if d.license_category %}
+            <div class="drv-cat">{{ d.license_category }}</div>
+          {% endif %}
+          {% if d.license_number %}
+            <div class="drv-vu">{{ d.license_number }}</div>
+          {% endif %}
+        </div>
+
+        <!-- BOTTOM: telegram (full width) -->
+        {% if d.telegram_chat_id %}
+          <div class="drv-meta">
+            <div class="drv-meta-item">
+              <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              <span class="val">{{ d.telegram_chat_id }}</span>
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+
+      <!-- Notes -->
+      {% if d.notes %}
+        <div class="drv-notes">{{ d.notes }}</div>
+      {% endif %}
+
+      <!-- Footer -->
+      <div class="drv-footer">
+        {% if can_edit %}
+          <div class="drv-toggle-wrap"
+               data-toggle-url="{% url 'driver_toggle_active' d.pk %}"
+               data-driver-id="{{ d.pk }}">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input drv-active-toggle" type="checkbox" role="switch"
+                     id="dt-{{ d.pk }}" {% if d.is_active %}checked{% endif %}>
+            </div>
+            <label class="drv-toggle-lbl {% if d.is_active %}on{% else %}off{% endif %}"
+                   id="dtl-{{ d.pk }}" for="dt-{{ d.pk }}">
+              {% if d.is_active %}Активен{% else %}Неактивен{% endif %}
+            </label>
+          </div>
+          <a href="{% url 'driver_edit' d.pk %}" class="btn btn-sm btn-outline-secondary drv-edit-btn">
+            Редактировать
+          </a>
+        {% else %}
+          <span class="drv-badge {% if d.is_active %}on{% else %}off{% endif %}">
+            <svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>
+            {% if d.is_active %}Активен{% else %}Неактивен{% endif %}
+          </span>
+        {% endif %}
+      </div>
+
+    </div>
+  {% endfor %}
+</div>
+
+{% else %}
+  <div class="drv-empty">
+    <div style="font-size:3rem;margin-bottom:.5rem">👤</div>
+    Водителей пока нет.
+    {% if can_edit %}<br><a href="/admin/transport/driver/add/" class="btn btn-primary mt-3">Добавить первого</a>{% endif %}
+  </div>
+{% endif %}
+
+{% if can_edit %}
+<script>
+(function () {
+  var csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || "";
+
+  document.querySelectorAll(".drv-toggle-wrap").forEach(function (wrap) {
+    var cb   = wrap.querySelector(".drv-active-toggle");
+    var lbl  = wrap.querySelector(".drv-toggle-lbl");
+    var url  = wrap.dataset.toggleUrl;
+    var card = wrap.closest(".drv-card");
+    if (!cb || !lbl || !url) return;
+
+    cb.addEventListener("change", function () {
+      cb.disabled = true;
+      fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var on = d.is_active;
+          cb.checked  = on;
+          cb.disabled = false;
+          lbl.textContent = on ? "Активен" : "Неактивен";
+          lbl.className   = "drv-toggle-lbl " + (on ? "on" : "off");
+          if (card) card.classList.toggle("inactive", !on);
+          // Update stat counters
+          var nActive   = document.querySelectorAll(".drv-card:not(.inactive)").length;
+          var nInactive = document.querySelectorAll(".drv-card.inactive").length;
+          var elA = document.getElementById("drv-stat-active");
+          var elI = document.getElementById("drv-stat-inactive");
+          var elW = document.getElementById("drv-stat-inactive-wrap");
+          if (elA) elA.textContent = nActive;
+          if (elI) elI.textContent = nInactive;
+          if (elW) elW.style.display = nInactive ? "" : "none";
+        })
+        .catch(function () { cb.checked = !cb.checked; cb.disabled = false; });
+    });
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}

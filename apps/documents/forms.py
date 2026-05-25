@@ -2,11 +2,41 @@ from pathlib import Path
 
 from django import forms
 from django.conf import settings
+from PIL import Image, UnidentifiedImageError
 
 from .models import Attachment
 
 
 ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+IMAGE_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def validate_uploaded_document(uploaded_file):
+    extension = Path(uploaded_file.name).suffix.lower()
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise forms.ValidationError("Разрешены только PDF, JPG, PNG и WEBP.")
+
+    max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if uploaded_file.size > max_size:
+        raise forms.ValidationError(f"Файл больше {settings.MAX_UPLOAD_SIZE_MB} МБ.")
+
+    if extension == ".pdf":
+        header = uploaded_file.read(5)
+        uploaded_file.seek(0)
+        if header != b"%PDF-":
+            raise forms.ValidationError("PDF-файл повреждён или имеет неверный формат.")
+        return uploaded_file
+
+    if extension in IMAGE_UPLOAD_EXTENSIONS:
+        try:
+            Image.open(uploaded_file).verify()
+        except (UnidentifiedImageError, OSError):
+            uploaded_file.seek(0)
+            raise forms.ValidationError("Изображение повреждено или имеет неверный формат.")
+        uploaded_file.seek(0)
+        return uploaded_file
+
+    return uploaded_file
 
 
 class AttachmentForm(forms.ModelForm):
@@ -34,12 +64,4 @@ class AttachmentForm(forms.ModelForm):
 
     def clean_file(self):
         uploaded_file = self.cleaned_data["file"]
-        extension = Path(uploaded_file.name).suffix.lower()
-        if extension not in ALLOWED_UPLOAD_EXTENSIONS:
-            raise forms.ValidationError("Разрешены только PDF, JPG, PNG и WEBP.")
-
-        max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-        if uploaded_file.size > max_size:
-            raise forms.ValidationError(f"Файл больше {settings.MAX_UPLOAD_SIZE_MB} МБ.")
-
-        return uploaded_file
+        return validate_uploaded_document(uploaded_file)

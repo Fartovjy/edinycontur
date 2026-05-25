@@ -2,93 +2,98 @@
 {% block title %}Календарь - Единый Контур{% endblock %}
 {% block content %}
 <style>
-  .calendar-header {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: .5rem;
-  }
+  .calendar-header,
   .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: .5rem;
+    gap: .4rem;
   }
   .calendar-weekday,
   .calendar-day {
-    border: 1px solid #d9dee8;
-    border-radius: .5rem;
-    background: #fff;
+    border: 1px solid var(--ek-border);
+    border-radius: 10px;
+    background: var(--ek-surface);
   }
   .calendar-weekday {
-    padding: .45rem .6rem;
+    padding: .45rem .5rem;
     font-weight: 700;
-    color: #495057;
+    font-size: .775rem;
+    color: var(--brown-mid);
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    background: var(--brown-faint);
   }
   .calendar-weekday.weekend,
   .calendar-day.weekend {
-    background: #f3f7ff;
-    border-color: #c8d8f2;
+    background: #fefce8;
+    border-color: #fde68a;
   }
   .calendar-day {
-    min-height: 142px;
-    padding: .45rem;
+    min-height: 140px;
+    padding: .45rem .5rem;
     overflow: hidden;
   }
   .calendar-day.outside {
-    opacity: .45;
-    background: #f8f9fa;
+    opacity: .4;
+    background: var(--ek-bg);
   }
   .calendar-day.holiday {
-    background: #fff6e6;
-    border-color: #f2d49b;
+    background: #fffbeb;
+    border-color: var(--amber);
   }
   .calendar-day.today {
-    box-shadow: inset 0 0 0 2px #0d6efd;
+    box-shadow: inset 0 0 0 2px var(--amber);
   }
-  .calendar-day.can-create {
-    cursor: copy;
-  }
+  .calendar-day.can-create { cursor: copy; }
   .calendar-date {
     font-weight: 700;
-    color: #212529;
-    margin-bottom: .35rem;
+    font-size: .875rem;
+    color: var(--ek-text);
+    margin-bottom: .3rem;
   }
   .calendar-request {
     display: block;
-    border-radius: .35rem;
-    padding: .18rem .35rem;
-    margin-bottom: .25rem;
-    color: #111827;
-    font-size: .78rem;
-    line-height: 1.15;
+    border-radius: 5px;
+    padding: .18rem .4rem;
+    margin-bottom: .22rem;
+    font-size: .77rem;
+    line-height: 1.2;
     text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .calendar-request:hover {
-    color: #000;
-    filter: brightness(.96);
+  .calendar-request:hover { filter: brightness(.93); }
+  /* Жёлтый — создана/снабжение */
+  .calendar-request-created  { background: #fef9c3; color: #78350f; border-left: 3px solid var(--amber); }
+  .calendar-request-supply   { background: #fef3c7; color: #78350f; border-left: 3px solid var(--amber-dark); }
+  /* Зелёный — склад/доставка */
+  .calendar-request-shipment { background: #dcfce7; color: #14532d; border-left: 3px solid var(--green); }
+  .calendar-request-delivery { background: #bbf7d0; color: #14532d; border-left: 3px solid var(--green-dark); }
+  /* Серо-коричневый — завершено */
+  .calendar-request-done     { background: #f5ede0; color: var(--brown-mid); border-left: 3px solid var(--brown-light); text-decoration: line-through; }
+  /* Красный — проблема */
+  .calendar-request-problem  { background: #fee2e2; color: #7f1d1d; border-left: 3px solid var(--red); }
+
+  .driver-calendar .calendar-request-created,
+  .driver-calendar .calendar-request-supply,
+  .driver-calendar .calendar-request-shipment,
+  .driver-calendar .calendar-request-delivery {
+    background: #fef9c3;
+    border-left-color: var(--amber-dark);
+    color: #78350f;
   }
-  .calendar-request-created { background: #ffd6e7; border-left: 4px solid #d63384; }
-  .calendar-request-supply { background: #fff3cd; border-left: 4px solid #ffc107; }
-  .calendar-request-shipment { background: #d7efff; border-left: 4px solid #0dcaf0; }
-  .calendar-request-delivery { background: #d8f3dc; border-left: 4px solid #198754; }
-  .calendar-request-done { background: #e9ecef; color: #6c757d; border-left: 4px solid #adb5bd; text-decoration: line-through; }
-  .calendar-request-problem { background: #f8d7da; border-left: 4px solid #dc3545; }
-  .calendar-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-    margin-right: .75rem;
-    margin-bottom: .35rem;
-    font-size: .875rem;
+  .driver-calendar .calendar-request-problem {
+    background: #fee2e2;
+    border-left-color: var(--red);
+    color: #7f1d1d;
   }
-  .calendar-legend i {
-    display: inline-block;
-    width: 1rem;
-    height: .65rem;
-    border-radius: .25rem;
+  .driver-calendar .calendar-request-done {
+    background: #dcfce7;
+    border-left-color: var(--green);
+    color: #14532d;
+    text-decoration: none;
   }
   .calendar-filter {
     display: inline-flex;
@@ -100,20 +105,16 @@
     cursor: pointer;
     user-select: none;
   }
-  .calendar-filter input {
-    margin: 0;
+  .calendar-filter input { margin: 0; }
+  .calendar-legend i {
+    display: inline-block;
+    width: 1rem;
+    height: .6rem;
+    border-radius: 3px;
   }
 </style>
 
-<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
-  <div>
-    <h1 class="h3 mb-1">Календарь</h1>
-    <div class="text-muted">Заявки по актуальной рабочей дате этапа</div>
-  </div>
-  <a class="btn btn-outline-secondary align-self-md-start" href="{% url 'request_list' %}">К списку</a>
-</div>
-
-<div class="card border-0 shadow-sm mb-3">
+<div class="card border-0 shadow-sm mb-3 {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">
   <div class="card-body">
     <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
       <a class="btn btn-outline-primary" href="{% url 'request_calendar' %}?month={{ prev_month }}">Назад</a>
@@ -147,8 +148,9 @@
               {% if day.is_holiday %}<span class="badge text-bg-warning ms-1">праздник</span>{% endif %}
             </div>
             {% for item in day.requests %}
-              <a class="calendar-request {{ item.calendar_class }}" href="{{ item.get_absolute_url }}" title="{{ item.request_number }} · {{ item.client_name }}">
+              <a class="calendar-request {{ item.calendar_class }}" href="{{ item.get_absolute_url }}" title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
                 {{ item.client_name|default:item.request_number }}
+                {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>
             {% endfor %}
           </div>
@@ -172,7 +174,7 @@
 {% endif %}
 
 {% if undated_requests %}
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0 shadow-sm {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">
     <div class="card-body">
       <h2 class="h5 mb-3">Без рабочей даты</h2>
       <div class="row g-2">
