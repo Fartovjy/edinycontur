@@ -169,6 +169,53 @@ class PickupCalendarEntry:
         return self._pickup.request_number
 
 
+# ── Status-group → LogisticsRequest statuses mapping (shared with list view) ──
+_LIST_GROUP_TO_STATUSES = {
+    "supply":   [STATUS_CREATED, STATUS_WAITING_SUPPLY, STATUS_WAITING_ARRIVAL],
+    "shipment": [STATUS_IN_WAREHOUSE, STATUS_CZ_CHECK, STATUS_READY_TO_SHIP, STATUS_TRANSPORT_ASSIGNED],
+    "delivery": [STATUS_SHIPPED, STATUS_IN_TRANSIT],
+    "done":     [STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED],
+    "problem":  [STATUS_PROBLEM],
+}
+
+
+class PickupListItem:
+    """Обёртка над SupplyPickupRequest для единого списка заявок."""
+
+    row_type = "pickup"
+
+    _ROW_CSS = {
+        SupplyPickupRequest.STATUS_PENDING:            "s-supply",
+        SupplyPickupRequest.STATUS_TRANSPORT_ASSIGNED: "s-warehouse",
+        SupplyPickupRequest.STATUS_DELIVERED:          "s-done",
+    }
+    _SC_CSS = {
+        SupplyPickupRequest.STATUS_PENDING:            "sc-supply",
+        SupplyPickupRequest.STATUS_TRANSPORT_ASSIGNED: "sc-warehouse",
+        SupplyPickupRequest.STATUS_DELIVERED:          "sc-done",
+    }
+
+    def __init__(self, pickup):
+        self._p = pickup
+        self.pk = pickup.pk
+        self.request_number = pickup.request_number
+        self.client_name = str(pickup.supplier)
+        self.client_address = pickup.supplier.region or ""
+        self.assigned_driver = pickup.assigned_driver
+        self.planned_ship_date = None
+        self.planned_delivery_date = pickup.pickup_date
+        self.status = pickup.status
+        self.updated_at = pickup.updated_at
+        self.row_css_class = self._ROW_CSS.get(pickup.status, "s-supply")
+        self.status_css_class = self._SC_CSS.get(pickup.status, "sc-supply")
+
+    def get_status_display(self):
+        return dict(SupplyPickupRequest.STATUS_CHOICES).get(self.status, self.status)
+
+    def get_absolute_url(self):
+        return self._p.get_absolute_url()
+
+
 def _editable_fields_for_user(user, request_obj):
     role = get_user_role(user)
     if role in {ROLE_ADMIN}:
@@ -896,6 +943,21 @@ def request_list(request):
         | Q(actual_delivery_date__range=(period_start, period_end))
     )
 
+    # ── Status-group filter (copied from transport calendar) ───────────────────
+    _list_filter_submitted = request.GET.get("list_filters_submitted") == "1"
+    if _list_filter_submitted:
+        active_groups = [k for k in request.GET.getlist("status_group") if k in CALENDAR_STATUS_FILTER_KEYS]
+        request.session["list_status_filters"] = active_groups
+    else:
+        active_groups = request.session.get("list_status_filters", list(CALENDAR_STATUS_FILTER_KEYS))
+    active_group_set = set(active_groups)
+
+    if active_group_set != set(CALENDAR_STATUS_FILTER_KEYS):
+        allowed_statuses = []
+        for gk in active_group_set:
+            allowed_statuses.extend(_LIST_GROUP_TO_STATUSES.get(gk, []))
+        requests = requests.filter(status__in=allowed_statuses)
+
     requests = requests.annotate(
         completed_sort=Case(
             When(status__in=COMPLETED_STATUS_ORDER_VALUES, then=Value(1)),
@@ -903,6 +965,53 @@ def request_list(request):
             output_field=IntegerField(),
         )
     ).order_by("completed_sort", "-updated_at", "-id")
+
+    # ── Merge SupplyPickupRequest for supply / transport / admin ───────────────
+    user_role = get_user_role(request.user)
+    show_pickups = request.user.is_superuser or user_role in {ROLE_ADMIN, ROLE_SUPPLY, ROLE_TRANSPORT}
+    pickup_items = []
+    if show_pickups:
+        pickup_qs = (
+            SupplyPickupRequest.objects
+            .select_related("supplier", "assigned_driver", "assigned_vehicle")
+            .filter(
+                Q(pickup_date__range=(period_start, period_end))
+                | Q(pickup_date__isnull=True, status__in=[
+                    SupplyPickupRequest.STATUS_PENDING,
+                    SupplyPickupRequest.STATUS_TRANSPORT_ASSIGNED,
+                ])
+            )
+        )
+        if "supply" not in active_group_set:
+            pickup_qs = pickup_qs.exclude(status__in=[
+                SupplyPickupRequest.STATUS_PENDING,
+                SupplyPickupRequest.STATUS_TRANSPORT_ASSIGNED,
+            ])
+        if "done" not in active_group_set:
+            pickup_qs = pickup_qs.exclude(status=SupplyPickupRequest.STATUS_DELIVERED)
+        pickup_items = [PickupListItem(p) for p in pickup_qs.order_by("-updated_at")]
+
+    if pickup_items:
+        _done_statuses = {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED}
+
+        def _sort_key(item):
+            is_done = (
+                item.status == SupplyPickupRequest.STATUS_DELIVERED
+                if getattr(item, "row_type", "request") == "pickup"
+                else item.status in _done_statuses
+            )
+            d = item.planned_delivery_date
+            ts = item.updated_at.timestamp() if item.updated_at else 0
+            return (1 if is_done else 0, d is None, d or date.min, -ts)
+
+        all_items = sorted(list(requests) + pickup_items, key=_sort_key)
+    else:
+        all_items = requests
+
+    list_filters = [
+        {**f, "checked": f["key"] in active_group_set}
+        for f in CALENDAR_STATUS_FILTERS
+    ]
 
     client_names = (
         LogisticsRequest.objects.filter(is_archived=False)
@@ -913,7 +1022,9 @@ def request_list(request):
     )
 
     context = {
-        "requests": requests,
+        "requests": all_items,
+        "list_filters": list_filters,
+        "show_pickups": show_pickups,
         "quick_tabs": [
             ("all", "Все"),
             ("today", "Сегодня"),

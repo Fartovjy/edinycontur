@@ -218,6 +218,23 @@
         {% endfor %}
       </div>
     </div>
+    {% if show_pickups %}
+    <hr class="my-2">
+    <form method="get" class="d-flex flex-wrap align-items-center gap-3 mb-0">
+      <input type="hidden" name="list_filters_submitted" value="1">
+      {% if filters.quick %}<input type="hidden" name="quick" value="{{ filters.quick }}">{% endif %}
+      {% if active_period %}<input type="hidden" name="period" value="{{ active_period }}">{% endif %}
+      <span class="text-muted small fw-semibold">Показывать:</span>
+      {% for f in list_filters %}
+        <label class="d-inline-flex align-items-center gap-1 mb-0" style="font-size:.875rem;cursor:pointer;user-select:none;">
+          <input class="form-check-input mt-0" type="checkbox" name="status_group" value="{{ f.key }}"
+                 onchange="this.form.submit()" {% if f.checked %}checked{% endif %}>
+          <i class="{{ f.css_class }}" style="display:inline-block;width:1rem;height:.6rem;border-radius:3px;flex-shrink:0;"></i>
+          {{ f.label }}
+        </label>
+      {% endfor %}
+    </form>
+    {% endif %}
   </div>
 </div>
 
@@ -225,7 +242,8 @@
   <table class="req-table">
     <thead>
       <tr>
-        <th>Клиент</th>
+        <th>Клиент / Поставщик</th>
+        {% if show_pickups %}<th>Тип</th>{% endif %}
         <th>Адрес / GPS</th>
         <th>Водитель</th>
         <th>Даты</th>
@@ -234,33 +252,60 @@
     </thead>
     <tbody>
       {% for item in requests %}
-        <tr class="req-row {% if item.status == 'created' %}s-created{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}s-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}s-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}s-transit{% elif item.status == 'delivered' %}s-delivered{% elif item.status == 'problem' %}s-problem{% else %}s-done{% endif %}"
-            onclick="window.location='{{ item.get_absolute_url }}'"
-            tabindex="0"
-            onkeydown="if(event.key==='Enter')window.location='{{ item.get_absolute_url }}'">
-          <td>
-            <div class="cl-name">{{ item.client_name }}</div>
-          </td>
-          <td class="fw-bold">{{ item.client_address|default:"—" }}</td>
-          <td class="fw-bold">{{ item.assigned_driver|default:"—" }}</td>
-          <td>
-            <div class="d-pair">
-              <span class="d-label">Отгрузка</span>
-              <span class="d-val">{{ item.planned_ship_date|date:"d.m.Y"|default:"—" }}</span>
-            </div>
-            <div class="d-pair">
-              <span class="d-label">Доставка</span>
-              <span class="d-val">{{ item.planned_delivery_date|date:"d.m.Y"|default:"—" }}</span>
-            </div>
-          </td>
-          <td class="{% if item.status == 'problem' %}sc-problem{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}sc-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}sc-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}sc-transit{% elif item.status == 'delivered' %}sc-delivered{% elif item.status == 'closed' or item.status == 'cancelled' %}sc-done{% else %}sc-created{% endif %}">
-            <span class="sc-status-name">{{ item.get_status_display }}</span>
-            <span class="s-updated">{{ item.updated_at|date:"d.m.Y H:i" }}</span>
-          </td>
-        </tr>
+        {% if item.row_type == 'pickup' %}
+          <tr class="req-row {{ item.row_css_class }}"
+              onclick="window.location='{{ item.get_absolute_url }}'"
+              tabindex="0"
+              onkeydown="if(event.key==='Enter')window.location='{{ item.get_absolute_url }}'">
+            <td>
+              <div class="cl-name">{{ item.client_name }}</div>
+            </td>
+            {% if show_pickups %}
+            <td><span class="badge" style="background:#b45309;font-size:.7rem;">Забор</span></td>
+            {% endif %}
+            <td class="fw-bold">{{ item.client_address|default:"—" }}</td>
+            <td class="fw-bold">{{ item.assigned_driver|default:"—" }}</td>
+            <td>
+              <div class="d-pair">
+                <span class="d-label">Забор</span>
+                <span class="d-val">{{ item.planned_delivery_date|date:"d.m.Y"|default:"—" }}</span>
+              </div>
+            </td>
+            <td class="{{ item.status_css_class }}">
+              <span class="sc-status-name">{{ item.get_status_display }}</span>
+              <span class="s-updated">{{ item.updated_at|date:"d.m.Y H:i" }}</span>
+            </td>
+          </tr>
+        {% else %}
+          <tr class="req-row {% if item.status == 'created' %}s-created{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}s-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}s-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}s-transit{% elif item.status == 'delivered' %}s-delivered{% elif item.status == 'problem' %}s-problem{% else %}s-done{% endif %}"
+              onclick="window.location='{{ item.get_absolute_url }}'"
+              tabindex="0"
+              onkeydown="if(event.key==='Enter')window.location='{{ item.get_absolute_url }}'">
+            <td>
+              <div class="cl-name">{{ item.client_name }}</div>
+            </td>
+            {% if show_pickups %}<td><span class="badge bg-secondary" style="font-size:.7rem;">Заявка</span></td>{% endif %}
+            <td class="fw-bold">{{ item.client_address|default:"—" }}</td>
+            <td class="fw-bold">{{ item.assigned_driver|default:"—" }}</td>
+            <td>
+              <div class="d-pair">
+                <span class="d-label">Отгрузка</span>
+                <span class="d-val">{{ item.planned_ship_date|date:"d.m.Y"|default:"—" }}</span>
+              </div>
+              <div class="d-pair">
+                <span class="d-label">Доставка</span>
+                <span class="d-val">{{ item.planned_delivery_date|date:"d.m.Y"|default:"—" }}</span>
+              </div>
+            </td>
+            <td class="{% if item.status == 'problem' %}sc-problem{% elif item.status == 'waiting_supply' or item.status == 'waiting_arrival' %}sc-supply{% elif item.status == 'in_warehouse' or item.status == 'cz_check' or item.status == 'ready_to_ship' or item.status == 'transport_assigned' %}sc-warehouse{% elif item.status == 'shipped' or item.status == 'in_transit' %}sc-transit{% elif item.status == 'delivered' %}sc-delivered{% elif item.status == 'closed' or item.status == 'cancelled' %}sc-done{% else %}sc-created{% endif %}">
+              <span class="sc-status-name">{{ item.get_status_display }}</span>
+              <span class="s-updated">{{ item.updated_at|date:"d.m.Y H:i" }}</span>
+            </td>
+          </tr>
+        {% endif %}
       {% empty %}
         <tr class="empty-row">
-          <td colspan="5">Заявок пока нет</td>
+          <td colspan="{% if show_pickups %}6{% else %}5{% endif %}">Заявок пока нет</td>
         </tr>
       {% endfor %}
     </tbody>

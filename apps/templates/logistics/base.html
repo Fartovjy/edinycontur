@@ -345,7 +345,7 @@
             {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}
               <a class="nav-link" href="{% url 'supplier_list' %}">Поставщики</a>
             {% endif %}
-            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" or user.profile.role == "transport" %}
+            {% if user.is_superuser or user.profile.role == "admin" %}
               <a class="nav-link" href="{% url 'supply_pickup_list' %}">Заборы</a>
             {% endif %}
             {% if unread_notifications_count %}
