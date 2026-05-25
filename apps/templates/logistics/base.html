@@ -359,12 +359,12 @@
             {% endif %}
           </div>
           <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2 gap-lg-3">
-            <div class="text-lg-end">
+            <a href="{% url 'profile' %}" class="text-lg-end text-decoration-none" style="cursor:pointer;">
               <div class="nav-user-name">{{ user.get_full_name|default:user.username }}</div>
               <div class="nav-user-role">
                 {% if user.profile %}{{ user.profile.get_role_display }}{% else %}Роль не задана{% endif %}
               </div>
-            </div>
+            </a>
             <form method="post" action="{% url 'logout' %}" class="m-0">
               {% csrf_token %}
               <button class="btn-nav-logout" type="submit">Выйти</button>

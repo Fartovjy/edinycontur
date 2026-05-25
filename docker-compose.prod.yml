@@ -32,7 +32,15 @@ services:
       POSTGRES_PORT: 5432
       WEB_APP_BASE_URL: ${WEB_APP_BASE_URL}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_NAME: ${TELEGRAM_BOT_NAME:-biovetk_bot}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.mail.ru}
+      EMAIL_PORT: ${EMAIL_PORT:-465}
+      EMAIL_USE_SSL: ${EMAIL_USE_SSL:-1}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-0}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media

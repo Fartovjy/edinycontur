@@ -3,6 +3,7 @@ import logging
 import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.mail import send_mail
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -46,13 +47,38 @@ def _chat_id_for_user(user):
 
 
 def _users_by_roles(roles):
+    """Return users in roles who want Telegram notifications and have telegram_id set."""
     if not roles:
         return []
 
     users_by_id = {}
 
-    for profile in UserProfile.objects.select_related("user").filter(role__in=roles, is_active=True, user__is_active=True):
+    for profile in UserProfile.objects.select_related("user").filter(
+        role__in=roles,
+        is_active=True,
+        user__is_active=True,
+        notify_via_telegram=True,
+    ):
         if _chat_id_for_user(profile.user):
+            users_by_id[profile.user_id] = profile.user
+
+    return list(users_by_id.values())
+
+
+def _users_by_roles_for_email(roles):
+    """Return users in roles who want email notifications and have email address set."""
+    if not roles:
+        return []
+
+    users_by_id = {}
+
+    for profile in UserProfile.objects.select_related("user").filter(
+        role__in=roles,
+        is_active=True,
+        user__is_active=True,
+        notify_via_email=True,
+    ):
+        if profile.user.email:
             users_by_id[profile.user_id] = profile.user
 
     return list(users_by_id.values())
@@ -82,9 +108,15 @@ def _recipient_chat_ids(status, request_obj):
             chat_ids.add(str(driver_chat_id))
 
     if status == STATUS_DELIVERED:
-        responsible_chat_id = _chat_id_for_user(request_obj.created_by)
-        if responsible_chat_id:
-            chat_ids.add(str(responsible_chat_id))
+        # Notify request creator (if they have Telegram and notifications enabled)
+        creator = request_obj.created_by
+        if creator:
+            try:
+                prof = creator.profile
+                if prof.notify_via_telegram and prof.telegram_id:
+                    chat_ids.add(str(prof.telegram_id))
+            except ObjectDoesNotExist:
+                pass
         for user in _users_by_roles({ROLE_TRANSPORT}):
             chat_id = _chat_id_for_user(user)
             if chat_id:
@@ -92,11 +124,49 @@ def _recipient_chat_ids(status, request_obj):
 
     if status == STATUS_PROBLEM:
         problem = _latest_open_problem(request_obj)
-        responsible_chat_id = _chat_id_for_user(problem.responsible_user) if problem else ""
-        if responsible_chat_id:
-            chat_ids.add(str(responsible_chat_id))
+        if problem and problem.responsible_user:
+            try:
+                prof = problem.responsible_user.profile
+                if prof.notify_via_telegram and prof.telegram_id:
+                    chat_ids.add(str(prof.telegram_id))
+            except ObjectDoesNotExist:
+                pass
 
     return chat_ids
+
+
+def _recipient_emails(status, request_obj):
+    """Collect email recipients for a status change."""
+    emails = set()
+
+    for user in _users_by_roles_for_email(ROLE_RECIPIENTS_BY_STATUS.get(status, set())):
+        if user.email:
+            emails.add(user.email)
+
+    if status == STATUS_DELIVERED:
+        creator = request_obj.created_by
+        if creator:
+            try:
+                prof = creator.profile
+                if prof.notify_via_email and creator.email:
+                    emails.add(creator.email)
+            except ObjectDoesNotExist:
+                pass
+        for user in _users_by_roles_for_email({ROLE_TRANSPORT}):
+            if user.email:
+                emails.add(user.email)
+
+    if status == STATUS_PROBLEM:
+        problem = _latest_open_problem(request_obj)
+        if problem and problem.responsible_user:
+            try:
+                prof = problem.responsible_user.profile
+                if prof.notify_via_email and problem.responsible_user.email:
+                    emails.add(problem.responsible_user.email)
+            except ObjectDoesNotExist:
+                pass
+
+    return emails
 
 
 def _message_text(history, link):
@@ -122,7 +192,7 @@ def _keyboard(request_obj, link, include_driver_actions=False):
     return {"inline_keyboard": buttons}
 
 
-def _send_message(chat_id, text, keyboard):
+def _send_telegram(chat_id, text, keyboard):
     try:
         requests.post(
             _telegram_api("sendMessage"),
@@ -133,19 +203,36 @@ def _send_message(chat_id, text, keyboard):
         logger.warning("Telegram notification failed for chat_id=%s: %s", chat_id, exc)
 
 
+def _send_email(subject, text, recipient_list):
+    if not recipient_list or not settings.EMAIL_HOST_USER:
+        return
+    try:
+        send_mail(subject, text, settings.DEFAULT_FROM_EMAIL, list(recipient_list), fail_silently=False)
+    except Exception as exc:
+        logger.warning("Email notification failed for %s: %s", recipient_list, exc)
+
+
 @receiver(post_save, sender=RequestStatusHistory)
 def notify_responsible_roles_on_status_change(sender, instance, created, **kwargs):
-    if not created or not settings.TELEGRAM_BOT_TOKEN:
+    if not created:
         return
 
     request_obj = instance.request
-    chat_ids = _recipient_chat_ids(instance.new_status, request_obj)
-    if not chat_ids:
-        return
-
     link = f"{settings.WEB_APP_BASE_URL}{request_obj.get_absolute_url()}"
     text = _message_text(instance, link)
 
-    for chat_id in chat_ids:
-        include_driver_actions = request_obj.assigned_driver and str(request_obj.assigned_driver.chat_id) == str(chat_id)
-        _send_message(chat_id, text, _keyboard(request_obj, link, include_driver_actions=include_driver_actions))
+    # ── Telegram ──────────────────────────────────────────────────────────
+    if settings.TELEGRAM_BOT_TOKEN:
+        chat_ids = _recipient_chat_ids(instance.new_status, request_obj)
+        for chat_id in chat_ids:
+            include_driver_actions = (
+                request_obj.assigned_driver
+                and str(request_obj.assigned_driver.chat_id) == str(chat_id)
+            )
+            _send_telegram(chat_id, text, _keyboard(request_obj, link, include_driver_actions=include_driver_actions))
+
+    # ── Email ─────────────────────────────────────────────────────────────
+    emails = _recipient_emails(instance.new_status, request_obj)
+    if emails:
+        subject = f"Единый Контур: заявка {request_obj.request_number} — {instance.get_new_status_display()}"
+        _send_email(subject, text, emails)

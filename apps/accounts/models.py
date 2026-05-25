@@ -36,6 +36,9 @@ class UserProfile(models.Model):
     calendar_status_filters = models.JSONField("Фильтры статусов календаря", default=default_calendar_status_filters, blank=True)
     request_list_period = models.CharField("Период списка заявок", max_length=16, choices=REQUEST_LIST_PERIOD_CHOICES, default=REQUEST_LIST_PERIOD_MONTH)
     is_active = models.BooleanField("Активен", default=True)
+    notify_via_telegram = models.BooleanField("Уведомления в Telegram", default=True)
+    notify_via_email = models.BooleanField("Уведомления на email", default=False)
+    telegram_link_token = models.CharField("Токен привязки Telegram", max_length=16, blank=True)
 
     class Meta:
         verbose_name = "Профиль пользователя"

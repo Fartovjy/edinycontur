@@ -189,7 +189,45 @@ def get_start_context(telegram_id, chat_id):
             "role_label": transport_profile.get_role_display(),
         }
 
+    # Any other role linked by telegram_id
+    any_profile = (
+        UserProfile.objects.select_related("user")
+        .filter(telegram_id=str(telegram_id), is_active=True, user__is_active=True)
+        .first()
+    )
+    if any_profile:
+        user = any_profile.user
+        return {
+            "found": True,
+            "role": any_profile.role,
+            "full_name": user.get_full_name() or user.username,
+            "role_label": any_profile.get_role_display(),
+        }
+
     return {"found": driver_context["found"], "role": None}
+
+
+def _link_by_token_sync(token, from_user_id):
+    token = token.strip().upper()
+    if not token:
+        return None, "Пустой код."
+    profile = (
+        UserProfile.objects.select_related("user")
+        .filter(telegram_link_token=token)
+        .first()
+    )
+    if not profile:
+        return None, "Код не найден или уже использован. Сгенерируйте новый в профиле на сайте."
+    profile.telegram_id = str(from_user_id)
+    profile.telegram_link_token = ""
+    profile.notify_via_telegram = True
+    profile.save(update_fields=["telegram_id", "telegram_link_token", "notify_via_telegram"])
+    return profile, ""
+
+
+@sync_to_async
+def link_by_token(token, from_user_id):
+    return _link_by_token_sync(token, from_user_id)
 
 
 @sync_to_async
@@ -401,14 +439,34 @@ async def answer_transport_requests(message_or_callback):
         await message.answer(_transport_request_text(request_obj), reply_markup=_transport_request_keyboard(request_obj))
 
 
-@router.message(F.text == "/start")
+@router.message(F.text.startswith("/start"))
 async def start(message: Message):
     telegram_id = message.from_user.id if message.from_user else message.chat.id
+    text_parts = (message.text or "").split(None, 1)
+
+    # /start TOKEN — self-service Telegram linking
+    if len(text_parts) == 2:
+        token = text_parts[1].strip()
+        profile, error = await link_by_token(token, telegram_id)
+        if error:
+            await message.answer(f"Ошибка привязки: {error}")
+            return
+        user = profile.user
+        await message.answer(
+            f"Аккаунт привязан!\n"
+            f"Пользователь: {user.get_full_name() or user.username}\n"
+            f"Роль: {profile.get_role_display()}\n\n"
+            "Теперь вы будете получать уведомления в Telegram."
+        )
+        return
+
+    # /start — show status
     context = await get_start_context(telegram_id, message.chat.id)
     if not context["found"]:
         await message.answer(
-            "Telegram ID не найден в системе.\n"
-            "Обратитесь к администратору, чтобы он привязал Telegram ID к профилю пользователя."
+            "Telegram не привязан к аккаунту в системе.\n"
+            "Перейдите в свой профиль на сайте, скопируйте код и отправьте:\n"
+            "/start КОД"
         )
         return
 
@@ -424,19 +482,26 @@ async def start(message: Message):
             reply_markup=_driver_start_keyboard(),
         )
         return
-    if context["role"] != ROLE_TRANSPORT:
-        await message.answer("Этот Telegram-бот доступен водителям и транспортному отделу.")
+
+    if context["role"] == ROLE_TRANSPORT:
+        await message.answer(
+            "Единый Контур: транспортный отдел.\n"
+            f"Пользователь: {context['full_name']}\n"
+            f"Роль: {context['role_label']}\n\n"
+            "Доступные команды:\n"
+            "- /start\n"
+            "- /requests - показать заявки транспорта\n\n"
+            "В заявке доступны кнопки: Машина, Водитель, Дата и ссылка на веб-карточку.",
+            reply_markup=_transport_start_keyboard(),
+        )
         return
 
+    # Other roles — just confirm linking
     await message.answer(
-        "Единый Контур: транспортный отдел.\n"
+        "Единый Контур.\n"
         f"Пользователь: {context['full_name']}\n"
         f"Роль: {context['role_label']}\n\n"
-        "Доступные команды:\n"
-        "- /start\n"
-        "- /requests - показать заявки транспорта\n\n"
-        "В заявке доступны кнопки: Машина, Водитель, Дата и ссылка на веб-карточку.",
-        reply_markup=_transport_start_keyboard(),
+        "Уведомления о заявках будут приходить сюда."
     )
 
 

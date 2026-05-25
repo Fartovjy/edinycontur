@@ -1,0 +1,124 @@
+{% extends "logistics/base.html" %}
+{% block title %}Профиль — Единый Контур{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+  <div>
+    <h1 class="h3 mb-1">Профиль</h1>
+    <div class="text-muted">{{ user.get_full_name|default:user.username }} &mdash; {{ profile.get_role_display }}</div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- Notification preferences -->
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">Уведомления</h5>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save">
+
+          <div class="mb-3">
+            <label class="form-label">Email для уведомлений</label>
+            <input type="email" class="form-control" name="email" value="{{ user.email }}" placeholder="example@mail.ru">
+            <div class="form-text">Если оставить пустым — email-уведомления не будут отправляться.</div>
+          </div>
+
+          <div class="mb-3">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" name="notify_via_email" id="notifyEmail"
+                     {% if profile.notify_via_email %}checked{% endif %}>
+              <label class="form-check-label" for="notifyEmail">
+                Получать уведомления по email
+              </label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="notify_via_telegram" id="notifyTelegram"
+                     {% if profile.notify_via_telegram %}checked{% endif %}>
+              <label class="form-check-label" for="notifyTelegram">
+                Получать уведомления в Telegram
+                {% if not profile.telegram_id %}
+                  <span class="badge bg-secondary ms-1" style="font-size:.7rem;">не привязан</span>
+                {% endif %}
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telegram link -->
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">Telegram</h5>
+
+        {% if profile.telegram_id %}
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="badge" style="background:var(--green);color:#fff;font-size:.8rem;">Привязан</span>
+            <span class="text-muted small">ID: {{ profile.telegram_id }}</span>
+          </div>
+          <form method="post" class="mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="clear_telegram">
+            <button type="submit" class="btn btn-outline-danger btn-sm"
+                    onclick="return confirm('Отвязать Telegram?')">Отвязать</button>
+          </form>
+        {% else %}
+          <p class="text-muted small mb-3">
+            Привяжите Telegram, чтобы получать уведомления прямо в мессенджере.
+          </p>
+          <p class="small mb-2">Шаги:</p>
+          <ol class="small mb-3 ps-3">
+            <li>Нажмите «Сгенерировать код»</li>
+            <li>Откройте бота <a href="https://t.me/{{ bot_name }}" target="_blank">@{{ bot_name }}</a></li>
+            <li>Отправьте боту команду: <code>/start КОД</code></li>
+          </ol>
+
+          {% if profile.telegram_link_token %}
+            <div class="mb-3">
+              <div class="fw-semibold mb-1">Ваш код:</div>
+              <div class="d-flex align-items-center gap-2">
+                <code class="fs-5 px-3 py-1 rounded" style="background:var(--brown-faint);letter-spacing:.15em;"
+                      id="tg-token">{{ profile.telegram_link_token }}</code>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copyToken()">Копировать</button>
+              </div>
+              <div class="mt-2">
+                <a href="https://t.me/{{ bot_name }}?start={{ profile.telegram_link_token }}" target="_blank"
+                   class="btn btn-sm" style="background:#2196f3;color:#fff;">
+                  Открыть бота
+                </a>
+              </div>
+            </div>
+          {% endif %}
+
+          <form method="post" class="mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="gen_token">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+              {% if profile.telegram_link_token %}Обновить код{% else %}Сгенерировать код{% endif %}
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function copyToken() {
+  const el = document.getElementById('tg-token');
+  if (!el) return;
+  const text = '/start ' + el.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.nextElementSibling;
+    if (btn) { btn.textContent = 'Скопировано!'; setTimeout(() => btn.textContent = 'Копировать', 2000); }
+  });
+}
+</script>
+{% endblock %}
