@@ -45,10 +45,18 @@ def _parse_кому_cell(text: str, result: dict) -> None:
         clean = _LEGAL_FORMS_RE.sub("", raw).strip().strip("\"'")
         result["client_name"] = clean if clean else raw
 
-    # Contact person: from 'Contact Person:' to ' /'
+    # Contact person (ФИО): from 'Contact Person:' to ' /'
     m = re.search(r"Contact Person:\s*(.+?)\s*/", text, re.DOTALL)
     if m:
         result["client_contact"] = re.sub(r"\s+", " ", m.group(1)).strip()
+
+    # Contact details (phone / email): from 'Contact details' to ' /'
+    # Format: «Контактные данные (тел / почта) / Contact details (phone / email): VALUE /»
+    m = re.search(r"Contact details[^:]*:\s*(.+?)\s*/", text, re.DOTALL)
+    if m:
+        val = re.sub(r"\s+", " ", m.group(1)).strip()
+        if val:
+            result["client_phone"] = val
 
     # Address: from 'Address:' to ' /' (may span two lines)
     m = re.search(r"Адрес/\s*Address:\s*(.+?)\s*/", text, re.DOTALL)

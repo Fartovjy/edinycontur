@@ -1678,6 +1678,8 @@ def request_create_from_pdf(request):
         initial["client_address"] = parsed["client_address"]
     if parsed.get("client_contact"):
         initial["client_contact"] = parsed["client_contact"]
+    if parsed.get("client_phone"):
+        initial["client_phone"] = parsed["client_phone"]
     # cargo_description намеренно не заполняем — оператор вводит сам
     if parsed["cargo_places_count"]:
         initial["cargo_places_count"] = parsed["cargo_places_count"]
@@ -1696,13 +1698,17 @@ def request_create_from_pdf(request):
         "items": parsed["items"],   # передаём в шаблон для pre-fill таблицы позиций
     }
 
+    available_viewers = User.objects.filter(
+        profile__role=ROLE_VIEWER, profile__is_active=True
+    ).order_by("last_name", "first_name", "username")
+
     return render(request, "logistics/request_form.html", {
         "form": form,
         "title": "Создание заявки из файла",
-        "operator_create_layout": role == ROLE_OPERATOR,
         "client_last_addresses": _client_last_addresses(),
         "form_action": reverse("request_create"),
         "parse_info": parse_info,
+        "available_viewers": available_viewers,
     })
 
 
@@ -1738,8 +1744,15 @@ def request_create(request):
                 request_obj.warehouse = default_warehouse
             skip_supply = form.cleaned_data.get("skip_supply_to_warehouse")
             request_obj.created_by = request.user
-            request_obj.save()  # сохраняем первым — нужен PK для M2M и FK CargoItem
-            form.save_m2m()     # сохраняем viewer_users и другие M2M
+            request_obj.save()  # сохраняем первым — нужен PK для FK CargoItem
+            # Наблюдатель (одиночный выбор через viewer_user_id)
+            viewer_id = request.POST.get("viewer_user_id", "").strip()
+            if viewer_id:
+                try:
+                    viewer = User.objects.get(pk=viewer_id, profile__role=ROLE_VIEWER)
+                    request_obj.viewer_users.add(viewer)
+                except (User.DoesNotExist, ValueError):
+                    pass
 
             # ── Сохранить позиции груза из формы ─────────────────────────
             item_names = request.POST.getlist("cargo_item_name")
@@ -1797,6 +1810,10 @@ def request_create(request):
             initial["planned_delivery_date"] = planned_delivery_date
         form = LogisticsRequestCreateForm(initial=initial, user_role=role)
 
+    available_viewers = User.objects.filter(
+        profile__role=ROLE_VIEWER, profile__is_active=True
+    ).order_by("last_name", "first_name", "username")
+
     return render(
         request,
         "logistics/request_form.html",
@@ -1804,8 +1821,8 @@ def request_create(request):
             "form": form,
             "title": "Создание заявки",
             "enable_client_tools": True,
-            "operator_create_layout": role == ROLE_OPERATOR,
             "client_last_addresses": _client_last_addresses(),
+            "available_viewers": available_viewers,
         },
     )
 

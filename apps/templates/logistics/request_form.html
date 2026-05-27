@@ -44,8 +44,92 @@
     <form method="post" {% if form_action %}action="{{ form_action }}"{% endif %} class="row g-3" id="request-edit-form">
       {% csrf_token %}
       {% if parse_info %}<input type="hidden" name="from_pdf" value="1">{% endif %}
+
+      {% if not request_obj %}
+      {# ══ ФОРМА СОЗДАНИЯ: фиксированный макет col-8 / col-4 ══════════════ #}
+
+      {# Строка 1: Номер заявки | Плановая дата доставки #}
+      <div class="col-md-8">
+        <label class="form-label fw-semibold" for="{{ form.request_number.id_for_label }}">{{ form.request_number.label }}</label>
+        {{ form.request_number }}
+        {% if form.request_number.help_text %}<div class="form-text fst-italic">{{ form.request_number.help_text }}</div>{% endif %}
+        {% for e in form.request_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="{{ form.planned_delivery_date.id_for_label }}">{{ form.planned_delivery_date.label }}</label>
+        {{ form.planned_delivery_date }}
+        {% for e in form.planned_delivery_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      {# Строка 2: Клиент | Количество мест #}
+      <div class="col-md-8">
+        <label class="form-label fw-semibold" for="{{ form.client.id_for_label }}">{{ form.client.label }}</label>
+        {% if parse_info %}
+          <input type="text" name="client_name_override" class="form-control" value="{{ parse_info.client_name_raw }}" required>
+        {% elif enable_client_tools %}
+          <input class="form-control form-control-sm mb-2" id="client-search" type="search" placeholder="Поиск клиента по названию">
+          <div class="input-group">
+            {{ form.client }}
+            <button class="btn btn-outline-primary" id="create-client-popup" type="button" title="Добавить клиента" data-url="{% url 'client_create' %}?popup=1">+</button>
+          </div>
+        {% else %}
+          {{ form.client }}
+        {% endif %}
+        {% for e in form.client.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="{{ form.cargo_places_count.id_for_label }}">{{ form.cargo_places_count.label }}</label>
+        {{ form.cargo_places_count }}
+        {% for e in form.cargo_places_count.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      {# Строка 3: Адрес | Вес груза #}
+      <div class="col-md-8">
+        <label class="form-label fw-semibold" for="{{ form.client_address.id_for_label }}">{{ form.client_address.label }}</label>
+        {{ form.client_address }}
+        {% if form.client_address.help_text %}<div class="form-text fst-italic">{{ form.client_address.help_text }}</div>{% endif %}
+        {% for e in form.client_address.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="{{ form.cargo_weight_kg.id_for_label }}">{{ form.cargo_weight_kg.label }}</label>
+        {{ form.cargo_weight_kg }}
+        {% for e in form.cargo_weight_kg.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      {# Строка 4: ФИО | Телефон/Email #}
+      <div class="col-md-8">
+        <label class="form-label fw-semibold" for="{{ form.client_contact.id_for_label }}">{{ form.client_contact.label }}</label>
+        {{ form.client_contact }}
+        {% for e in form.client_contact.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold" for="{{ form.client_phone.id_for_label }}">{{ form.client_phone.label }}</label>
+        {{ form.client_phone }}
+        {% for e in form.client_phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      {# Строка 5: Примечание (col-8) | Наблюдатель (col-4) #}
+      <div class="col-md-8">
+        <label class="form-label fw-semibold" for="{{ form.cargo_description.id_for_label }}">{{ form.cargo_description.label }}</label>
+        {{ form.cargo_description }}
+        {% for e in form.cargo_description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Наблюдатель</label>
+        <select name="viewer_user_id" class="form-select">
+          <option value="">— не выбран —</option>
+          {% for v in available_viewers %}
+            <option value="{{ v.pk }}">{{ v.get_full_name|default:v.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if form.non_field_errors %}<div class="col-12 text-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+      {% else %}
+      {# ══ ФОРМА РЕДАКТИРОВАНИЯ: универсальный цикл ════════════════════════ #}
       {% for field in form %}
-        <div class="col-12 {% if operator_create_layout and field.name == 'cargo_places_count' or operator_create_layout and field.name == 'cargo_weight_kg' or operator_create_layout and field.name == 'cargo_volume_m3' or operator_create_layout and field.name == 'dimensions_text' %}col-md-3{% else %}col-md-6 {% if field.name == 'cargo_description' and not operator_create_layout or field.name == 'cz_comment' or field.name == 'status_comment' or field.name == 'viewer_users' %}col-md-12{% endif %}{% endif %}">
+        <div class="col-12 col-md-6 {% if field.name == 'cargo_description' or field.name == 'cz_comment' or field.name == 'status_comment' %}col-md-12{% endif %}">
           {% if field.field.widget.input_type == "checkbox" %}
             <div class="form-check mt-4">
               {{ field }}
@@ -53,31 +137,16 @@
             </div>
           {% else %}
             <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {% if parse_info and field.name == "client" %}
-              {# При создании из PDF — имя клиента берётся из файла, текстовый ввод #}
-              <input type="text" name="client_name_override" class="form-control"
-                     value="{{ parse_info.client_name_raw }}" required>
-            {% elif enable_client_tools and field.name == "client" %}
-              <input class="form-control form-control-sm mb-2" id="client-search" type="search" placeholder="Поиск клиента по названию">
-              <div class="input-group">
-                {{ field }}
-                <button class="btn btn-outline-primary" id="create-client-popup" type="button" title="Добавить клиента" data-url="{% url 'client_create' %}?popup=1">+</button>
-              </div>
-            {% else %}
-              {{ field }}
-            {% endif %}
+            {{ field }}
           {% endif %}
           {% if field.help_text %}
-            <div class="form-text {% if field.name == 'skip_supply_to_warehouse' or field.name == 'client_address' or field.name == 'request_number' %}fst-italic{% endif %}">{{ field.help_text }}</div>
+            <div class="form-text {% if field.name == 'client_address' %}fst-italic{% endif %}">{{ field.help_text }}</div>
           {% endif %}
-          {% for error in field.errors %}
-            <div class="text-danger small">{{ error }}</div>
-          {% endfor %}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
       {% endfor %}
-      {% if form.non_field_errors %}
-        <div class="col-12 text-danger">{{ form.non_field_errors }}</div>
-      {% endif %}
+      {% if form.non_field_errors %}<div class="col-12 text-danger">{{ form.non_field_errors }}</div>{% endif %}
+      {% endif %}{# end if not request_obj #}
 
       <!-- ── Позиции груза ── -->
       <div class="col-12">

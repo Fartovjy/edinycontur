@@ -207,81 +207,56 @@ class LogisticsRequestForm(forms.ModelForm):
 
 
 class LogisticsRequestCreateForm(LogisticsRequestForm):
-    skip_supply_to_warehouse = forms.BooleanField(
-        label="Товар уже на складе и зарезервирован",
-        required=False,
-        help_text="Заявка сразу попадёт на этап склада, без обработки отделом снабжения.",
-    )
+    """
+    Форма создания заявки.
+    Упрощённый набор полей: no warehouse / volume / dims / skip_supply.
+    Наблюдатель передаётся отдельно через viewer_user_id (не через M2M поле формы).
+    """
 
     class Meta(LogisticsRequestForm.Meta):
         fields = [
             "request_number",
             "client",
             "client_address",
-            "warehouse",
-            "cargo_description",
+            "client_contact",
+            "client_phone",
+            "planned_delivery_date",
             "cargo_places_count",
             "cargo_weight_kg",
-            "cargo_volume_m3",
-            "dimensions_text",
-            "skip_supply_to_warehouse",
-            "planned_ship_date",
-            "planned_delivery_date",
-            "viewer_users",
+            "cargo_description",
         ]
 
     def __init__(self, *args, user_role=None, from_pdf=False, **kwargs):
         super().__init__(*args, can_assign_transport=False, **kwargs)
         self.fields.pop("status_comment", None)
+
         # При создании из PDF клиент вводится текстом напрямую — FK не нужен
         self.fields["client"].required = not from_pdf
-        # request_number: необязательное — если пусто, генерируется автоматически
-        if "request_number" in self.fields:
-            self.fields["request_number"].required = False
-            self.fields["request_number"].label = "Номер заявки"
-            self.fields["request_number"].help_text = (
-                "Оставьте пустым — номер сформируется автоматически. "
-                "При создании из файла подставляется номер документа клиента."
-            )
-        # viewer_users: наблюдатели — только пользователи с ролью viewer
-        if "viewer_users" in self.fields:
-            from django.contrib.auth import get_user_model
-            from apps.accounts.constants import ROLE_VIEWER
-            User = get_user_model()
-            self.fields["viewer_users"].queryset = User.objects.filter(
-                profile__role=ROLE_VIEWER, profile__is_active=True
-            ).order_by("last_name", "first_name", "username")
-            self.fields["viewer_users"].required = False
-            self.fields["viewer_users"].label = "Наблюдатели"
-            self.fields["viewer_users"].help_text = "Удерживайте Ctrl для выбора нескольких."
-        if user_role == ROLE_OPERATOR:
-            for name in ["warehouse", "planned_ship_date", "cargo_volume_m3", "dimensions_text", "skip_supply_to_warehouse"]:
-                self.fields.pop(name, None)
-            self.order_fields([
-                "request_number",
-                "client",
-                "client_address",
-                "cargo_description",
-                "planned_delivery_date",
-                "cargo_places_count",
-                "cargo_weight_kg",
-                "viewer_users",
-            ])
+
+        # Необязательные поля
+        for name in ["request_number", "client_contact", "client_phone",
+                     "cargo_description", "cargo_places_count", "cargo_weight_kg"]:
+            if name in self.fields:
+                self.fields[name].required = False
+
+        # Метки
         labels = {
-            "client": "Клиент",
-            "client_address": "Адрес клиента или GPS-точка",
-            "warehouse": "Склад",
-            "cargo_description": "Описание груза",
-            "cargo_places_count": "Количество мест",
-            "cargo_weight_kg": "Вес груза, кг",
-            "cargo_volume_m3": "Объем, м3",
-            "dimensions_text": "Габариты",
-            "planned_ship_date": "Плановая дата отгрузки",
+            "request_number":    "Номер заявки",
+            "client":            "Клиент",
+            "client_address":    "Адрес клиента или GPS-точка",
+            "client_contact":    "ФИО контактного лица",
+            "client_phone":      "Телефон / Email",
             "planned_delivery_date": "Плановая дата доставки",
+            "cargo_places_count": "Количество мест",
+            "cargo_weight_kg":   "Вес груза, кг",
+            "cargo_description": "Примечание",
         }
         for name, label in labels.items():
             if name in self.fields:
                 self.fields[name].label = label
-        for name in ["cargo_description", "cargo_places_count", "cargo_weight_kg", "cargo_volume_m3", "dimensions_text"]:
-            if name in self.fields:
-                self.fields[name].required = False
+
+        if "request_number" in self.fields:
+            self.fields["request_number"].help_text = (
+                "Оставьте пустым — номер сформируется автоматически. "
+                "При создании из файла подставляется номер документа клиента."
+            )
