@@ -242,7 +242,7 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
                 "При создании из файла подставляется номер документа клиента."
             )
         if user_role == ROLE_OPERATOR:
-            for name in ["warehouse", "planned_ship_date"]:
+            for name in ["warehouse", "planned_ship_date", "cargo_volume_m3", "dimensions_text", "skip_supply_to_warehouse"]:
                 self.fields.pop(name, None)
             self.order_fields(
                 [
@@ -253,9 +253,6 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
                 "planned_delivery_date",
                 "cargo_places_count",
                 "cargo_weight_kg",
-                "cargo_volume_m3",
-                "dimensions_text",
-                "skip_supply_to_warehouse",
                 ]
             )
         labels = {

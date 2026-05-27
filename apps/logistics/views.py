@@ -1650,8 +1650,8 @@ def request_detail(request, pk):
 @login_required
 @role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR)
 def request_create_from_pdf(request):
-    """Upload a 'Заказ клиента' PDF and open a pre-filled create form."""
-    from .pdf_parser import parse_order_pdf
+    """Upload a 'Заказ клиента' or 'Счёт-проформа' PDF and open a pre-filled create form."""
+    from .pdf_parser import parse_pdf_auto
 
     if request.method == "GET":
         return render(request, "logistics/request_from_pdf.html")
@@ -1665,7 +1665,7 @@ def request_create_from_pdf(request):
         return render(request, "logistics/request_from_pdf.html")
 
     try:
-        parsed = parse_order_pdf(uploaded)
+        parsed, _fmt = parse_pdf_auto(uploaded)
     except Exception as exc:
         messages.error(request, f"Не удалось разобрать PDF: {exc}")
         return render(request, "logistics/request_from_pdf.html")
@@ -1676,10 +1676,14 @@ def request_create_from_pdf(request):
         initial["request_number"] = parsed["order_number"]
     if parsed["client_address"]:
         initial["client_address"] = parsed["client_address"]
+    if parsed.get("client_contact"):
+        initial["client_contact"] = parsed["client_contact"]
     if parsed["cargo_description"]:
         initial["cargo_description"] = parsed["cargo_description"]
     if parsed["cargo_places_count"]:
         initial["cargo_places_count"] = parsed["cargo_places_count"]
+    if parsed.get("cargo_weight_kg"):
+        initial["cargo_weight_kg"] = parsed["cargo_weight_kg"]
     if parsed["order_date"]:
         initial["planned_delivery_date"] = parsed["order_date"]
 
