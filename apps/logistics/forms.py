@@ -227,6 +227,7 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
             "skip_supply_to_warehouse",
             "planned_ship_date",
             "planned_delivery_date",
+            "viewer_users",
         ]
 
     def __init__(self, *args, user_role=None, from_pdf=False, **kwargs):
@@ -242,11 +243,21 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
                 "Оставьте пустым — номер сформируется автоматически. "
                 "При создании из файла подставляется номер документа клиента."
             )
+        # viewer_users: наблюдатели — только пользователи с ролью viewer
+        if "viewer_users" in self.fields:
+            from django.contrib.auth import get_user_model
+            from apps.accounts.constants import ROLE_VIEWER
+            User = get_user_model()
+            self.fields["viewer_users"].queryset = User.objects.filter(
+                profile__role=ROLE_VIEWER, profile__is_active=True
+            ).order_by("last_name", "first_name", "username")
+            self.fields["viewer_users"].required = False
+            self.fields["viewer_users"].label = "Наблюдатели"
+            self.fields["viewer_users"].help_text = "Удерживайте Ctrl для выбора нескольких."
         if user_role == ROLE_OPERATOR:
             for name in ["warehouse", "planned_ship_date", "cargo_volume_m3", "dimensions_text", "skip_supply_to_warehouse"]:
                 self.fields.pop(name, None)
-            self.order_fields(
-                [
+            self.order_fields([
                 "request_number",
                 "client",
                 "client_address",
@@ -254,8 +265,8 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
                 "planned_delivery_date",
                 "cargo_places_count",
                 "cargo_weight_kg",
-                ]
-            )
+                "viewer_users",
+            ])
         labels = {
             "client": "Клиент",
             "client_address": "Адрес клиента или GPS-точка",
@@ -271,6 +282,6 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
         for name, label in labels.items():
             if name in self.fields:
                 self.fields[name].label = label
-        for name in ["cargo_places_count", "cargo_weight_kg", "cargo_volume_m3", "dimensions_text"]:
+        for name in ["cargo_description", "cargo_places_count", "cargo_weight_kg", "cargo_volume_m3", "dimensions_text"]:
             if name in self.fields:
                 self.fields[name].required = False

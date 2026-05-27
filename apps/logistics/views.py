@@ -1738,7 +1738,8 @@ def request_create(request):
                 request_obj.warehouse = default_warehouse
             skip_supply = form.cleaned_data.get("skip_supply_to_warehouse")
             request_obj.created_by = request.user
-            request_obj.save()  # сохраняем первым — нужен PK для FK CargoItem
+            request_obj.save()  # сохраняем первым — нужен PK для M2M и FK CargoItem
+            form.save_m2m()     # сохраняем viewer_users и другие M2M
 
             # ── Сохранить позиции груза из формы ─────────────────────────
             item_names = request.POST.getlist("cargo_item_name")

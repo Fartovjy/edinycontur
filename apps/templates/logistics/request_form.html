@@ -45,7 +45,7 @@
       {% csrf_token %}
       {% if parse_info %}<input type="hidden" name="from_pdf" value="1">{% endif %}
       {% for field in form %}
-        <div class="col-12 {% if operator_create_layout and field.name == 'cargo_places_count' or operator_create_layout and field.name == 'cargo_weight_kg' or operator_create_layout and field.name == 'cargo_volume_m3' or operator_create_layout and field.name == 'dimensions_text' %}col-md-3{% else %}col-md-6 {% if field.name == 'cargo_description' and not operator_create_layout or field.name == 'cz_comment' or field.name == 'status_comment' %}col-md-12{% endif %}{% endif %}">
+        <div class="col-12 {% if operator_create_layout and field.name == 'cargo_places_count' or operator_create_layout and field.name == 'cargo_weight_kg' or operator_create_layout and field.name == 'cargo_volume_m3' or operator_create_layout and field.name == 'dimensions_text' %}col-md-3{% else %}col-md-6 {% if field.name == 'cargo_description' and not operator_create_layout or field.name == 'cz_comment' or field.name == 'status_comment' or field.name == 'viewer_users' %}col-md-12{% endif %}{% endif %}">
           {% if field.field.widget.input_type == "checkbox" %}
             <div class="form-check mt-4">
               {{ field }}

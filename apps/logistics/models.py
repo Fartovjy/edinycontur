@@ -83,7 +83,7 @@ class LogisticsRequest(models.Model):
     client_contact = models.CharField("Контакт клиента", max_length=160, blank=True)
     region = models.CharField("Регион", max_length=120, default="")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="requests", verbose_name="Склад")
-    cargo_description = models.TextField("Описание груза", default="")
+    cargo_description = models.TextField("Описание груза", default="", blank=True)
     cargo_places_count = models.PositiveIntegerField("Количество мест", default=1)
     cargo_weight_kg = models.DecimalField("Вес, кг", max_digits=10, decimal_places=2, default=0)
     cargo_volume_m3 = models.DecimalField("Объем, м3", max_digits=10, decimal_places=3, default=0)
