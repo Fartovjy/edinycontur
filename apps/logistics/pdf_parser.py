@@ -30,6 +30,32 @@ def _strip_slash(s: str) -> str:
     return _TRAILING_SLASH_RE.sub("", s).strip()
 
 
+def _parse_кому_cell(text: str, result: dict) -> None:
+    """
+    Parse the merged КОМУ/SENT TO cell that contains all recipient fields:
+        Company Name, ФИО/Contact Person, Address
+    Fields are separated by ' /' (space + slash).
+    """
+    # Company name: from 'Company Name:' to the first ' /'
+    # Cell format: «Company Name: АО "ФАБ\nРИКА" /\nФИО/ Contact…»
+    m = re.search(r"Company Name:\s*(.+?)\s*/", text, re.DOTALL)
+    if m:
+        raw = re.sub(r"\s+", " ", m.group(1)).strip()
+        result["client_name_raw"] = raw
+        clean = _LEGAL_FORMS_RE.sub("", raw).strip().strip("\"'")
+        result["client_name"] = clean if clean else raw
+
+    # Contact person: from 'Contact Person:' to ' /'
+    m = re.search(r"Contact Person:\s*(.+?)\s*/", text, re.DOTALL)
+    if m:
+        result["client_contact"] = re.sub(r"\s+", " ", m.group(1)).strip()
+
+    # Address: from 'Address:' to ' /' (may span two lines)
+    m = re.search(r"Адрес/\s*Address:\s*(.+?)\s*/", text, re.DOTALL)
+    if m:
+        result["client_address"] = re.sub(r"\s+", " ", m.group(1)).strip()
+
+
 def _parse_date_slash(s: str):
     """Parse DD/MM/YYYY → date."""
     m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", s.strip())
@@ -159,14 +185,17 @@ def parse_order_pdf(file_obj) -> dict:
 
 def parse_invoice_pdf(file_obj) -> dict:
     """
-    Parse a Biovet-K «Счёт-проформа» PDF.
+    Parse a Biovet-K «Счёт-проформа» PDF using table extraction.
 
-    Extracts from the КОМУ / SENT TO section:
-        company name, contact person, address,
-        number of pieces, gross weight
-    Extracts from the header:
-        invoice number, date
-    Extracts cargo rows from the table (strips trailing '/').
+    The PDF has one wide table (17 cols) with:
+      • row where col0 contains 'Company Name:' AND col9 contains 'Кол-во мест':
+            col0 — merged КОМУ cell (company, contact, address)
+            col14 — number of pieces
+      • row where col9 contains 'Вес брутто' / 'Gross Weight':
+            col14 — gross weight
+      • rows where col0 is a digit:
+            col1 — item description
+            col9 — quantity (Количество вложений, шт)
     """
     result = {
         "order_number": "",
@@ -185,8 +214,7 @@ def parse_invoice_pdf(file_obj) -> dict:
     with pdfplumber.open(file_obj) as pdf:
         full_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 
-        # ── Номер и дата документа ────────────────────────────────────────
-        # «СЧЕТ-ПРОФОРМА / PROFORMA INVOICE № 462/2026 Дата/Date: 19/05/2026»
+        # ── Номер и дата документа (из текста, т.к. в таблице разбиты по ячейкам) ──
         m = re.search(
             r"(?:INVOICE|ИНВОЙС|ПРОФОРМА)[^\n]*№\s*([\w/\-]+)\s+Дата/Date:\s*(\d{2}/\d{2}/\d{4})",
             full_text, re.IGNORECASE,
@@ -195,78 +223,42 @@ def parse_invoice_pdf(file_obj) -> dict:
             result["order_number"] = m.group(1).strip()
             result["order_date"] = _parse_date_slash(m.group(2))
 
-        # ── Находим начало раздела КОМУ ───────────────────────────────────
-        sent_to_pos = full_text.find("КОМУ / SENT TO")
-        if sent_to_pos == -1:
-            sent_to_pos = full_text.find("SENT TO")
-        кому = full_text[sent_to_pos:] if sent_to_pos != -1 else full_text
-
-        # Схлопываем переносы строк в пробелы, чтобы многострочные поля
-        # (название компании, адрес) извлекались корректно.
-        кому_flat = re.sub(r"[ \t]*\n[ \t]*", " ", кому)
-        full_text_flat = re.sub(r"[ \t]*\n[ \t]*", " ", full_text)
-
-        # ── Компания-получатель ───────────────────────────────────────────
-        # «Компания/Company Name: АО "ПТИЦЕФАБРИКА ВЕРХНЕВОЛЖСКАЯ" /»
-        m = re.search(r"Компания/Company Name:\s*(.+?)\s*/", кому_flat)
-        if m:
-            raw = re.sub(r"\s+", " ", m.group(1)).strip()
-            result["client_name_raw"] = raw
-            clean = _LEGAL_FORMS_RE.sub("", raw).strip().strip("\"'")
-            result["client_name"] = clean if clean else raw
-
-        # ── Контактное лицо ───────────────────────────────────────────────
-        # «ФИО/ Contact Person: Заднепровского Валерия Владимировича /»
-        m = re.search(r"ФИО/\s*Contact Person:\s*(.+?)\s*/", кому_flat)
-        if m:
-            result["client_contact"] = m.group(1).strip()
-
-        # ── Адрес ─────────────────────────────────────────────────────────
-        # «Адрес/ Address: 170554, Тверская область, ... зд. 72 /»
-        # Правая колонка добавляет числа (вес) в строку — чистим их.
-        m = re.search(r"Адрес/\s*Address:\s*(.+?)\s*/", кому_flat)
-        if m:
-            addr = re.sub(r"\s+", " ", m.group(1)).strip()
-            # Убираем «хвостовые» числа из правой колонки (вес): «... зд. 72 3 345»
-            addr = re.sub(r"(\s+\d[\d\s]{2,})$", "", addr).strip()
-            result["client_address"] = addr
-
-        # ── Количество мест ───────────────────────────────────────────────
-        m = re.search(r"Number of pieces\s*:\s*(\d[\d\s]*)", full_text_flat)
-        if m:
-            try:
-                result["cargo_places_count"] = int(m.group(1).replace(" ", "").rstrip())
-            except ValueError:
-                pass
-
-        # ── Вес брутто ────────────────────────────────────────────────────
-        m = re.search(r"Gross Weight\s*,\s*kg\s*:\s*(\d[\d\s,]*)", full_text_flat)
-        if m:
-            try:
-                val = m.group(1).replace(" ", "").replace(",", ".").strip()
-                result["cargo_weight_kg"] = float(val)
-            except ValueError:
-                pass
-
-        # ── Таблица товаров ───────────────────────────────────────────────
-        # Колонки: № | описание товара | HS Code | кол-во | цена | итого
+        # ── Таблица: всё остальное ────────────────────────────────────────
         for page in pdf.pages:
             for table in page.extract_tables():
+                if not table or not table[0] or len(table[0]) < 10:
+                    continue
                 for row in table:
-                    if not row:
+                    if not row or len(row) < 10:
                         continue
-                    cell0 = str(row[0] or "").strip()
-                    if not re.match(r"^\d+$", cell0):
-                        continue
-                    name = _strip_slash(str(row[1] or "").strip().replace("\n", " "))
-                    # qty — колонка 3 (после HS Code)
-                    qty = ""
-                    if len(row) > 3:
-                        qty = str(row[3] or "").strip().replace("\n", " ")
-                    if not qty and len(row) > 2:
-                        qty = str(row[2] or "").strip().replace("\n", " ")
-                    if name:
-                        result["items"].append({"num": cell0, "name": name, "qty": qty})
+                    c0  = str(row[0]  or "").strip()
+                    c9  = str(row[9]  or "").strip()
+                    c14 = str(row[14] or "").replace("\xa0", "").strip() if len(row) > 14 else ""
+
+                    # ── КОМУ-ячейка: название, контакт, адрес, кол-во мест ─
+                    if "Company Name:" in c0 and ("Кол-во мест" in c9 or "Number of pieces" in c9):
+                        _parse_кому_cell(c0, result)
+                        if c14:
+                            try:
+                                result["cargo_places_count"] = int(c14.replace(" ", ""))
+                            except ValueError:
+                                pass
+
+                    # ── Строка веса брутто ────────────────────────────────
+                    elif "Вес брутто" in c9 or "Gross Weight" in c9:
+                        if c14:
+                            try:
+                                val = c14.replace(" ", "").replace(",", ".")
+                                result["cargo_weight_kg"] = float(val)
+                            except ValueError:
+                                pass
+
+                    # ── Строки товаров ────────────────────────────────────
+                    elif re.match(r"^\d+$", c0) and len(row) > 1:
+                        name = _strip_slash(str(row[1] or "").strip().replace("\n", " "))
+                        qty  = c9   # col9 = «Количество вложений, шт / Quantity, pcs»
+                        if name:
+                            result["items"].append({"num": c0, "name": name, "qty": qty})
 
         if result["items"]:
             result["cargo_description"] = _build_cargo_description(result["items"])
