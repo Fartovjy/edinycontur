@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    # runserver вместо gunicorn — авто-перезагрузка при изменении файлов
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      # Код монтируется прямо из папки — сохранил файл → страница обновилась
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file: .env.dev
+    # Позволяет контейнеру обращаться к host.docker.internal (= твой ПК)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

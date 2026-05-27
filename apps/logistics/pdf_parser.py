@@ -201,52 +201,50 @@ def parse_invoice_pdf(file_obj) -> dict:
             sent_to_pos = full_text.find("SENT TO")
         кому = full_text[sent_to_pos:] if sent_to_pos != -1 else full_text
 
+        # Схлопываем переносы строк в пробелы, чтобы многострочные поля
+        # (название компании, адрес) извлекались корректно.
+        кому_flat = re.sub(r"[ \t]*\n[ \t]*", " ", кому)
+        full_text_flat = re.sub(r"[ \t]*\n[ \t]*", " ", full_text)
+
         # ── Компания-получатель ───────────────────────────────────────────
         # «Компания/Company Name: АО "ПТИЦЕФАБРИКА ВЕРХНЕВОЛЖСКАЯ" /»
-        m = re.search(
-            r"Компания/Company Name:\s*(.+?)(?:\s*/\s*(?:Кол-во|$)|\n)",
-            кому, re.DOTALL,
-        )
+        m = re.search(r"Компания/Company Name:\s*(.+?)\s*/", кому_flat)
         if m:
             raw = re.sub(r"\s+", " ", m.group(1)).strip()
-            raw = _strip_slash(raw)
             result["client_name_raw"] = raw
             clean = _LEGAL_FORMS_RE.sub("", raw).strip().strip("\"'")
             result["client_name"] = clean if clean else raw
 
         # ── Контактное лицо ───────────────────────────────────────────────
         # «ФИО/ Contact Person: Заднепровского Валерия Владимировича /»
-        m = re.search(r"ФИО/\s*Contact Person:\s*(.+?)\s*/", кому)
+        m = re.search(r"ФИО/\s*Contact Person:\s*(.+?)\s*/", кому_flat)
         if m:
             result["client_contact"] = m.group(1).strip()
 
         # ── Адрес ─────────────────────────────────────────────────────────
         # «Адрес/ Address: 170554, Тверская область, ... зд. 72 /»
         # Правая колонка добавляет числа (вес) в строку — чистим их.
-        m = re.search(
-            r"Адрес/\s*Address:\s*(.+?)(?:\s*/\s*(?:\n|$)|Город|Страна)",
-            кому, re.DOTALL,
-        )
+        m = re.search(r"Адрес/\s*Address:\s*(.+?)\s*/", кому_flat)
         if m:
             addr = re.sub(r"\s+", " ", m.group(1)).strip()
-            addr = _strip_slash(addr)
             # Убираем «хвостовые» числа из правой колонки (вес): «... зд. 72 3 345»
             addr = re.sub(r"(\s+\d[\d\s]{2,})$", "", addr).strip()
             result["client_address"] = addr
 
         # ── Количество мест ───────────────────────────────────────────────
-        m = re.search(r"Number of pieces:\s*([\d\s]+)", full_text)
+        m = re.search(r"Number of pieces\s*:\s*(\d[\d\s]*)", full_text_flat)
         if m:
             try:
-                result["cargo_places_count"] = int(m.group(1).replace(" ", ""))
+                result["cargo_places_count"] = int(m.group(1).replace(" ", "").rstrip())
             except ValueError:
                 pass
 
         # ── Вес брутто ────────────────────────────────────────────────────
-        m = re.search(r"Gross Weight,\s*kg:\s*([\d\s]+)", full_text)
+        m = re.search(r"Gross Weight\s*,\s*kg\s*:\s*(\d[\d\s,]*)", full_text_flat)
         if m:
             try:
-                result["cargo_weight_kg"] = float(m.group(1).replace(" ", ""))
+                val = m.group(1).replace(" ", "").replace(",", ".").strip()
+                result["cargo_weight_kg"] = float(val)
             except ValueError:
                 pass
 

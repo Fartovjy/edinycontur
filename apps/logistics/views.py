@@ -1678,8 +1678,7 @@ def request_create_from_pdf(request):
         initial["client_address"] = parsed["client_address"]
     if parsed.get("client_contact"):
         initial["client_contact"] = parsed["client_contact"]
-    if parsed["cargo_description"]:
-        initial["cargo_description"] = parsed["cargo_description"]
+    # cargo_description намеренно не заполняем — оператор вводит сам
     if parsed["cargo_places_count"]:
         initial["cargo_places_count"] = parsed["cargo_places_count"]
     if parsed.get("cargo_weight_kg"):
@@ -1687,32 +1686,19 @@ def request_create_from_pdf(request):
     if parsed["order_date"]:
         initial["planned_delivery_date"] = parsed["order_date"]
 
-    # ── Try to match client in DB ─────────────────────────────────────────
-    matched_client = None
-    if parsed["client_name"]:
-        # 1) Exact match on stored name
-        matched_client = Client.objects.filter(name__iexact=parsed["client_name_raw"]).first()
-        # 2) Contains clean name (stripped legal form)
-        if not matched_client:
-            matched_client = Client.objects.filter(name__icontains=parsed["client_name"]).first()
-    if matched_client:
-        initial["client"] = matched_client.pk
-
     role = get_user_role(request.user)
-    form = LogisticsRequestCreateForm(initial=initial, user_role=role)
+    form = LogisticsRequestCreateForm(initial=initial, user_role=role, from_pdf=True)
 
     parse_info = {
         "order_number": parsed["order_number"],
         "order_date": parsed["order_date"],
         "client_name_raw": parsed["client_name_raw"],
-        "client_matched": matched_client,
         "items": parsed["items"],   # передаём в шаблон для pre-fill таблицы позиций
     }
 
     return render(request, "logistics/request_form.html", {
         "form": form,
         "title": "Создание заявки из файла",
-        "enable_client_tools": True,
         "operator_create_layout": role == ROLE_OPERATOR,
         "client_last_addresses": _client_last_addresses(),
         "form_action": reverse("request_create"),
@@ -1725,9 +1711,15 @@ def request_create_from_pdf(request):
 def request_create(request):
     role = get_user_role(request.user)
     if request.method == "POST":
-        form = LogisticsRequestCreateForm(request.POST, user_role=role)
+        from_pdf = request.POST.get("from_pdf") == "1"
+        form = LogisticsRequestCreateForm(request.POST, user_role=role, from_pdf=from_pdf)
         if form.is_valid():
             request_obj = form.save(commit=False)
+            # При создании из PDF — берём имя клиента напрямую из текстового поля
+            if from_pdf:
+                client_name_override = request.POST.get("client_name_override", "").strip()
+                if client_name_override:
+                    request_obj.client_name = client_name_override
             if not request_obj.warehouse_id:
                 default_warehouse = Warehouse.objects.order_by("name").first()
                 if not default_warehouse:

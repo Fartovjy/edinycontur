@@ -1,5 +1,6 @@
 .env
 .env.prod
+.env.dev
 .venv/
 venv/
 env/

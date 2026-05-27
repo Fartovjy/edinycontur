@@ -229,10 +229,11 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
             "planned_delivery_date",
         ]
 
-    def __init__(self, *args, user_role=None, **kwargs):
+    def __init__(self, *args, user_role=None, from_pdf=False, **kwargs):
         super().__init__(*args, can_assign_transport=False, **kwargs)
         self.fields.pop("status_comment", None)
-        self.fields["client"].required = True
+        # При создании из PDF клиент вводится текстом напрямую — FK не нужен
+        self.fields["client"].required = not from_pdf
         # request_number: необязательное — если пусто, генерируется автоматически
         if "request_number" in self.fields:
             self.fields["request_number"].required = False
