@@ -51,6 +51,7 @@ from .forms import ClientForm, LogisticsRequestCreateForm, LogisticsRequestForm,
 from .models import CargoItem, Client, LogisticsRequest, RequestStatusHistory, Supplier, SupplyPickupRequest, Warehouse
 from .services import change_request_status, get_allowed_next_statuses
 
+User = get_user_model()
 
 ALL_EDIT_FIELDS = set(LogisticsRequestForm.Meta.fields) | {"status_comment"}
 
@@ -465,7 +466,6 @@ def _safe_back_url(request, fallback_name="request_list"):
 
 
 def _request_detail_context(request_obj, user=None, attachment_form=None, problem_form=None, back_url=None):
-    User = get_user_model()
     current_viewers = request_obj.viewer_users.all()
     current_viewer_ids = set(current_viewers.values_list("pk", flat=True))
     available_viewers = User.objects.filter(profile__role=ROLE_VIEWER, profile__is_active=True).exclude(pk__in=current_viewer_ids).order_by("last_name", "first_name", "username")
@@ -1316,7 +1316,6 @@ def request_calendar(request):
 @login_required
 @role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, ROLE_SUPPLY, ROLE_TRANSPORT, ROLE_WAREHOUSE, ROLE_DRIVER, ROLE_VIEWER)
 def request_detail(request, pk):
-    User = get_user_model()
     request_obj = get_object_or_404(
         LogisticsRequest.objects.select_related("warehouse", "assigned_driver", "assigned_vehicle", "created_by"),
         pk=pk,
@@ -1932,7 +1931,6 @@ def request_edit(request, pk):
         _configure_role_form_labels(form, request.user)
 
     inactive_vehicle_ids = list(Vehicle.objects.filter(is_active=False).values_list("pk", flat=True))
-    User = get_user_model()
     current_viewers = request_obj.viewer_users.all()
     current_viewer_ids = set(current_viewers.values_list("pk", flat=True))
     available_viewers = User.objects.filter(
