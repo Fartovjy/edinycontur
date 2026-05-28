@@ -429,6 +429,20 @@
                 {% endif %}
               </div>
             </div>
+            {% if request_obj.client_contact %}
+            <div>
+              <div class="info-label">Контактное лицо</div>
+              <div class="info-value">{{ request_obj.client_contact }}</div>
+            </div>
+            {% endif %}
+            {% if request_obj.client_phone %}
+            <div>
+              <div class="info-label">Телефон / Email</div>
+              <div class="info-value">
+                <a class="phone-link" href="tel:{{ request_obj.client_phone }}">{{ request_obj.client_phone }}</a>
+              </div>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -536,7 +550,7 @@
 
                 <!-- Честный Знак -->
                 <td style="text-align:center">
-                  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "supply" %}
+                  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "supply" or user.profile.role == "warehouse" %}
                   <div class="ci-toggle-wrap">
                     <div class="form-check form-switch">
                       <input class="form-check-input ci-cz-toggle" type="checkbox"
