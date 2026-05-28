@@ -1685,8 +1685,9 @@ def request_create_from_pdf(request):
         initial["cargo_places_count"] = parsed["cargo_places_count"]
     if parsed.get("cargo_weight_kg"):
         initial["cargo_weight_kg"] = parsed["cargo_weight_kg"]
-    if parsed["order_date"]:
-        initial["planned_delivery_date"] = parsed["order_date"]
+    # planned_delivery_date НЕ берём из PDF: это дата документа, а не дата доставки.
+    # Оператор задаёт её вручную — именно эта дата затем уходит в уведомление
+    # транспортному отделу («подготовьте автомобиль на DD.MM.YYYY»).
 
     role = get_user_role(request.user)
     form = LogisticsRequestCreateForm(initial=initial, user_role=role, from_pdf=True)
