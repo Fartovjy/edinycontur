@@ -28,3 +28,11 @@ Thumbs.db
 node_modules/
 .claude/
 in/
+
+# local dev tools (не деплоить на сервер)
+dev_agent.py
+dev_start.py
+backup_from_server.py
+fetch_migrations.py
+make_pdf.py
+.env.agent

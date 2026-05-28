@@ -1,10 +1,19 @@
+from django.conf import settings
 from django.db import models
 
 from apps.accounts.constants import ROLE_CHOICES
 
 
 class Notification(models.Model):
-    recipient_role = models.CharField("Роль получателя", max_length=32, choices=ROLE_CHOICES)
+    recipient_role = models.CharField("Роль получателя", max_length=32, choices=ROLE_CHOICES, blank=True)
+    recipient_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Получатель (персонально)",
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name="personal_notifications",
+        help_text="Если указано — уведомление видит только этот пользователь (используется для наблюдателей).",
+    )
     request = models.ForeignKey(
         "logistics.LogisticsRequest",
         verbose_name="Заявка",

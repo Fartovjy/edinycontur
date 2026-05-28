@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from apps.accounts.permissions import get_user_role
 
 from .models import Notification
@@ -9,7 +11,8 @@ def unread_notifications(request):
 
     role = get_user_role(request.user)
     notifications = Notification.objects.filter(
-        recipient_role=role,
+        Q(recipient_user=request.user)
+        | Q(recipient_role=role, recipient_user__isnull=True),
         is_read=False,
     ).select_related("request")
 

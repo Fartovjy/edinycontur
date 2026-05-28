@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from apps.notifications.services import notify_viewers
+
 from .constants import (
     STATUS_CLOSED,
     STATUS_CANCELLED,
@@ -87,10 +89,20 @@ def change_request_status(request, new_status, user, comment=None):
     with transaction.atomic():
         request.status = new_status
         request.save(update_fields=["status", "updated_at"])
-        return RequestStatusHistory.objects.create(
+        history = RequestStatusHistory.objects.create(
             request=request,
             old_status=old_status,
             new_status=new_status,
             changed_by=changed_by,
             comment=comment or "",
         )
+
+    # Уведомить наблюдателей о смене статуса
+    new_label = request.get_status_display()
+    if new_status == STATUS_PROBLEM:
+        viewer_msg = f"⚠ Заявка {request.request_number} переведена в «Проблема»."
+    else:
+        viewer_msg = f"Заявка {request.request_number}: статус изменён на «{new_label}»."
+    notify_viewers(request, viewer_msg)
+
+    return history

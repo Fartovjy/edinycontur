@@ -26,7 +26,7 @@ from apps.accounts.permissions import can_change_status, can_create_problem, can
 from apps.documents.forms import AttachmentForm
 from apps.documents.models import Attachment
 from apps.notifications.models import Notification
-from apps.notifications.services import create_role_notification
+from apps.notifications.services import create_role_notification, notify_viewers
 from apps.problems.forms import CloseProblemForm, ProblemReportForm
 from apps.problems.models import ProblemReport
 from apps.transport.models import Driver, Vehicle
@@ -1847,6 +1847,8 @@ def request_edit(request, pk):
     if request.method == "POST":
         old_vehicle_id = request_obj.assigned_vehicle_id
         old_driver_id = request_obj.assigned_driver_id
+        old_planned_ship_date = request_obj.planned_ship_date
+        old_planned_delivery_date = request_obj.planned_delivery_date
         form = LogisticsRequestForm(
             request.POST,
             instance=request_obj,
@@ -1919,6 +1921,22 @@ def request_edit(request, pk):
                 except ValidationError as exc:
                     form.add_error("status", exc)
                     return render(request, "logistics/request_form.html", {"form": form, "request_obj": request_obj, "title": f"Редактирование {request_obj.request_number}"})
+
+            # ── Уведомление наблюдателей об изменении плановых дат ─────────
+            if old_planned_delivery_date != updated.planned_delivery_date:
+                new_d = updated.planned_delivery_date
+                new_str = f"{new_d:%d.%m.%Y}" if new_d else "—"
+                notify_viewers(
+                    updated,
+                    f"Заявка {updated.request_number}: плановая дата доставки изменена на {new_str}.",
+                )
+            if old_planned_ship_date != updated.planned_ship_date:
+                new_s = updated.planned_ship_date
+                new_str = f"{new_s:%d.%m.%Y}" if new_s else "—"
+                notify_viewers(
+                    updated,
+                    f"Заявка {updated.request_number}: плановая дата отгрузки изменена на {new_str}.",
+                )
 
             messages.success(request, "Заявка обновлена.")
             return redirect(updated)

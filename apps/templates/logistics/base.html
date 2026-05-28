@@ -399,5 +399,64 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  {% if user.is_authenticated %}
+  <script>
+  // ── Звуковое уведомление о новых сообщениях ────────────────────────────
+  (function () {
+    const INITIAL_COUNT = {{ unread_notifications_count|default:0 }};
+    const POLL_URL = "{% url 'notifications:unread_count' %}";
+    const POLL_INTERVAL_MS = 15 * 60 * 1000;  // 15 минут
+    const STORAGE_KEY = "biovak_last_notif_count";
+
+    function playDing() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Двухтональный "ding-dong" — похож на стандартное Windows-уведомление
+        const tone = (freq, start, dur) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "sine";
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+          g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + start + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(ctx.currentTime + start);
+          o.stop(ctx.currentTime + start + dur);
+        };
+        tone(880, 0, 0.18);
+        tone(660, 0.18, 0.30);
+      } catch (e) { /* без звука */ }
+    }
+
+    // Инициализируем baseline; если на странице УЖЕ есть непрочитанные —
+    // не "дзынькаем" при загрузке, считаем их уже доставленными.
+    let lastCount = parseInt(localStorage.getItem(STORAGE_KEY) || "0", 10);
+    if (INITIAL_COUNT > lastCount) {
+      // Страница загружена со свежими уведомлениями — обновим baseline без звука
+      lastCount = INITIAL_COUNT;
+      localStorage.setItem(STORAGE_KEY, String(lastCount));
+    }
+
+    async function checkNotifications() {
+      try {
+        const r = await fetch(POLL_URL, { credentials: "same-origin" });
+        if (!r.ok) return;
+        const data = await r.json();
+        const cur = parseInt(data.count || 0, 10);
+        if (cur > lastCount) {
+          playDing();
+        }
+        lastCount = cur;
+        localStorage.setItem(STORAGE_KEY, String(cur));
+      } catch (e) { /* silent */ }
+    }
+
+    setInterval(checkNotifications, POLL_INTERVAL_MS);
+  })();
+  </script>
+  {% endif %}
 </body>
 </html>
