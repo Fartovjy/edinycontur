@@ -2114,7 +2114,7 @@ def cargo_item_toggle(request, pk, item_pk):
 
 
 @login_required
-@role_required(ROLE_ADMIN, ROLE_OPERATOR, ROLE_SUPPLY)
+@role_required(ROLE_ADMIN, ROLE_OPERATOR, ROLE_SUPPLY, ROLE_WAREHOUSE)
 def cargo_item_toggle_cz(request, pk, item_pk):
     from django.http import JsonResponse
     if request.method != "POST":
