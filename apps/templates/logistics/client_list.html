@@ -6,7 +6,9 @@
     <h1 class="h3 mb-1">Клиенты</h1>
     <div class="text-muted">Справочник клиентов для заявок</div>
   </div>
-  <a class="btn btn-primary align-self-md-start" href="{% url 'client_create' %}">Добавить клиента</a>
+  {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+    <a class="btn btn-primary align-self-md-start" href="{% url 'client_create' %}">Добавить клиента</a>
+  {% endif %}
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -33,7 +35,9 @@
             <th>Контакт</th>
             <th>Телефон</th>
             <th>Email</th>
-            <th class="text-end">Действия</th>
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+              <th class="text-end">Действия</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -44,10 +48,12 @@
               <td>{{ client.contact_name|default:"-" }}</td>
               <td>{{ client.phone|default:"-" }}</td>
               <td>{{ client.email|default:"-" }}</td>
-              <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="{% url 'client_edit' client.pk %}">Редактировать</a>
-                <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Удалить</a>
-              </td>
+              {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'client_edit' client.pk %}">Редактировать</a>
+                  <a class="btn btn-sm btn-outline-danger" href="{% url 'client_delete' client.pk %}">Удалить</a>
+                </td>
+              {% endif %}
             </tr>
           {% empty %}
             <tr>

@@ -339,7 +339,7 @@
               <a class="nav-link" href="{% url 'vehicle_list' %}">Автомобили</a>
               <a class="nav-link" href="{% url 'driver_list' %}">Водители</a>
             {% endif %}
-            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" %}
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
               <a class="nav-link" href="{% url 'client_list' %}">Клиенты</a>
             {% endif %}
             {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}

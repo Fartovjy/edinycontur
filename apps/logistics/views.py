@@ -506,7 +506,7 @@ def _mark_request_notifications_read(user, request_obj):
 
 
 @login_required
-@role_required(ROLE_ADMIN, ROLE_OPERATOR)
+@role_required(ROLE_ADMIN, ROLE_OPERATOR, ROLE_MANAGER)
 def client_list(request):
     query = request.GET.get("q", "")
     clients = Client.objects.order_by("name")
