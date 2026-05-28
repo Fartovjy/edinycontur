@@ -58,6 +58,7 @@ OPERATOR_EDIT_FIELDS = {
     "client",
     "client_address",
     "client_contact",
+    "client_phone",
     "cargo_description",
     "cargo_places_count",
     "cargo_weight_kg",

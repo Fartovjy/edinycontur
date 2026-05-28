@@ -118,6 +118,7 @@ class LogisticsRequestForm(forms.ModelForm):
             "client",
             "client_address",
             "client_contact",
+            "client_phone",
             "region",
             "warehouse",
             "cargo_description",
