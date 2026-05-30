@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.problems",
     "apps.notifications",
     "apps.dashboard",
+    "apps.checklists",
 ]
 
 MIDDLEWARE = [
