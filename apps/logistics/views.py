@@ -2057,6 +2057,8 @@ def vehicle_edit(request, pk):
                 vehicle.service_due_km = None
         except (ValueError, TypeError):
             vehicle.service_due_km = None
+        insp_raw = request.POST.get("next_inspection_date", "").strip()
+        vehicle.next_inspection_date = parse_date(insp_raw) if insp_raw else None
         photo = request.FILES.get("photo")
         if photo:
             vehicle.photo = photo

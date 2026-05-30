@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Vehicle(models.Model):
@@ -14,6 +17,7 @@ class Vehicle(models.Model):
     photo = models.ImageField("Фото", upload_to="vehicles/", blank=True)
     odometer_km = models.PositiveIntegerField("Пробег, км", null=True, blank=True)
     service_due_km = models.PositiveIntegerField("До следующего ТО, км", null=True, blank=True)
+    next_inspection_date = models.DateField("Дата следующего технического осмотра", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
 
     class Meta:
@@ -32,6 +36,26 @@ class Vehicle(models.Model):
         if self.service_due_km is None:
             return None
         return max(0, self.service_due_km - (self.odometer_km or 0))
+
+    @property
+    def inspection_days_left(self):
+        """Сколько дней до даты следующего техосмотра.
+        Отрицательное значение — осмотр уже просрочен."""
+        if not self.next_inspection_date:
+            return None
+        return (self.next_inspection_date - timezone.localdate()).days
+
+    @property
+    def inspection_warning(self):
+        """True, если до ТО осталось <= 21 день (включая просрочку)."""
+        d = self.inspection_days_left
+        return d is not None and d <= 21
+
+    @property
+    def inspection_overdue(self):
+        """True, если дата техосмотра уже прошла."""
+        d = self.inspection_days_left
+        return d is not None and d < 0
 
 
 class Driver(models.Model):

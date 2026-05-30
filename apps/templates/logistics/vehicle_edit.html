@@ -138,6 +138,16 @@
               </div>
             </div>
 
+            <!-- Next inspection date -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-insp">Дата следующего техосмотра</label>
+              <input class="form-control" id="v-insp" name="next_inspection_date" type="date"
+                     value="{% if vehicle.next_inspection_date %}{{ vehicle.next_inspection_date|date:'Y-m-d' }}{% endif %}">
+              <div class="form-text">
+                За 3 недели до даты на карточке автомобиля появится восклицательный знак.
+              </div>
+            </div>
+
             <!-- Notes -->
             <div class="col-12">
               <label class="form-label" for="v-notes">Заметки</label>
