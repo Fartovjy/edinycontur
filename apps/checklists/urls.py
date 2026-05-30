@@ -6,4 +6,5 @@ app_name = "checklists"
 
 urlpatterns = [
     path("checklist-item/<int:item_pk>/toggle/", views.checklist_item_toggle, name="item_toggle"),
+    path("current-tasks/", views.current_tasks, name="current_tasks"),
 ]

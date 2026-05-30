@@ -377,6 +377,9 @@
           <div class="navbar-nav me-auto ms-2 gap-1">
             <a class="nav-link" href="{% url 'request_list' %}">Заявки</a>
             <a class="nav-link" href="{% url 'request_calendar' %}">Календарь</a>
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "supply" or user.profile.role == "transport" or user.profile.role == "warehouse" or user.profile.role == "driver" %}
+              <a class="nav-link" href="{% url 'checklists:current_tasks' %}">Дела</a>
+            {% endif %}
             {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "transport" %}
               <a class="nav-link" href="{% url 'vehicle_list' %}">Автомобили</a>
               <a class="nav-link" href="{% url 'driver_list' %}">Водители</a>

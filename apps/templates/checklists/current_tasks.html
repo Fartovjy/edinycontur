@@ -1,0 +1,70 @@
+{% extends "logistics/base.html" %}
+{% block title %}Текущие дела — Единый Контур{% endblock %}
+{% block content %}
+<style>
+  .ct-card {
+    background: var(--ek-surface, #fff);
+    border: 1px solid var(--ek-border, #e8d9b8);
+    border-radius: var(--ek-radius, 12px);
+    margin-bottom: 1rem;
+    box-shadow: var(--ek-shadow-sm);
+    overflow: hidden;
+  }
+  .ct-head {
+    padding: .65rem 1rem;
+    display: flex; align-items: center; gap: 1rem;
+    cursor: pointer;
+    background: linear-gradient(180deg, #fbf6ec 0%, #f6efe0 100%);
+    border-bottom: 1px solid var(--ek-border);
+  }
+  .ct-head:hover { background: #f4ebd8; }
+  .ct-num { font-weight: 800; color: var(--brown-darkest); font-size: 1rem; min-width: 100px; }
+  .ct-client { color: var(--ek-text); font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ct-status { font-size: .75rem; color: var(--ek-muted); flex-shrink: 0; }
+  .ct-progress { font-size: .78rem; font-weight: 700; padding: .15rem .55rem; border-radius: 999px; background: #fef3c7; color: #92400e; flex-shrink: 0; }
+  .ct-progress.full { background: #dcfce7; color: #15803d; }
+  .ct-empty { text-align: center; padding: 3.5rem 1rem; color: var(--ek-muted); }
+  .ct-body { padding: .25rem 0 .75rem; }
+  .ct-link {
+    display: inline-block; margin: .5rem 1rem 0; padding: .3rem .85rem;
+    font-size: .8rem; font-weight: 600; color: var(--amber-darker);
+    text-decoration: none; border-radius: 6px; border: 1px solid var(--amber);
+    background: #fff;
+  }
+  .ct-link:hover { background: var(--amber); color: #fff; }
+</style>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1">Текущие дела</h1>
+    <div class="text-muted">Заявки с невыполненными пунктами чек-листа{% if role_label %} — {{ role_label }}{% endif %}</div>
+  </div>
+  <div class="text-muted" style="font-size:.9rem">
+    Всего заявок: <span class="fw-semibold">{{ blocks|length }}</span>
+  </div>
+</div>
+
+{% if blocks %}
+  {% for blk in blocks %}
+    <div class="ct-card">
+      <div class="ct-head" data-bs-toggle="collapse" data-bs-target="#ct-body-{{ blk.request_obj.pk }}" aria-expanded="false">
+        <span class="ct-num">{{ blk.request_obj.request_number }}</span>
+        <span class="ct-client">{{ blk.request_obj.client_name|default:"—" }}</span>
+        <span class="ct-status">{{ blk.request_obj.get_status_display }}</span>
+        <span class="ct-progress{% if blk.remaining == 0 %} full{% endif %}">
+          {{ blk.done_count }} / {{ blk.total }} ({{ blk.remaining }} не сделано)
+        </span>
+      </div>
+      <div class="ct-body collapse" id="ct-body-{{ blk.request_obj.pk }}">
+        {% include "checklists/_checklist_block.html" with role_code=blk.role_code role_label=blk.role_label items=blk.items done_count=blk.done_count editable=blk.editable request_obj=blk.request_obj %}
+        <a href="{{ blk.request_obj.get_absolute_url }}" class="ct-link">Открыть заявку →</a>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="ct-empty">
+    <div style="font-size:2.5rem;margin-bottom:.5rem">✅</div>
+    Все ваши задачи выполнены. Хорошая работа!
+  </div>
+{% endif %}
+{% endblock %}
