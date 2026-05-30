@@ -505,6 +505,18 @@
 
     </div>
 
+    <!-- ── Чек-листы по ролям ─────────────────────────────────────── -->
+    {% if checklist_blocks %}
+      <div class="card border-0 shadow-sm mb-3" id="checklist-section">
+        <div class="card-body">
+          <h2 class="h5 mb-3">Чек-листы</h2>
+          {% for blk in checklist_blocks %}
+            {% include "checklists/_checklist_block.html" with role_code=blk.role_code role_label=blk.role_label items=blk.items done_count=blk.done_count editable=blk.editable %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
     <!-- ── Перечень товаров — на всю ширину ─────────────────────── -->
     <div class="card border-0 shadow-sm mb-3" id="cargo-items-section">
       <div class="card-body">

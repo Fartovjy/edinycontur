@@ -292,6 +292,45 @@
       color: #78350f;
     }
 
+    /* ── Чек-листы (checklists) ───────────────────── */
+    .cl-block {
+      border: 1px solid var(--ek-border);
+      border-radius: var(--ek-radius-sm);
+      margin-bottom: .9rem;
+      background: #fdfbf6;
+      overflow: hidden;
+    }
+    .cl-header {
+      display: flex; align-items: center; gap: .8rem;
+      padding: .55rem .9rem;
+      cursor: pointer;
+      background: linear-gradient(180deg, #fbf6ec 0%, #f6efe0 100%);
+      border-bottom: 1px solid var(--ek-border);
+      user-select: none;
+    }
+    .cl-title { font-weight: 700; font-size: .92rem; color: var(--ek-text); flex-shrink: 0; }
+    .cl-progress {
+      flex: 1; height: 6px; background: #ecdcc8; border-radius: 999px;
+      overflow: hidden; min-width: 60px;
+    }
+    .cl-progress-fill { display: block; height: 100%; background: #a5d68f; transition: width .25s; }
+    .cl-progress[data-done="0"] .cl-progress-fill { background: #e4b4a0; }
+    .cl-counter { font-size: .8rem; color: var(--ek-muted); font-weight: 700; flex-shrink: 0; }
+    .cl-body { padding: .55rem 0; }
+    .cl-item {
+      padding: .35rem .95rem;
+      display: flex; flex-direction: column; gap: .15rem;
+      border-bottom: 1px dashed transparent;
+    }
+    .cl-item:not(:last-child) { border-bottom-color: #f0e6d3; }
+    .cl-item.done .cl-text { text-decoration: line-through; color: var(--ek-muted); }
+    .cl-row { display: flex; align-items: center; gap: .55rem; cursor: pointer; margin: 0; }
+    .cl-row input[disabled] { cursor: not-allowed; opacity: .55; }
+    .cl-checkbox { width: 1.05rem; height: 1.05rem; flex-shrink: 0; cursor: pointer; }
+    .cl-text { font-size: .9rem; line-height: 1.35; color: var(--ek-text); }
+    .cl-meta { padding-left: 1.6rem; font-size: .73rem; color: var(--ek-muted); }
+    .cl-meta em { font-style: italic; }
+
     /* ── Typography ──────────────────────────────── */
     h1, h2, h3, h4, h5, h6 {
       font-weight: 700;
@@ -405,6 +444,54 @@
 
   {% if user.is_authenticated %}
   <script>
+  // ── Чек-лист: AJAX toggle ──────────────────────────────────────────────
+  (function () {
+    var csrf = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || "";
+    document.querySelectorAll(".cl-checkbox").forEach(function (cb) {
+      if (cb.disabled) return;
+      cb.addEventListener("change", function () {
+        var url = cb.dataset.toggleUrl;
+        if (!url) return;
+        var prev = !cb.checked;
+        cb.disabled = true;
+        fetch(url, {
+          method: "POST",
+          headers: { "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
+        })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (d) {
+          cb.disabled = false;
+          cb.checked = d.is_done;
+          var item = cb.closest(".cl-item");
+          if (item) {
+            item.classList.toggle("done", d.is_done);
+            var meta = item.querySelector(".cl-meta");
+            if (meta) {
+              if (d.is_done && d.checked_by) {
+                meta.innerHTML = '<em>' + d.checked_by + ', ' + d.checked_at + '</em>';
+              } else {
+                meta.innerHTML = '';
+              }
+            }
+            // Обновляем прогресс блока
+            var block = item.closest(".cl-block");
+            if (block) {
+              var total = block.querySelectorAll(".cl-item").length;
+              var doneNow = block.querySelectorAll(".cl-item.done").length;
+              var fill = block.querySelector(".cl-progress-fill");
+              var counter = block.querySelector(".cl-counter-done");
+              var prog = block.querySelector(".cl-progress");
+              if (fill && total) fill.style.width = (doneNow * 100 / total) + "%";
+              if (counter) counter.textContent = doneNow;
+              if (prog) prog.dataset.done = doneNow;
+            }
+          }
+        })
+        .catch(function () { cb.disabled = false; cb.checked = prev; });
+      });
+    });
+  })();
+
   // ── Звуковое уведомление о новых сообщениях ────────────────────────────
   (function () {
     const INITIAL_COUNT = {{ unread_notifications_count|default:0 }};

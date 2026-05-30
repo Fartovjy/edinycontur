@@ -470,6 +470,38 @@ def _request_detail_context(request_obj, user=None, attachment_form=None, proble
     current_viewer_ids = set(current_viewers.values_list("pk", flat=True))
     available_viewers = User.objects.filter(profile__role=ROLE_VIEWER, profile__is_active=True).exclude(pk__in=current_viewer_ids).order_by("last_name", "first_name", "username")
     open_problems = request_obj.problems.filter(status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS]).select_related("responsible_user", "created_by")
+
+    # ── Чек-листы по ролям ────────────────────────────────────────────────
+    from collections import OrderedDict
+    user_role = get_user_role(user) if user else None
+    can_toggle_any = bool(user and (user.is_superuser or user_role == ROLE_ADMIN))
+    role_labels = dict(STATUS_ROLE_LABELS) if False else dict([  # noqa: simplified
+        (ROLE_ADMIN, "Администратор"),
+        (ROLE_OPERATOR, "Оператор"),
+        (ROLE_SUPPLY, "Снабжение"),
+        (ROLE_TRANSPORT, "Транспорт"),
+        (ROLE_WAREHOUSE, "Склад"),
+        (ROLE_DRIVER, "Водитель"),
+        (ROLE_MANAGER, "Руководитель"),
+        (ROLE_VIEWER, "Наблюдатель"),
+    ])
+    checklist_blocks_dict = OrderedDict()
+    for it in request_obj.checklist_items.select_related("checked_by").order_by("role", "order", "id"):
+        blk = checklist_blocks_dict.setdefault(it.role, {"items": [], "done": 0})
+        blk["items"].append(it)
+        if it.is_done:
+            blk["done"] += 1
+    checklist_blocks = []
+    for role_code, blk in checklist_blocks_dict.items():
+        editable = can_toggle_any or (user_role == role_code)
+        checklist_blocks.append({
+            "role_code": role_code,
+            "role_label": role_labels.get(role_code, role_code),
+            "items": blk["items"],
+            "done_count": blk["done"],
+            "editable": editable,
+        })
+
     return {
         "request_obj": request_obj,
         "attachment_form": attachment_form or AttachmentForm(),
@@ -491,6 +523,7 @@ def _request_detail_context(request_obj, user=None, attachment_form=None, proble
         "open_problems": open_problems,
         "cargo_items": request_obj.cargo_items.all(),
         "suppliers": Supplier.objects.order_by("name"),
+        "checklist_blocks": checklist_blocks,
     }
 
 
@@ -1802,6 +1835,10 @@ def request_create(request):
                     f"Новая заявка {request_obj.request_number} ({request_obj.client_name}): "
                     f"плановая доставка {request_obj.planned_delivery_date:%d.%m.%Y} — подготовьте автомобиль.",
                 )
+            # Создать snapshot чек-листов из активных шаблонов
+            from apps.checklists.services import create_checklist_for_request
+            create_checklist_for_request(request_obj)
+
             messages.success(request, "Заявка создана.")
             return redirect(request_obj)
     else:

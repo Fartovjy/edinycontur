@@ -1,0 +1,33 @@
+{# Параметры: role_code, role_label, items (RequestChecklistItem queryset), editable (bool) #}
+{% load static %}
+{% if items %}
+<div class="cl-block" data-role="{{ role_code }}">
+  <div class="cl-header" role="button" data-bs-toggle="collapse" data-bs-target="#cl-body-{{ role_code }}-{{ request_obj.pk }}" aria-expanded="true">
+    <span class="cl-title">Чек-лист — {{ role_label }}</span>
+    <span class="cl-progress"
+          data-total="{{ items|length }}"
+          data-done="{{ done_count }}">
+      <span class="cl-progress-fill" style="width: {% if items|length %}{% widthratio done_count items|length 100 %}{% else %}0{% endif %}%"></span>
+    </span>
+    <span class="cl-counter"><span class="cl-counter-done">{{ done_count }}</span> / {{ items|length }}</span>
+  </div>
+  <div class="cl-body collapse show" id="cl-body-{{ role_code }}-{{ request_obj.pk }}">
+    {% for it in items %}
+      <div class="cl-item{% if it.is_done %} done{% endif %}" data-item-id="{{ it.pk }}">
+        <label class="cl-row">
+          <input type="checkbox" class="cl-checkbox"
+                 {% if it.is_done %}checked{% endif %}
+                 {% if not editable %}disabled{% endif %}
+                 data-toggle-url="{% url 'checklists:item_toggle' it.pk %}">
+          <span class="cl-text">{{ it.order }}. {{ it.text }}</span>
+        </label>
+        <span class="cl-meta">
+          {% if it.is_done and it.checked_by %}
+            <em>{{ it.checked_by.get_full_name|default:it.checked_by.username }}, {{ it.checked_at|date:"d.m.Y H:i" }}</em>
+          {% endif %}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
