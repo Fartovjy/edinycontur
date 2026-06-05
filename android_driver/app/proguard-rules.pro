@@ -1,0 +1,5 @@
+-keep class com.edinykontur.driver.data.api.dto.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn okhttp3.**
+-dontwarn okio.**
