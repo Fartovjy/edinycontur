@@ -524,6 +524,7 @@ def _request_detail_context(request_obj, user=None, attachment_form=None, proble
         "cargo_items": request_obj.cargo_items.all(),
         "suppliers": Supplier.objects.order_by("name"),
         "checklist_blocks": checklist_blocks,
+        "driver_photos": request_obj.driver_photos.select_related("uploaded_by").order_by("created_at"),
     }
 
 
