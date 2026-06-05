@@ -39,6 +39,11 @@ class UserProfile(models.Model):
     notify_via_telegram = models.BooleanField("Уведомления в Telegram", default=True)
     notify_via_email = models.BooleanField("Уведомления на email", default=False)
     telegram_link_token = models.CharField("Токен привязки Telegram", max_length=16, blank=True)
+    mobile_access_enabled = models.BooleanField(
+        "Доступ к Android-приложению",
+        default=False,
+        help_text="Разрешить пользователю авторизоваться в мобильном приложении.",
+    )
 
     class Meta:
         verbose_name = "Профиль пользователя"

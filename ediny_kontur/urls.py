@@ -14,6 +14,7 @@ urlpatterns = [
     path("", include("apps.notifications.urls")),
     path("", include("apps.checklists.urls")),
     path("", include("apps.logistics.urls")),
+    path("api/v1/", include("apps.api.urls")),
 ]
 
 if settings.DEBUG:

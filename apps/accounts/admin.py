@@ -8,6 +8,12 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     extra = 0
+    fields = (
+        "role", "phone", "telegram_id", "default_vehicle",
+        "request_list_period", "is_active",
+        "notify_via_telegram", "notify_via_email", "telegram_link_token",
+        "mobile_access_enabled",
+    )
 
 
 @admin.register(User)
@@ -23,8 +29,8 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "phone", "telegram_id", "default_vehicle", "is_active")
-    list_filter = ("role", "is_active")
+    list_display = ("user", "role", "phone", "telegram_id", "default_vehicle", "is_active", "mobile_access_enabled")
+    list_filter = ("role", "is_active", "mobile_access_enabled")
     search_fields = (
         "user__username",
         "user__first_name",
