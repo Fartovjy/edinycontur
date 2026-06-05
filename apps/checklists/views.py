@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
-from apps.accounts.constants import ROLE_ADMIN
+from apps.accounts.constants import ROLE_ADMIN, ROLE_DRIVER, ROLE_OPERATOR
 from apps.accounts.permissions import get_user_role
 from apps.logistics.constants import STATUS_CANCELLED, STATUS_CLOSED, STATUS_DELIVERED
 from apps.logistics.models import LogisticsRequest
@@ -70,13 +70,22 @@ def current_tasks(request):
                       {"blocks": [], "role_label": "", "role_code": role})
 
     # ID заявок, где есть невыполненные пункты для роли пользователя
-    candidate_ids = (
+    items_qs = (
         RequestChecklistItem.objects
         .filter(role=role, is_done=False)
         .exclude(request__status__in=COMPLETED_STATUSES)
-        .values_list("request_id", flat=True)
-        .distinct()
     )
+
+    # Фильтрация «своих» заявок по аналогии с основным списком:
+    # Оператор видит только заявки, которые сам создал.
+    # Водитель — только заявки, где он назначен водителем.
+    # Остальные роли (Снабжение, Транспорт, Склад) видят все заявки.
+    if role == ROLE_OPERATOR:
+        items_qs = items_qs.filter(request__created_by=user)
+    elif role == ROLE_DRIVER:
+        items_qs = items_qs.filter(request__assigned_driver__user=user)
+
+    candidate_ids = items_qs.values_list("request_id", flat=True).distinct()
 
     requests_qs = (
         LogisticsRequest.objects
