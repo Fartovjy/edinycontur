@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -18,8 +20,22 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // URL сервера — переопределить в local.properties или через buildConfigField
-        buildConfigField("String", "BASE_URL", "\"https://your-server.com/\"")
+        buildConfigField("String", "BASE_URL", "\"https://5.42.122.25/\"")
+    }
+
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = Properties().also {
+        if (keystorePropsFile.exists()) it.load(keystorePropsFile.inputStream())
+    }
+    if (keystorePropsFile.exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile     = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias      = keystoreProps.getProperty("keyAlias")
+                keyPassword   = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -32,6 +48,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseCfg = signingConfigs.findByName("release")
+            if (releaseCfg != null) signingConfig = releaseCfg
         }
     }
 

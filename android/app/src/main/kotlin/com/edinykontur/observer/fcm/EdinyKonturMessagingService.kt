@@ -30,7 +30,7 @@ class EdinyKonturMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                apiService.registerDevice(DeviceTokenRequest(fcm_token = token))
+                apiService.registerDevice(DeviceTokenRequest(fcmToken = token))
             } catch (_: Exception) {}
         }
     }

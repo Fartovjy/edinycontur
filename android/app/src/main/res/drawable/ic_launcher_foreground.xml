@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Иконка «ЕК Наблюдатель» — белый глаз (символ наблюдения).
+    Viewport 108×108; безопасная зона: 18..90.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Внешний контур глаза -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 C30,30 14,54 14,54 C14,54 30,78 54,78 C78,78 94,54 94,54 C94,54 78,30 54,30 Z" />
+
+    <!-- Зрачок (янтарный) -->
+    <path
+        android:fillColor="#f59e0b"
+        android:pathData="M54,40 A14,14 0 1 0 54.001,40 Z" />
+
+    <!-- Блик (белый) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M59,44 A4,4 0 1 0 59.001,44 Z" />
+
+</vector>
