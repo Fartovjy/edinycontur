@@ -1,5 +1,9 @@
 package com.edinykontur.driver.ui.trips
 
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +35,35 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
+/** Отслеживает состояние сети через ConnectivityManager. */
+@Composable
+private fun rememberIsOffline(): Boolean {
+    val context = LocalContext.current
+    val cm = remember { context.getSystemService(ConnectivityManager::class.java) }
+    val initiallyOffline = remember {
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps == null || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+    var isOffline by remember { mutableStateOf(initiallyOffline) }
+
+    DisposableEffect(Unit) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { isOffline = false }
+            override fun onLost(network: Network) { isOffline = true }
+            override fun onCapabilitiesChanged(
+                network: Network,
+                caps: NetworkCapabilities,
+            ) { isOffline = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) }
+        }
+        val req = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(req, callback)
+        onDispose { cm.unregisterNetworkCallback(callback) }
+    }
+    return isOffline
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripListScreen(
@@ -38,7 +72,8 @@ fun TripListScreen(
     onLogout:        () -> Unit,
     viewModel: TripListViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState   by viewModel.uiState.collectAsStateWithLifecycle()
+    val isOffline = rememberIsOffline()
 
     Scaffold(
         topBar = {
@@ -97,54 +132,77 @@ fun TripListScreen(
         },
         containerColor = DrvColors.Bg,
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
-            onRefresh    = { viewModel.loadTrips() },
-            modifier     = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            if (uiState.error != null) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // Офлайн-баннер
+            if (isOffline) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFfef3c7))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.Default.SignalWifiOff, null,
-                        tint = DrvColors.Muted, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text(uiState.error ?: "", color = DrvColors.Muted, fontSize = 14.sp)
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { viewModel.loadTrips() },
-                        colors = ButtonDefaults.buttonColors(containerColor = DrvColors.Green),
-                    ) { Text("Повторить") }
+                    Icon(
+                        Icons.Default.SignalWifiOff,
+                        contentDescription = null,
+                        tint = Color(0xFF92400e),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        "Нет сети — действия сохраняются в очередь",
+                        fontSize = 12.sp,
+                        color = Color(0xFF92400e),
+                    )
                 }
-            } else if (uiState.trips.isEmpty() && !uiState.isLoading) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(Icons.Default.CheckCircle, null,
-                        tint = DrvColors.Muted, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text("Рейсов нет", color = DrvColors.Muted, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("На ${formatDate(uiState.selectedDate).lowercase()} нет назначенных заявок",
-                        color = DrvColors.Muted, fontSize = 13.sp)
-                }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(uiState.trips, key = { it.id }) { trip ->
-                        TripCard(trip = trip, onClick = { onTripClick(trip.id) })
+            }
+            PullToRefreshBox(
+                isRefreshing = uiState.isLoading,
+                onRefresh    = { viewModel.loadTrips() },
+                modifier     = Modifier.weight(1f),
+            ) {
+                if (uiState.error != null) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(Icons.Default.SignalWifiOff, null,
+                            tint = DrvColors.Muted, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text(uiState.error ?: "", color = DrvColors.Muted, fontSize = 14.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.loadTrips() },
+                            colors = ButtonDefaults.buttonColors(containerColor = DrvColors.Green),
+                        ) { Text("Повторить") }
+                    }
+                } else if (uiState.trips.isEmpty() && !uiState.isLoading) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null,
+                            tint = DrvColors.Muted, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(12.dp))
+                        Text("Рейсов нет", color = DrvColors.Muted, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("На ${formatDate(uiState.selectedDate).lowercase()} нет назначенных заявок",
+                            color = DrvColors.Muted, fontSize = 13.sp)
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(uiState.trips, key = { it.id }) { trip ->
+                            TripCard(trip = trip, onClick = { onTripClick(trip.id) })
+                        }
                     }
                 }
             }
-        }
-    }
+        } // Column
+    } // Scaffold
 }
 
 @Composable

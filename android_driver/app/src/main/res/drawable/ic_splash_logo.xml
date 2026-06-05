@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Иконка для сплеш-экрана и системных уведомлений — зелёный грузовик -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Кузов -->
+    <path
+        android:fillColor="#16a34a"
+        android:pathData="M14,40 L72,40 L72,66 L14,66 Z" />
+
+    <!-- Кабина -->
+    <path
+        android:fillColor="#16a34a"
+        android:pathData="M72,48 L90,48 L90,66 L72,66 Z" />
+
+    <!-- Стекло кабины (белое) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,50 L88,50 L88,60 L74,60 Z" />
+
+    <!-- Заднее колесо -->
+    <path
+        android:fillColor="#15803d"
+        android:pathData="M28,66 A10,10 0 1 0 28.001,66 Z" />
+
+    <!-- Переднее колесо -->
+    <path
+        android:fillColor="#15803d"
+        android:pathData="M82,66 A8,8 0 1 0 82.001,66 Z" />
+
+</vector>

@@ -49,7 +49,7 @@ from .constants import (
 )
 from .forms import ClientForm, LogisticsRequestCreateForm, LogisticsRequestForm, SupplierForm, SupplyPickupAssignForm, SupplyPickupRequestForm
 from .models import CargoItem, Client, LogisticsRequest, RequestStatusHistory, Supplier, SupplyPickupRequest, Warehouse
-from .services import change_request_status, get_allowed_next_statuses
+from .services import _notify_assigned_driver, change_request_status, get_allowed_next_statuses
 
 User = get_user_model()
 
@@ -1436,6 +1436,11 @@ def request_detail(request, pk):
             driver = get_object_or_404(Driver, pk=request.POST.get("assigned_driver"), is_active=True)
             request_obj.assigned_driver = driver
             request_obj.save(update_fields=["assigned_driver", "updated_at"])
+            _notify_assigned_driver(
+                request_obj,
+                f"Вам назначена заявка {request_obj.request_number} ({request_obj.client_name}). "
+                f"Адрес доставки: {request_obj.client_address}.",
+            )
             messages.success(request, "Водитель назначен.")
             return redirect(request_obj)
 
@@ -1492,6 +1497,11 @@ def request_detail(request, pk):
                 request_obj.planned_ship_date = planned_ship_date
                 update_fields.append("planned_ship_date")
             request_obj.save(update_fields=update_fields)
+            _notify_assigned_driver(
+                request_obj,
+                f"Вам назначена заявка {request_obj.request_number} ({request_obj.client_name}). "
+                f"Адрес доставки: {request_obj.client_address}.",
+            )
             messages.success(request, "Водитель и машина назначены.")
             return redirect(request_obj)
 
@@ -1965,6 +1975,10 @@ def request_edit(request, pk):
                 new_d = updated.planned_delivery_date
                 new_str = f"{new_d:%d.%m.%Y}" if new_d else "—"
                 notify_viewers(
+                    updated,
+                    f"Заявка {updated.request_number}: плановая дата доставки изменена на {new_str}.",
+                )
+                _notify_assigned_driver(
                     updated,
                     f"Заявка {updated.request_number}: плановая дата доставки изменена на {new_str}.",
                 )

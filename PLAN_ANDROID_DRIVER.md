@@ -313,10 +313,21 @@ WorkManager (`OfflineSyncWorker`) при появлении сети:
 - [x] Уведомление после синхронизации
 - [ ] Интеграция с UI (перехват действий при отсутствии сети)
 
-### Этап 7: FCM + Polish + APK
-- [ ] Push-уведомления водителю (новая заявка, изменение даты)
-- [ ] Иконка приложения (другой цвет/стиль — чтобы не путать с Наблюдателем)
-- [ ] Подпись Release APK
+### Этап 7: FCM + Polish + APK ✅ (FCM ожидает google-services.json)
+- [x] Бэкенд: `_notify_assigned_driver` при назначении (assign_driver, assign_transport)
+- [x] Бэкенд: уведомление водителю при смене статуса на «Проблема» (services.py)
+- [x] Бэкенд: уведомление водителю при изменении плановой даты доставки (views.py)
+- [x] Android: `DriverMessagingService.kt` написан (закомментирован до Firebase setup)
+- [x] Android: `DeviceTokenRequest` DTO + `registerDevice` endpoint в DriverApiService
+- [x] Android: FCM-токен регистрируется после логина (закомментирован до Firebase setup)
+- [x] Android: Иконка приложения — зелёный грузовик (отличается от янтарного Наблюдателя)
+- [x] Android: Офлайн-индикатор в TripListScreen (жёлтый баннер при отсутствии сети)
+- [ ] **ТРЕБУЕТСЯ:** Создать Firebase проект для `com.edinykontur.driver`
+- [ ] **ТРЕБУЕТСЯ:** Скачать `google-services.json` → `android_driver/app/`
+- [ ] **ТРЕБУЕТСЯ:** Раскомментировать в `build.gradle.kts`: `google.services` plugin + Firebase deps
+- [ ] **ТРЕБУЕТСЯ:** Раскомментировать в `AndroidManifest.xml`: `DriverMessagingService`
+- [ ] **ТРЕБУЕТСЯ:** Раскомментировать в `LoginViewModel.kt` и `DriverMessagingService.kt`: FCM-код
+- [ ] Подпись Release APK (`signingConfigs` в `build.gradle.kts`)
 - [ ] Раздача (прямая ссылка на сайте или Google Play)
 
 ---

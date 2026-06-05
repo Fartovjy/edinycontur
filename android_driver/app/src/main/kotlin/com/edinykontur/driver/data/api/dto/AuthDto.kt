@@ -16,6 +16,12 @@ data class LoginResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class DeviceTokenRequest(
+    @Json(name = "fcm_token") val fcmToken: String,
+    val platform: String = "android",
+)
+
+@JsonClass(generateAdapter = true)
 data class UserDto(
     val id: Int,
     val username: String,

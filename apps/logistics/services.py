@@ -76,6 +76,17 @@ def is_status_transition_allowed(request, new_status):
     return new_status in get_allowed_next_statuses(request)
 
 
+def _notify_assigned_driver(request_obj, message):
+    """Отправить персональное уведомление (+ FCM push) назначенному водителю."""
+    try:
+        driver = getattr(request_obj, "assigned_driver", None)
+        if driver and driver.user_id:
+            from apps.notifications.services import create_user_notification
+            create_user_notification(driver.user, request_obj, message)
+    except Exception:
+        pass  # не ломаем основной flow
+
+
 def change_request_status(request, new_status, user, comment=None):
     if request.status == new_status:
         return None
@@ -104,5 +115,12 @@ def change_request_status(request, new_status, user, comment=None):
     else:
         viewer_msg = f"Заявка {request.request_number}: статус изменён на «{new_label}»."
     notify_viewers(request, viewer_msg)
+
+    # Уведомить водителя о переходе в «Проблема»
+    if new_status == STATUS_PROBLEM:
+        _notify_assigned_driver(
+            request,
+            f"⚠ Заявка {request.request_number}: переведена в «Проблема». Свяжитесь с диспетчером.",
+        )
 
     return history

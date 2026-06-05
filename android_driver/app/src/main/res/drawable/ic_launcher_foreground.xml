@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Иконка «ЕК Водитель» — белый грузовик (вид сбоку).
+    Viewport 108×108; безопасная зона: 18..90 по обеим осям.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Кузов (прицеп/фургон) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M18,42 L74,42 L74,68 L18,68 Z" />
+
+    <!-- Кабина -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M74,50 L92,50 L92,68 L74,68 Z" />
+
+    <!-- Лобовое стекло кабины (зелёный акцент) -->
+    <path
+        android:fillColor="#4ade80"
+        android:pathData="M76,52 L90,52 L90,62 L76,62 Z" />
+
+    <!-- Соединительная балка между кузовом и кабиной -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M73,57 L76,57 L76,68 L73,68 Z" />
+
+    <!-- Заднее колесо -->
+    <path
+        android:fillColor="#d1fae5"
+        android:pathData="M30,68 A10,10 0 1 0 30.001,68 Z" />
+    <path
+        android:fillColor="#166534"
+        android:pathData="M30,72 A6,6 0 1 0 30.001,72 Z" />
+
+    <!-- Переднее колесо (малое) -->
+    <path
+        android:fillColor="#d1fae5"
+        android:pathData="M84,68 A8,8 0 1 0 84.001,68 Z" />
+    <path
+        android:fillColor="#166534"
+        android:pathData="M84,72 A4,4 0 1 0 84.001,72 Z" />
+
+    <!-- Фара -->
+    <path
+        android:fillColor="#fef08a"
+        android:pathData="M90,54 L93,54 L93,59 L90,59 Z" />
+
+</vector>

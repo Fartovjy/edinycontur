@@ -15,6 +15,10 @@ interface DriverApiService {
     @POST("api/v1/auth/logout/")
     suspend fun logout(): Response<Unit>
 
+    // ── Device (FCM push) ─────────────────────────────────────────────────────
+    @POST("api/v1/devices/register/")
+    suspend fun registerDevice(@Body body: DeviceTokenRequest): Response<Unit>
+
     // ── Driver: Trips ─────────────────────────────────────────────────────────
     @GET("api/v1/driver/trips/")
     suspend fun getTrips(
