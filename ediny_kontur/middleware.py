@@ -22,5 +22,6 @@ class LoginRequiredMiddleware:
             "/admin/",
             settings.STATIC_URL,
             settings.MEDIA_URL,
+            "/api/",  # REST API использует TokenAuthentication, своя проверка
         )
         return any(path.startswith(prefix) for prefix in public_prefixes if prefix)
