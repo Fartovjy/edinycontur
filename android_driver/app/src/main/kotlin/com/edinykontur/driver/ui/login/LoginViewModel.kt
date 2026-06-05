@@ -65,8 +65,6 @@ class LoginViewModel @Inject constructor(
      *   3. В AndroidManifest.xml раскомментируйте: DriverMessagingService
      */
     private fun registerFcmToken() {
-        // Раскомментировать после настройки Firebase:
-        /*
         com.google.firebase.messaging.FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
                 viewModelScope.launch {
@@ -75,6 +73,5 @@ class LoginViewModel @Inject constructor(
                     } catch (_: Exception) {}
                 }
             }
-        */
     }
 }

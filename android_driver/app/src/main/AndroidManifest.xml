@@ -29,8 +29,7 @@
             </intent-filter>
         </activity>
 
-        <!-- FCM (Этап 7) -->
-        <!--
+        <!-- FCM: входящие push-уведомления -->
         <service
             android:name=".fcm.DriverMessagingService"
             android:exported="false">
@@ -38,7 +37,6 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        -->
 
         <!-- FileProvider для камеры -->
         <provider

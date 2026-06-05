@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    // alias(libs.plugins.google.services)  // включить после добавления google-services.json
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -92,9 +92,9 @@ dependencies {
     // Coil (загрузка фото из сети)
     implementation(libs.coil.compose)
 
-    // Firebase (Этап 7 — раскомментировать после добавления google-services.json)
-    // implementation(platform(libs.firebase.bom))
-    // implementation(libs.firebase.messaging)
+    // Firebase (FCM push-уведомления)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

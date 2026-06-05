@@ -1,19 +1,5 @@
 package com.edinykontur.driver.fcm
 
-/**
- * FCM push notification handler for «ЕК Водитель».
- *
- * ──── АКТИВАЦИЯ (требуется google-services.json) ────────────────────────────
- * 1. Создайте Firebase project для com.edinykontur.driver в Firebase Console.
- * 2. Скачайте google-services.json → поместите в android_driver/app/
- * 3. build.gradle.kts: раскомментируйте plugin google.services + firebase deps.
- * 4. AndroidManifest.xml: раскомментируйте блок <service DriverMessagingService>.
- * 5. LoginViewModel.kt: раскомментируйте блок FCM-токена после успешного входа.
- * 6. Раскомментируйте весь код ниже.
- * ────────────────────────────────────────────────────────────────────────────
- */
-
-/*
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -91,4 +77,3 @@ class DriverMessagingService : FirebaseMessagingService() {
         nm.notify(requestId ?: System.currentTimeMillis().toInt(), notif)
     }
 }
-*/
