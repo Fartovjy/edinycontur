@@ -2,6 +2,46 @@ from django.conf import settings
 from django.db import models
 
 
+class RequestPhoto(models.Model):
+    """Фото груза, сделанное водителем в рамках заявки."""
+
+    PHOTO_LOADING  = "loading"
+    PHOTO_DELIVERY = "delivery"
+    PHOTO_PROBLEM  = "problem"
+    PHOTO_TYPE_CHOICES = [
+        (PHOTO_LOADING,  "При погрузке"),
+        (PHOTO_DELIVERY, "При доставке"),
+        (PHOTO_PROBLEM,  "Проблема"),
+    ]
+
+    request     = models.ForeignKey(
+        "logistics.LogisticsRequest",
+        on_delete=models.CASCADE,
+        related_name="driver_photos",
+        verbose_name="Заявка",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="uploaded_photos",
+        verbose_name="Загрузил",
+    )
+    photo       = models.ImageField("Фото", upload_to="driver_photos/%Y/%m/")
+    photo_type  = models.CharField(
+        "Тип фото", max_length=20, choices=PHOTO_TYPE_CHOICES, default=PHOTO_LOADING
+    )
+    created_at  = models.DateTimeField("Загружено", auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Фото водителя"
+        verbose_name_plural = "Фото водителей"
+
+    def __str__(self):
+        return f"{self.request.request_number} [{self.photo_type}]"
+
+
 class DeviceToken(models.Model):
     """FCM-токен устройства пользователя для отправки push-уведомлений."""
 

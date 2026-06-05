@@ -4,6 +4,12 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
+from apps.logistics.constants import (
+    STATUS_DELIVERED,
+    STATUS_IN_TRANSIT,
+    STATUS_SHIPPED,
+    STATUS_TRANSPORT_ASSIGNED,
+)
 from apps.logistics.models import (
     CargoItem,
     LogisticsRequest,
@@ -11,6 +17,8 @@ from apps.logistics.models import (
 )
 from apps.notifications.models import Notification
 from apps.problems.models import ProblemReport
+
+from .models import RequestPhoto
 
 
 # ─── Auth ──────────────────────────────────────────────────────────────────────
@@ -227,6 +235,226 @@ class RequestDetailSerializer(serializers.ModelSerializer):
     def get_open_problems(self, obj):
         qs = obj.problems.filter(status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS])
         return ProblemSerializer(qs, many=True).data
+
+
+# ─── Driver: allowed status transitions ────────────────────────────────────────
+
+# Переходы, которые ВОДИТЕЛЬ может делать самостоятельно
+DRIVER_STATUS_TRANSITIONS = {
+    STATUS_TRANSPORT_ASSIGNED: STATUS_SHIPPED,
+    STATUS_SHIPPED:            STATUS_IN_TRANSIT,
+    STATUS_IN_TRANSIT:         STATUS_DELIVERED,
+}
+
+STATUS_DISPLAY = dict([
+    (STATUS_TRANSPORT_ASSIGNED, "Назначен транспорт"),
+    (STATUS_SHIPPED,            "Отгружена"),
+    (STATUS_IN_TRANSIT,         "В пути"),
+    (STATUS_DELIVERED,          "Доставлена"),
+])
+
+
+# ─── Driver: RequestPhoto ───────────────────────────────────────────────────────
+
+class RequestPhotoSerializer(serializers.ModelSerializer):
+    uploaded_by_name = serializers.SerializerMethodField()
+    photo_url        = serializers.SerializerMethodField()
+    photo_type_display = serializers.CharField(source="get_photo_type_display")
+
+    class Meta:
+        model  = RequestPhoto
+        fields = [
+            "id",
+            "photo_type",
+            "photo_type_display",
+            "photo_url",
+            "uploaded_by_name",
+            "created_at",
+        ]
+
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            return obj.uploaded_by.get_full_name() or obj.uploaded_by.username
+        return None
+
+    def get_photo_url(self, obj):
+        request = self.context.get("request")
+        if obj.photo and request:
+            return request.build_absolute_uri(obj.photo.url)
+        return obj.photo.url if obj.photo else None
+
+
+# ─── Driver: TripListSerializer ────────────────────────────────────────────────
+
+class TripListSerializer(serializers.ModelSerializer):
+    status_display   = serializers.CharField(source="get_status_display")
+    priority_display = serializers.CharField(source="get_priority_display")
+    has_open_problem = serializers.SerializerMethodField()
+    vehicle_plate    = serializers.SerializerMethodField()
+    warehouse_name   = serializers.CharField(source="warehouse.name", default=None)
+    cargo_summary    = serializers.SerializerMethodField()
+    next_status      = serializers.SerializerMethodField()
+    next_status_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = LogisticsRequest
+        fields = [
+            "id",
+            "request_number",
+            "client_name",
+            "client_address",
+            "client_phone",
+            "planned_ship_date",
+            "planned_delivery_date",
+            "actual_ship_date",
+            "status",
+            "status_display",
+            "priority",
+            "priority_display",
+            "vehicle_plate",
+            "warehouse_name",
+            "has_open_problem",
+            "cargo_summary",
+            "next_status",
+            "next_status_display",
+        ]
+
+    def get_has_open_problem(self, obj):
+        if hasattr(obj, "_prefetched_objects_cache") and "problems" in obj._prefetched_objects_cache:
+            return any(
+                p.status in (ProblemReport.OPEN, ProblemReport.IN_PROGRESS)
+                for p in obj._prefetched_objects_cache["problems"]
+            )
+        return obj.problems.filter(status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS]).exists()
+
+    def get_vehicle_plate(self, obj):
+        return obj.assigned_vehicle.plate_number if obj.assigned_vehicle else None
+
+    def get_cargo_summary(self, obj):
+        return f"{obj.cargo_places_count} мест · {obj.cargo_weight_kg} кг"
+
+    def get_next_status(self, obj):
+        return DRIVER_STATUS_TRANSITIONS.get(obj.status)
+
+    def get_next_status_display(self, obj):
+        ns = DRIVER_STATUS_TRANSITIONS.get(obj.status)
+        return STATUS_DISPLAY.get(ns) if ns else None
+
+
+# ─── Driver: TripDetailSerializer ──────────────────────────────────────────────
+
+class TripDetailSerializer(serializers.ModelSerializer):
+    status_display   = serializers.CharField(source="get_status_display")
+    priority_display = serializers.CharField(source="get_priority_display")
+    cz_status_display = serializers.CharField(source="get_cz_status_display")
+    has_open_problem = serializers.SerializerMethodField()
+    vehicle_plate    = serializers.SerializerMethodField()
+    warehouse_name   = serializers.CharField(source="warehouse.name", default=None)
+    cargo_items      = CargoItemSerializer(many=True, read_only=True)
+    open_problems    = serializers.SerializerMethodField()
+    driver_photos    = serializers.SerializerMethodField()
+    allowed_status_transitions = serializers.SerializerMethodField()
+    odometer_km      = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = LogisticsRequest
+        fields = [
+            # Идентификация
+            "id",
+            "request_number",
+            "status",
+            "status_display",
+            "priority",
+            "priority_display",
+            # Клиент
+            "client_name",
+            "client_address",
+            "client_contact",
+            "client_phone",
+            "region",
+            # Груз
+            "cargo_description",
+            "cargo_places_count",
+            "cargo_weight_kg",
+            "cargo_volume_m3",
+            "dimensions_text",
+            "cargo_items",
+            # Склад / транспорт
+            "warehouse_name",
+            "vehicle_plate",
+            # Даты
+            "planned_ship_date",
+            "actual_ship_date",
+            "planned_delivery_date",
+            "actual_delivery_date",
+            "updated_at",
+            # ЧЗ
+            "cz_required",
+            "cz_status",
+            "cz_status_display",
+            # Флаги
+            "has_open_problem",
+            # Вложенные
+            "open_problems",
+            "driver_photos",
+            "odometer_km",
+            "allowed_status_transitions",
+        ]
+
+    def get_has_open_problem(self, obj):
+        return obj.problems.filter(status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS]).exists()
+
+    def get_vehicle_plate(self, obj):
+        return obj.assigned_vehicle.plate_number if obj.assigned_vehicle else None
+
+    def get_open_problems(self, obj):
+        qs = obj.problems.filter(status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS])
+        return ProblemSerializer(qs, many=True).data
+
+    def get_driver_photos(self, obj):
+        photos = obj.driver_photos.select_related("uploaded_by").order_by("created_at")
+        return RequestPhotoSerializer(photos, many=True, context=self.context).data
+
+    def get_odometer_km(self, obj):
+        """Последнее сохранённое показание одометра для этой заявки из истории статусов."""
+        entry = obj.status_history.filter(comment__startswith="odometer:").order_by("-created_at").first()
+        if entry:
+            try:
+                return int(entry.comment.split("odometer:")[1].strip())
+            except (IndexError, ValueError):
+                pass
+        # Fallback: одометр у назначенного автомобиля
+        if obj.assigned_vehicle:
+            return obj.assigned_vehicle.odometer_km
+        return None
+
+    def get_allowed_status_transitions(self, obj):
+        ns = DRIVER_STATUS_TRANSITIONS.get(obj.status)
+        if not ns:
+            return []
+        return [{"status": ns, "display": STATUS_DISPLAY.get(ns, ns)}]
+
+
+# ─── Driver: Input serializers ─────────────────────────────────────────────────
+
+class StatusChangeSerializer(serializers.Serializer):
+    status  = serializers.CharField()
+    comment = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_status(self, value):
+        if value not in DRIVER_STATUS_TRANSITIONS.values():
+            raise serializers.ValidationError(f"Недопустимый статус: «{value}».")
+        return value
+
+
+class OdometerSerializer(serializers.Serializer):
+    odometer_km = serializers.IntegerField(min_value=0)
+
+
+class BreakdownSerializer(serializers.Serializer):
+    description = serializers.CharField(min_length=5)
+    request_id  = serializers.IntegerField(required=False, allow_null=True)
+    vehicle_id  = serializers.IntegerField(required=False, allow_null=True)
 
 
 # ─── Notifications ─────────────────────────────────────────────────────────────
