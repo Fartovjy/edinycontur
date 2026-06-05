@@ -1,6 +1,6 @@
 # План: Android-приложение для роли «Наблюдатель»
 
-**Статус:** Этап 1 — РЕАЛИЗОВАНО (коммиты 5e96a8f → c0a60ab).
+**Статус:** Этапы 1-4 — РЕАЛИЗОВАНО (коммиты 5e96a8f → 87ba360).
 **Целевая роль:** только ROLE_VIEWER (наблюдатель).
 **Целевая платформа:** только Android (iOS — нет).
 
@@ -367,24 +367,24 @@ class EdinyKonturMessagingService : FirebaseMessagingService() {
 
 **Делегировать:** частично Ollama (сериализаторы), интеграцию — сам
 
-### Этап 3: Android — скелет проекта
-- [ ] Создать Android Studio проект в `biovak/android/`
-- [ ] Gradle: подключить Retrofit, Moshi, Hilt, Room, EncryptedSharedPreferences, Material 3
-- [ ] Структура папок (data/domain/ui/di)
-- [ ] `ApiService` интерфейс
-- [ ] `AuthInterceptor` для токена
-- [ ] Splash + Login экраны
-- [ ] Сохранение токена
+### Этап 3: Android — скелет проекта ✅ DONE
+- [x] Android Studio проект в `biovak/android/`
+- [x] Gradle: AGP 8.5, Kotlin 2.0, Compose BOM, Hilt, Retrofit/Moshi, Room, EncryptedSharedPreferences, FCM
+- [x] Структура папок (data/api/dto, prefs, repository, ui, di, fcm, sync, navigation)
+- [x] `ApiService` интерфейс (все endpoints)
+- [x] `AuthInterceptor` для токена
+- [x] Login экран + LoginViewModel
+- [x] TokenStorage (EncryptedSharedPreferences)
 
-**Делегировать:** OpenRouter (Kotlin + Compose hello-world)
-
-### Этап 4: Android — список и деталь (онлайн)
-- [ ] `RequestListScreen` + ViewModel + Retrofit
-- [ ] `RequestDetailScreen` + ViewModel + Retrofit
-- [ ] Навигация (Compose Navigation)
-- [ ] Тема (цвета сайта)
-- [ ] Карточки списка с ⚠
-- [ ] Pull-to-refresh
+### Этап 4: Android — список и деталь (онлайн) ✅ DONE
+- [x] `RequestListScreen` + ListViewModel + Retrofit
+- [x] `RequestDetailScreen` + DetailViewModel + Retrofit
+- [x] Навигация: NavGraph (Login → List → Detail)
+- [x] Тема: EdinyKonturTheme — точные цвета сайта
+- [x] Карточки списка с ⚠ (проблема), статусным бэйджем
+- [x] Pull-to-refresh (PullToRefreshBox)
+- [x] FCM: EdinyKonturMessagingService (push → деталь заявки)
+- [x] SyncWorker (WorkManager, 15 мин)
 
 ### Этап 5: Room + офлайн
 - [ ] `AppDatabase` + Entity + DAO
