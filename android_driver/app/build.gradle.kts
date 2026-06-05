@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -21,6 +23,22 @@ android {
         buildConfigField("String", "BASE_URL", "\"https://5.42.122.25/\"")
     }
 
+    // Подпись release APK
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = Properties().also {
+        if (keystorePropsFile.exists()) it.load(keystorePropsFile.inputStream())
+    }
+    if (keystorePropsFile.exists()) {
+        signingConfigs {
+            create("release") {
+                storeFile     = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias      = keystoreProps.getProperty("keyAlias")
+                keyPassword   = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("String", "BASE_URL", "\"http://10.0.2.2/\"") // эмулятор
@@ -31,6 +49,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val releaseCfg = signingConfigs.findByName("release")
+            if (releaseCfg != null) signingConfig = releaseCfg
         }
     }
 

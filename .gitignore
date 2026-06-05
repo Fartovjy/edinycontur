@@ -45,6 +45,8 @@ android/app/build/
 android/local.properties
 android/app/google-services.json
 android_driver/app/google-services.json
+android_driver/app/ek_driver_release.jks
+android_driver/keystore.properties
 firebase-service-account.json
 *.apk
 *.aab

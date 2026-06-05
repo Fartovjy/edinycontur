@@ -112,7 +112,7 @@ fun TripListScreen(
                                 menuExpanded = false
                                 viewModel.logout(onLogout)
                             },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.ExitToApp, null) },
+                            leadingIcon = { Icon(Icons.Default.Logout, null) },
                         )
                     }
                 },
