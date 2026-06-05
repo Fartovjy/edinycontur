@@ -36,3 +36,15 @@ backup_from_server.py
 fetch_migrations.py
 make_pdf.py
 .env.agent
+_deploy.py
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/google-services.json
+firebase-service-account.json
+*.apk
+*.aab
+*.keystore

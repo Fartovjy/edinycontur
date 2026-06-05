@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme (Compose handles Material3 theming) -->
+    <style name="Theme.EdinyKontur" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Splash screen theme — фон цвета --ek-bg (#fdf8f2) -->
+    <style name="Theme.EdinyKontur.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#fdf8f2</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.EdinyKontur</item>
+    </style>
+</resources>

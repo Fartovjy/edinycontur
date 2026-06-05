@@ -1,0 +1,13 @@
+{
+  "_comment": "ИНСТРУКЦИЯ: скачайте реальный google-services.json из Firebase Console и положите в эту папку.",
+  "_steps": [
+    "1. Откройте https://console.firebase.google.com",
+    "2. Создайте проект 'Edinyy Kontur'",
+    "3. Добавьте Android-приложение с package name: com.edinykontur.observer",
+    "4. Скачайте google-services.json",
+    "5. Положите в android/app/google-services.json",
+    "6. В Project Settings -> Service accounts -> Generate new private key",
+    "7. Сохраните JSON как firebase-service-account.json в корне проекта (в .gitignore)",
+    "8. Добавьте в .env.prod: FIREBASE_CREDENTIALS_PATH=/app/firebase-service-account.json"
+  ]
+}

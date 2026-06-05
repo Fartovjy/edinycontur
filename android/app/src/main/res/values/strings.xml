@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Единый Контур</string>
+    <string name="app_subtitle">Наблюдатель</string>
+    <string name="login_title">Вход</string>
+    <string name="login_username">Логин</string>
+    <string name="login_password">Пароль</string>
+    <string name="login_button">Войти</string>
+    <string name="logout">Выйти</string>
+    <string name="requests_title">Заявки</string>
+    <string name="no_requests">Нет активных заявок</string>
+    <string name="open_request">Открыть заявку →</string>
+    <string name="loading">Загрузка…</string>
+    <string name="offline">Нет подключения</string>
+    <string name="error_loading">Ошибка загрузки</string>
+</resources>
