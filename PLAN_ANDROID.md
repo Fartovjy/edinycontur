@@ -1,6 +1,6 @@
 # План: Android-приложение для роли «Наблюдатель»
 
-**Статус:** утверждён, к реализации не приступали.
+**Статус:** Этап 1 — РЕАЛИЗОВАНО (коммиты 5e96a8f → c0a60ab).
 **Целевая роль:** только ROLE_VIEWER (наблюдатель).
 **Целевая платформа:** только Android (iOS — нет).
 
@@ -344,25 +344,26 @@ class EdinyKonturMessagingService : FirebaseMessagingService() {
 
 ## Часть 3. План реализации (этапы)
 
-### Этап 1: Бэкенд API — авторизация и базовые endpoints
-- [ ] `pip install djangorestframework firebase-admin` → обновить requirements.txt
-- [ ] Добавить `rest_framework`, `rest_framework.authtoken`, `apps.api` в INSTALLED_APPS
-- [ ] Миграция authtoken
-- [ ] Поле `mobile_access_enabled` в UserProfile + миграция + отображение в админке
-- [ ] Модель `DeviceToken` + миграция
-- [ ] `IsMobileViewerAuthenticated` permission
-- [ ] Endpoint `POST /api/v1/auth/login/`
-- [ ] Endpoint `GET /api/v1/me/`
-- [ ] Деплой, тесты через curl/Postman
+### Этап 1: Бэкенд API — авторизация и базовые endpoints ✅ DONE
+- [x] `pip install djangorestframework firebase-admin` → обновить requirements.txt
+- [x] Добавить `rest_framework`, `rest_framework.authtoken`, `apps.api` в INSTALLED_APPS
+- [x] Миграция authtoken
+- [x] Поле `mobile_access_enabled` в UserProfile + миграция + отображение в админке
+- [x] Модель `DeviceToken` + миграция
+- [x] `IsMobileViewerAuthenticated` permission
+- [x] Endpoint `POST /api/v1/auth/login/`
+- [x] Endpoint `GET /api/v1/me/`
+- [x] Деплой, тесты через curl — всё работает
+- [x] fix: `/api/` добавлен в публичные пути LoginRequiredMiddleware
 
 **Делегировать:** OpenRouter (deepseek-coder) — стандартный DRF-код, шаблонный
 
-### Этап 2: Endpoints заявок
-- [ ] Сериализаторы `RequestListSerializer`, `RequestDetailSerializer`, `StatusHistorySerializer`, `ProblemSerializer`, `CargoItemSerializer`
-- [ ] ViewSet или APIView для `/requests/` и `/requests/<id>/`
-- [ ] Фильтр по viewer_users
-- [ ] Endpoint `/notifications/` + `/notifications/<id>/read/`
-- [ ] Поддержка `?since=<datetime>` для sync
+### Этап 2: Endpoints заявок ✅ DONE (реализовано вместе с Этапом 1)
+- [x] Сериализаторы `RequestListSerializer`, `RequestDetailSerializer`, `StatusHistorySerializer`, `ProblemSerializer`, `CargoItemSerializer`
+- [x] ViewSet или APIView для `/requests/` и `/requests/<id>/`
+- [x] Фильтр по viewer_users
+- [x] Endpoint `/notifications/` + `/notifications/<id>/read/`
+- [x] Поддержка `?since=<datetime>` для sync
 
 **Делегировать:** частично Ollama (сериализаторы), интеграцию — сам
 
