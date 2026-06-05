@@ -272,47 +272,46 @@ WorkManager (`OfflineSyncWorker`) при появлении сети:
 
 ## Часть 4. Этапы реализации
 
-### Этап 1: Бэкенд — новые endpoints водителя
-- [ ] `IsMobileDriverAuthenticated` permission
-- [ ] `RequestPhoto` модель + миграция
-- [ ] `apps/api/views.py` — новые views для водителя (trips, status, odometer, photos, breakdown)
-- [ ] `apps/api/urls.py` — маршруты `/api/v1/driver/...`
-- [ ] Сериализаторы: TripList, TripDetail, RequestPhoto, Breakdown
-- [ ] Логика допустимых переходов статуса для водителя
-- [ ] Деплой + curl-тесты
+### Этап 1: Бэкенд — новые endpoints водителя ✅ коммит 962e572
+- [x] `IsMobileDriverAuthenticated` permission
+- [x] `RequestPhoto` модель + миграция
+- [x] `apps/api/views.py` — новые views для водителя (trips, status, odometer, photos, breakdown)
+- [x] `apps/api/urls.py` — маршруты `/api/v1/driver/...`
+- [x] Сериализаторы: TripList, TripDetail, RequestPhoto, Breakdown
+- [x] Логика допустимых переходов статуса для водителя
+- [x] Деплой + миграция применена
 
-### Этап 2: Фото на сайте
-- [ ] Секция «Фото водителя» в `request_detail.html`
-- [ ] Lightbox (Bootstrap modal или плагин)
-- [ ] `apps/api/admin.py` → `RequestPhotoAdmin`
+### Этап 2: Фото на сайте ✅ коммит 1464435
+- [x] Секция «Фото водителя» в `request_detail.html`
+- [x] Lightbox (Bootstrap modal)
+- [x] `apps/api/admin.py` → `RequestPhotoAdmin`
 
-### Этап 3: Android — скелет + авторизация
-- [ ] Проект `android_driver/` в монорепо
-- [ ] Gradle (тот же стек что у Наблюдателя)
-- [ ] Login экран, TokenStorage
-- [ ] ApiService (driver endpoints)
-- [ ] DTOs
+### Этап 3: Android — скелет + авторизация ✅ коммит 6135f28
+- [x] Проект `android_driver/` в монорепо
+- [x] Gradle (тот же стек что у Наблюдателя + Coil для фото)
+- [x] Login экран, TokenStorage
+- [x] DriverApiService (все driver endpoints)
+- [x] DTOs (AuthDto, TripDto)
 
-### Этап 4: Android — главный экран (список рейсов)
-- [ ] `TripListScreen` + ViewModel
-- [ ] Переключатель дня (◀ Вчера / Сегодня / Завтра ▶)
-- [ ] Карточка рейса с адресом, статусом, кнопкой «→ карты»
-- [ ] Pull-to-refresh
+### Этап 4: Android — главный экран (список рейсов) ✅ коммит 6135f28
+- [x] `TripListScreen` + TripListViewModel
+- [x] Переключатель дня (◀ Вчера / Сегодня / Завтра ▶)
+- [x] Карточка рейса с адресом, статусом, кнопкой «→ карты»
+- [x] Pull-to-refresh
 
-### Этап 5: Android — деталь рейса + действия
-- [ ] `TripDetailScreen`
-- [ ] Кнопка смены статуса (только допустимые переходы)
-- [ ] Поле одометра
-- [ ] Съёмка фото через камеру + загрузка
-- [ ] Форма сообщения о проблеме
-- [ ] Экран «Поломка автомобиля»
+### Этап 5: Android — деталь рейса + действия ✅ коммит 6135f28
+- [x] `TripDetailScreen`
+- [x] Кнопка смены статуса (только допустимые переходы)
+- [x] Поле одометра
+- [x] Съёмка фото через камеру + загрузка (Coil для превью)
+- [x] Список открытых проблем
+- [x] Экран «Поломка автомобиля» (BreakdownScreen)
 
-### Этап 6: Android — офлайн-очередь
-- [ ] `PendingAction` Room entity + DAO
-- [ ] Перехват действий при отсутствии сети → в очередь
-- [ ] `OfflineSyncWorker` (WorkManager)
-- [ ] Индикатор «оффлайн» в тулбаре
-- [ ] Уведомление после синхронизации
+### Этап 6: Android — офлайн-очередь ✅ коммит 6135f28
+- [x] `PendingAction` Room entity + DAO + DriverDatabase
+- [x] `OfflineSyncWorker` (WorkManager, запускается при появлении сети)
+- [x] Уведомление после синхронизации
+- [ ] Интеграция с UI (перехват действий при отсутствии сети)
 
 ### Этап 7: FCM + Polish + APK
 - [ ] Push-уведомления водителю (новая заявка, изменение даты)
