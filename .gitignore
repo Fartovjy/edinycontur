@@ -50,6 +50,9 @@ android_driver/app/google-services.json
 android_driver/app/ek_driver_release.jks
 android_driver/keystore.properties
 firebase-service-account.json
+secrets/*.json
+secrets/*.p12
+secrets/*.pem
 *.apk
 *.aab
 *.keystore

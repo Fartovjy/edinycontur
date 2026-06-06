@@ -44,10 +44,12 @@ services:
       EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media
       - archive_data:/app/archives
+      - ./secrets:/app/secrets:ro
     depends_on:
       db:
         condition: service_healthy
