@@ -28,7 +28,8 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(label="Пароль", write_only=True, style={"input_type": "password"})
 
     def validate(self, data):
-        user = authenticate(username=data["username"], password=data["password"])
+        request = self.context.get("request")
+        user = authenticate(request, username=data["username"], password=data["password"])
         if not user:
             raise serializers.ValidationError("Неверный логин или пароль.")
         if not user.is_active:

@@ -1990,6 +1990,18 @@ def request_edit(request, pk):
                     f"Заявка {updated.request_number}: плановая дата отгрузки изменена на {new_str}.",
                 )
 
+            # ── Уведомление наблюдателей об изменении прочих данных ─────────
+            # Статус и даты уже обработаны выше; всё остальное — одним сообщением.
+            other_changed = set(form.changed_data) - {
+                "status", "status_comment",
+                "planned_delivery_date", "planned_ship_date",
+            }
+            if other_changed:
+                notify_viewers(
+                    updated,
+                    f"Заявка {updated.request_number}: данные по заявке обновлены.",
+                )
+
             messages.success(request, "Заявка обновлена.")
             return redirect(updated)
     else:

@@ -58,16 +58,18 @@ def send_push_to_user(user, title: str, body: str, request_id: int | None = None
         if request_id is not None:
             data_payload["request_id"] = str(request_id)
 
+        # Отправляем data-only сообщение с высоким приоритетом.
+        # Это гарантирует, что onMessageReceived() будет вызван на устройстве
+        # в любом состоянии (foreground / background / killed) и приложение само
+        # отобразит уведомление через правильный канал "ek_default".
+        # notification-payload намеренно не используется: при background-доставке
+        # Android выбирает канал из него, а несовпадение channel_id приводит к
+        # тихому удалению уведомления на Android 8+.
         messages = [
             messaging.Message(
                 data=data_payload,
-                notification=messaging.Notification(title=title, body=body),
                 android=messaging.AndroidConfig(
                     priority="high",
-                    notification=messaging.AndroidNotification(
-                        sound="default",
-                        channel_id="ediny_kontur_default",
-                    ),
                 ),
                 token=token,
             )
