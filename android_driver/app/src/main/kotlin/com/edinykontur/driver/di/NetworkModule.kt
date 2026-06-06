@@ -9,6 +9,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -25,6 +26,11 @@ import javax.net.ssl.X509TrustManager
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    // SPKI SHA-256 отпечаток самоподписанного сертификата сервера.
+    // Обновить при перевыпуске сертификата (раз в 10 лет).
+    private const val SERVER_HOST = "5.42.122.25"
+    private const val CERT_PIN   = "sha256/3JP742a+v+VyOYyMFODFKPkbsoHMJyPDUCVpgiL+fTo="
+
     @Provides
     @Singleton
     fun provideMoshi(): Moshi = Moshi.Builder()
@@ -40,22 +46,31 @@ object NetworkModule {
             else
                 HttpLoggingInterceptor.Level.NONE
         }
-        // Сервер работает по самоподписанному сертификату (IP без домена).
-        val trustAll = arrayOf<TrustManager>(object : X509TrustManager {
+
+        // Сервер использует самоподписанный сертификат (IP без домена).
+        // TrustManager принимает самоподписанные сертификаты,
+        // а CertificatePinner гарантирует, что это именно НАШ сертификат.
+        // MITM невозможен: у атакующего нет нашего приватного ключа.
+        val trustSelfSigned = arrayOf<TrustManager>(object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
             override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
             override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
         })
         val sslContext = SSLContext.getInstance("TLS").apply {
-            init(null, trustAll, SecureRandom())
+            init(null, trustSelfSigned, SecureRandom())
         }
+
+        val pinner = CertificatePinner.Builder()
+            .add(SERVER_HOST, CERT_PIN)
+            .build()
+
         return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustAll[0] as X509TrustManager)
-            .hostnameVerifier { _, _ -> true }
+            .sslSocketFactory(sslContext.socketFactory, trustSelfSigned[0] as X509TrustManager)
+            .certificatePinner(pinner)
             .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)   // фото могут грузиться дольше
+            .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
     }

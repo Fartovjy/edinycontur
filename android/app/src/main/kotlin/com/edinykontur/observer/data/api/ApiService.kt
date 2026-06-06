@@ -6,6 +6,10 @@ import retrofit2.http.*
 
 interface ApiService {
 
+    // ── Version check (публичный) ─────────────────────────────────────────────
+    @GET("api/v1/version/")
+    suspend fun getAppVersion(): Response<AppVersionResponse>
+
     // ── Auth ──────────────────────────────────────────────────────────────────
     @POST("api/v1/auth/login/")
     suspend fun login(@Body body: LoginRequest): Response<LoginResponse>

@@ -20,7 +20,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "BASE_URL", "\"http://5.42.122.25/\"")
+        buildConfigField("String", "BASE_URL", "\"https://5.42.122.25/\"")
     }
 
     // Подпись release APK

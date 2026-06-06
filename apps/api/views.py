@@ -50,6 +50,36 @@ logger = logging.getLogger(__name__)
 COMPLETED_STATUSES = [STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED]
 
 
+# ─── App version check ─────────────────────────────────────────────────────────
+
+class AppVersionView(APIView):
+    """GET /api/v1/version/ — текущие версии мобильных приложений.
+
+    Публичный эндпоинт — не требует авторизации.
+    Приложение вызывает его при старте и показывает диалог обновления,
+    если установленная версия ниже latest_version.
+    Если установленная версия ниже min_version — диалог неотклоняемый.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.conf import settings
+        base = getattr(settings, "WEB_APP_BASE_URL", "").rstrip("/")
+        return Response({
+            "observer": {
+                "latest_version":  getattr(settings, "APP_VERSION_OBSERVER", "1.0"),
+                "min_version":     getattr(settings, "APP_MIN_VERSION_OBSERVER", "1.0"),
+                "download_url":    f"{base}/downloads/observer-latest.apk",
+            },
+            "driver": {
+                "latest_version":  getattr(settings, "APP_VERSION_DRIVER", "1.0"),
+                "min_version":     getattr(settings, "APP_MIN_VERSION_DRIVER", "1.0"),
+                "download_url":    f"{base}/downloads/driver-latest.apk",
+            },
+        })
+
+
 class LoginRateThrottle(AnonRateThrottle):
     """Throttle для эндпоинта логина: лимит определяется ставкой «login» в settings."""
     scope = "login"

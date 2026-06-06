@@ -5,6 +5,8 @@ from . import views
 app_name = "api"
 
 urlpatterns = [
+    # Version check (публичный)
+    path("version/", views.AppVersionView.as_view(), name="app_version"),
     # Auth
     path("auth/login/", views.LoginView.as_view(), name="login"),
     path("auth/logout/", views.LogoutView.as_view(), name="logout"),

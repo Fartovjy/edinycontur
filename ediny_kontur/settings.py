@@ -143,6 +143,12 @@ LOGIN_REDIRECT_URL = "request_list"
 LOGOUT_REDIRECT_URL = "login"
 
 WEB_APP_BASE_URL = os.environ.get("WEB_APP_BASE_URL", os.environ.get("BASE_URL", "http://localhost:8000")).rstrip("/")
+
+# Версии мобильных приложений — обновляйте при каждом релизе
+APP_VERSION_OBSERVER     = os.environ.get("APP_VERSION_OBSERVER",     "1.0")
+APP_MIN_VERSION_OBSERVER = os.environ.get("APP_MIN_VERSION_OBSERVER", "1.0")
+APP_VERSION_DRIVER       = os.environ.get("APP_VERSION_DRIVER",       "1.0")
+APP_MIN_VERSION_DRIVER   = os.environ.get("APP_MIN_VERSION_DRIVER",   "1.0")
 BASE_URL = WEB_APP_BASE_URL
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_NAME = os.environ.get("TELEGRAM_BOT_NAME", "biovetk_bot")
