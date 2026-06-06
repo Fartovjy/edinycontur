@@ -10,6 +10,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.constants import ROLE_DRIVER, ROLE_TRANSPORT, ROLE_VIEWER
@@ -49,12 +50,18 @@ logger = logging.getLogger(__name__)
 COMPLETED_STATUSES = [STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED]
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """Throttle для эндпоинта логина: лимит определяется ставкой «login» в settings."""
+    scope = "login"
+
+
 # ─── Auth ──────────────────────────────────────────────────────────────────────
 
 class LoginView(APIView):
     """POST /api/v1/auth/login/ — получить токен."""
     authentication_classes = []
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)

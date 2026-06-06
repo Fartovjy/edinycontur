@@ -19,7 +19,7 @@ class LoginRequiredMiddleware:
         public_prefixes = (
             resolve_url(settings.LOGIN_URL),
             resolve_url(settings.LOGOUT_REDIRECT_URL),
-            "/admin/",
+            "/ek-site-admin/",
             settings.STATIC_URL,
             settings.MEDIA_URL,
             "/api/",  # REST API использует TokenAuthentication, своя проверка
