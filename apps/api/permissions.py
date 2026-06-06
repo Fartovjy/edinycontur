@@ -40,6 +40,26 @@ class IsMobileViewerAuthenticated(BasePermission):
         return profile.mobile_access_enabled and profile.role == ROLE_VIEWER
 
 
+class IsMobileAnyAuthenticated(BasePermission):
+    """Разрешает доступ любому мобильному пользователю: ROLE_VIEWER или ROLE_DRIVER."""
+
+    message = "Нет доступа к мобильному API. Обратитесь к администратору."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        profile = getattr(user, "profile", None)
+        if not profile:
+            return False
+        from apps.accounts.constants import ROLE_ADMIN
+        if profile.role == ROLE_ADMIN:
+            return True
+        return profile.mobile_access_enabled and profile.role in (ROLE_VIEWER, ROLE_DRIVER)
+
+
 class IsMobileDriverAuthenticated(BasePermission):
     """
     Разрешает доступ только если:

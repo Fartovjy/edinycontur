@@ -27,7 +27,7 @@ from apps.notifications.services import create_role_notification
 from apps.problems.models import ProblemReport
 
 from .models import DeviceToken, RequestPhoto
-from .permissions import IsMobileDriverAuthenticated, IsMobileViewerAuthenticated
+from .permissions import IsMobileAnyAuthenticated, IsMobileDriverAuthenticated, IsMobileViewerAuthenticated
 from .serializers import (
     BreakdownSerializer,
     DeviceTokenRegisterSerializer,
@@ -96,7 +96,7 @@ class MeView(APIView):
 class DeviceRegisterView(APIView):
     """POST /api/v1/devices/register/ — зарегистрировать FCM-токен."""
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsMobileViewerAuthenticated]
+    permission_classes = [IsMobileAnyAuthenticated]
 
     def post(self, request):
         serializer = DeviceTokenRegisterSerializer(data=request.data)
@@ -121,7 +121,7 @@ class DeviceRegisterView(APIView):
 class DeviceUnregisterView(APIView):
     """DELETE /api/v1/devices/<token>/ — удалить токен устройства."""
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsMobileViewerAuthenticated]
+    permission_classes = [IsMobileAnyAuthenticated]
 
     def delete(self, request, fcm_token):
         deleted, _ = DeviceToken.objects.filter(

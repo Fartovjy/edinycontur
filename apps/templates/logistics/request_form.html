@@ -129,6 +129,9 @@
       {% else %}
       {# ══ ФОРМА РЕДАКТИРОВАНИЯ: универсальный цикл ════════════════════════ #}
       {% for field in form %}
+        {% if field.name == 'region' %}
+          {{ field.as_hidden }}
+        {% else %}
         <div class="col-12 col-md-6 {% if field.name == 'cargo_description' or field.name == 'cz_comment' or field.name == 'status_comment' %}col-md-12{% endif %}">
           {% if field.field.widget.input_type == "checkbox" %}
             <div class="form-check mt-4">
@@ -144,6 +147,7 @@
           {% endif %}
           {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
+        {% endif %}
       {% endfor %}
       {% if form.non_field_errors %}<div class="col-12 text-danger">{{ form.non_field_errors }}</div>{% endif %}
       {% endif %}{# end if not request_obj #}
