@@ -28,6 +28,7 @@ CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get("CSRF_TRUSTE
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
+    "axes",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -69,6 +70,7 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "axes.middleware.AxesMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -141,6 +143,19 @@ AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "request_list"
 LOGOUT_REDIRECT_URL = "login"
+
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+# ── django-axes: защита от брутфорса на уровне аккаунта ───────────────────────
+AXES_FAILURE_LIMIT      = 5        # 5 неудачных попыток → блокировка
+AXES_COOLOFF_TIME       = 1        # автоснятие через 1 час
+AXES_LOCKOUT_PARAMETERS = ["username"]  # блок по имени пользователя, не по IP
+AXES_RESET_ON_SUCCESS   = True     # успешный вход сбрасывает счётчик
+AXES_LOCKOUT_URL        = None     # вернуть HTTP 403 (не редирект)
+AXES_ENABLE_ADMIN       = True     # управление в /ek-site-admin/ → Axes
 
 WEB_APP_BASE_URL = os.environ.get("WEB_APP_BASE_URL", os.environ.get("BASE_URL", "http://localhost:8000")).rstrip("/")
 
