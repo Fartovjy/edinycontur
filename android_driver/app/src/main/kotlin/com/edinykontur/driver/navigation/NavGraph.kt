@@ -21,12 +21,12 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun NavGraph() {
+fun NavGraph(isLoggedIn: Boolean = false) {
     val navController = rememberNavController()
 
     NavHost(
         navController    = navController,
-        startDestination = Screen.Login.route,
+        startDestination = if (isLoggedIn) Screen.TripList.route else Screen.Login.route,
     ) {
 
         composable(Screen.Login.route) {

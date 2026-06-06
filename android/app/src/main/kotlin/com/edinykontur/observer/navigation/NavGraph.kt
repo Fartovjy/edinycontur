@@ -6,11 +6,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.edinykontur.observer.data.prefs.TokenStorage
 import com.edinykontur.observer.ui.detail.RequestDetailScreen
 import com.edinykontur.observer.ui.list.RequestListScreen
 import com.edinykontur.observer.ui.login.LoginScreen
-import dagger.hilt.android.EntryPointAccessors
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -21,13 +19,13 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun NavGraph(tokenStorage: TokenStorage? = null) {
+fun NavGraph(isLoggedIn: Boolean = false) {
     val navController = rememberNavController()
-    // Стартовый экран зависит от наличия токена
-    // TokenStorage инжектируется через hiltViewModel в LoginScreen
-    val startDestination = Screen.Login.route
 
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(
+        navController    = navController,
+        startDestination = if (isLoggedIn) Screen.RequestList.route else Screen.Login.route,
+    ) {
 
         composable(Screen.Login.route) {
             LoginScreen(
