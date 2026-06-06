@@ -64,6 +64,16 @@ class TripListViewModel @Inject constructor(
         loadTrips(LocalDate.now())
     }
 
+    /** Вызывается при каждом ON_RESUME — переключает на сегодня если день уже сменился. */
+    fun refreshToToday() {
+        val today = LocalDate.now()
+        if (_uiState.value.selectedDate != today) {
+            loadTrips(today)
+        } else {
+            loadTrips()
+        }
+    }
+
     fun logout(onLoggedOut: () -> Unit) {
         viewModelScope.launch {
             authRepository.logout()

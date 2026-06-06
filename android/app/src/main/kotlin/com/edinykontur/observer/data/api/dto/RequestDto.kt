@@ -34,16 +34,16 @@ data class RequestDetailDto(
     @Json(name = "priority_display") val priorityDisplay: String,
     // Клиент
     @Json(name = "client_name") val clientName: String,
-    @Json(name = "client_address") val clientAddress: String,
-    @Json(name = "client_contact") val clientContact: String,
-    @Json(name = "client_phone") val clientPhone: String,
-    val region: String,
+    @Json(name = "client_address") val clientAddress: String?,
+    @Json(name = "client_contact") val clientContact: String?,
+    @Json(name = "client_phone") val clientPhone: String?,
+    val region: String?,
     // Груз
-    @Json(name = "cargo_description") val cargoDescription: String,
+    @Json(name = "cargo_description") val cargoDescription: String?,
     @Json(name = "cargo_places_count") val cargoPlacesCount: Int,
-    @Json(name = "cargo_weight_kg") val cargoWeightKg: String,
-    @Json(name = "cargo_volume_m3") val cargoVolumeM3: String,
-    @Json(name = "dimensions_text") val dimensionsText: String,
+    @Json(name = "cargo_weight_kg") val cargoWeightKg: String?,
+    @Json(name = "cargo_volume_m3") val cargoVolumeM3: String?,
+    @Json(name = "dimensions_text") val dimensionsText: String?,
     // Склад / транспорт
     @Json(name = "warehouse_name") val warehouseName: String?,
     @Json(name = "vehicle_plate") val vehiclePlate: String?,
@@ -59,9 +59,9 @@ data class RequestDetailDto(
     @Json(name = "updated_at") val updatedAt: String,
     // ЧЗ
     @Json(name = "cz_required") val czRequired: Boolean,
-    @Json(name = "cz_status") val czStatus: String,
-    @Json(name = "cz_status_display") val czStatusDisplay: String,
-    @Json(name = "cz_comment") val czComment: String,
+    @Json(name = "cz_status") val czStatus: String?,
+    @Json(name = "cz_status_display") val czStatusDisplay: String?,
+    @Json(name = "cz_comment") val czComment: String?,
     // Флаги
     @Json(name = "has_open_problem") val hasOpenProblem: Boolean,
     // Вложенные
@@ -78,7 +78,7 @@ data class StatusHistoryDto(
     @Json(name = "new_status") val newStatus: String,
     @Json(name = "new_status_display") val newStatusDisplay: String,
     @Json(name = "changed_by_name") val changedByName: String?,
-    val comment: String,
+    val comment: String?,
     @Json(name = "created_at") val createdAt: String,
 )
 

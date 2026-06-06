@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class DetailUiState(
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
     val request: RequestDetailDto? = null,
     val error: String? = null,
 )
@@ -29,8 +29,8 @@ class DetailViewModel @Inject constructor(
         _uiState.value = DetailUiState(isLoading = true)
         viewModelScope.launch {
             when (val result = requestRepository.fetchRequestDetail(requestId)) {
-                is ApiResult.Success -> _uiState.value = DetailUiState(request = result.data)
-                is ApiResult.Error   -> _uiState.value = DetailUiState(error = result.message)
+                is ApiResult.Success -> _uiState.value = DetailUiState(isLoading = false, request = result.data)
+                is ApiResult.Error   -> _uiState.value = DetailUiState(isLoading = false, error = result.message)
             }
         }
     }

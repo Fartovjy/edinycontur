@@ -119,10 +119,10 @@ fun RequestDetailContent(request: RequestDetailDto, modifier: Modifier = Modifie
         // Клиент
         DetailSection(title = "Клиент") {
             DetailRow("Наименование", request.clientName)
-            if (request.region.isNotBlank()) DetailRow("Регион", request.region)
-            if (request.clientAddress.isNotBlank()) DetailRow("Адрес", request.clientAddress)
-            if (request.clientContact.isNotBlank()) DetailRow("Контакт", request.clientContact)
-            if (request.clientPhone.isNotBlank()) {
+            if (!request.region.isNullOrBlank()) DetailRow("Регион", request.region)
+            if (!request.clientAddress.isNullOrBlank()) DetailRow("Адрес", request.clientAddress)
+            if (!request.clientContact.isNullOrBlank()) DetailRow("Контакт", request.clientContact)
+            if (!request.clientPhone.isNullOrBlank()) {
                 DetailRowClickable(
                     label = "Телефон",
                     value = request.clientPhone,
@@ -136,11 +136,11 @@ fun RequestDetailContent(request: RequestDetailDto, modifier: Modifier = Modifie
 
         // Груз
         DetailSection(title = "Груз") {
-            if (request.cargoDescription.isNotBlank()) DetailRow("Описание", request.cargoDescription)
+            if (!request.cargoDescription.isNullOrBlank()) DetailRow("Описание", request.cargoDescription)
             DetailRow("Мест", request.cargoPlacesCount.toString())
-            if (request.cargoWeightKg != "0.00") DetailRow("Вес", "${request.cargoWeightKg} кг")
-            if (request.cargoVolumeM3 != "0.000") DetailRow("Объём", "${request.cargoVolumeM3} м³")
-            if (request.dimensionsText.isNotBlank()) DetailRow("Габариты", request.dimensionsText)
+            if (!request.cargoWeightKg.isNullOrBlank() && request.cargoWeightKg != "0.00") DetailRow("Вес", "${request.cargoWeightKg} кг")
+            if (!request.cargoVolumeM3.isNullOrBlank() && request.cargoVolumeM3 != "0.000") DetailRow("Объём", "${request.cargoVolumeM3} м³")
+            if (!request.dimensionsText.isNullOrBlank()) DetailRow("Габариты", request.dimensionsText)
         }
 
         // Даты (timeline)
@@ -165,8 +165,8 @@ fun RequestDetailContent(request: RequestDetailDto, modifier: Modifier = Modifie
         // ЧЗ
         if (request.czRequired) {
             DetailSection(title = "Честный Знак") {
-                DetailRow("Статус", request.czStatusDisplay)
-                if (request.czComment.isNotBlank()) DetailRow("Комментарий", request.czComment)
+                if (!request.czStatusDisplay.isNullOrBlank()) DetailRow("Статус", request.czStatusDisplay)
+                if (!request.czComment.isNullOrBlank()) DetailRow("Комментарий", request.czComment)
             }
         }
 
