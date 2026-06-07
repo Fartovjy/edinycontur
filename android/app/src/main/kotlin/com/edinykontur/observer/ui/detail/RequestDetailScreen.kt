@@ -136,6 +136,35 @@ fun RequestDetailContent(request: RequestDetailDto, modifier: Modifier = Modifie
 
         // Груз
         DetailSection(title = "Груз") {
+            // Позиции товаров
+            if (request.cargoItems.isNotEmpty()) {
+                request.cargoItems.forEachIndexed { index, item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            "${index + 1}. ${item.name}",
+                            fontSize = 13.sp,
+                            color = EkColors.Text,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (item.qty.isNotBlank()) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                item.qty,
+                                fontSize = 13.sp,
+                                color = EkColors.Muted,
+                            )
+                        }
+                    }
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp), color = EkColors.Border)
+            }
+            // Итого
             if (!request.cargoDescription.isNullOrBlank()) DetailRow("Описание", request.cargoDescription)
             DetailRow("Мест", request.cargoPlacesCount.toString())
             if (!request.cargoWeightKg.isNullOrBlank() && request.cargoWeightKg != "0.00") DetailRow("Вес", "${request.cargoWeightKg} кг")
