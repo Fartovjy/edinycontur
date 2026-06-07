@@ -287,31 +287,46 @@ def _driver_trips_qs(user):
 class DriverTripListView(APIView):
     """
     GET /api/v1/driver/trips/
-        ?date=2026-06-05   — рейсы на конкретный день (по planned_ship_date ИЛИ planned_delivery_date)
-        без параметра      — сегодняшние рейсы
+
+    Возвращает все актуальные рейсы водителя:
+    - Незавершённые: transport_assigned / shipped / in_transit / problem (любая дата)
+    - Завершённые за последние 30 дней (delivered)
     """
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsMobileDriverAuthenticated]
 
     def get(self, request):
-        from django.utils.dateparse import parse_date
+        from datetime import timedelta
+        from django.db.models import Case, IntegerField, When
 
-        date_param = request.query_params.get("date")
-        if date_param:
-            target_date = parse_date(date_param)
-            if not target_date:
-                return Response({"error": "Неверный формат даты. Используйте YYYY-MM-DD."},
-                                status=status.HTTP_400_BAD_REQUEST)
-        else:
-            target_date = timezone.localdate()
+        today      = timezone.localdate()
+        month_ago  = today - timedelta(days=30)
+
+        ACTIVE_STATUSES = [
+            STATUS_TRANSPORT_ASSIGNED,
+            STATUS_SHIPPED,
+            STATUS_IN_TRANSIT,
+            STATUS_PROBLEM,
+        ]
 
         qs = _driver_trips_qs(request.user).filter(
-            Q(planned_ship_date=target_date) | Q(planned_delivery_date=target_date)
-        )
+            Q(status__in=ACTIVE_STATUSES) |
+            Q(status=STATUS_DELIVERED, actual_delivery_date__gte=month_ago)
+        ).annotate(
+            # Активные/проблемные — вверху, завершённые — внизу
+            _sort_order=Case(
+                When(status=STATUS_PROBLEM,            then=0),
+                When(status=STATUS_IN_TRANSIT,         then=1),
+                When(status=STATUS_SHIPPED,            then=2),
+                When(status=STATUS_TRANSPORT_ASSIGNED, then=3),
+                When(status=STATUS_DELIVERED,          then=4),
+                default=9,
+                output_field=IntegerField(),
+            )
+        ).order_by("_sort_order", "planned_delivery_date", "-priority")
 
         serializer = TripListSerializer(qs, many=True)
         return Response({
-            "date": str(target_date),
             "results": serializer.data,
             "count": len(serializer.data),
         })

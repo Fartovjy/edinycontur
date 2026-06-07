@@ -7,7 +7,7 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class TripListResponse(
-    val date: String,
+    val date: String? = null,
     val results: List<TripListItem>,
     val count: Int,
 )

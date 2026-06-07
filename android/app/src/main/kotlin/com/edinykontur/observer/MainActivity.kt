@@ -34,10 +34,16 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var tokenStorage: TokenStorage
     @Inject lateinit var apiService: ApiService
 
+    // request_id из уведомления (observable для Compose)
+    private var notificationRequestId by mutableStateOf<Int?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Читаем request_id если запущены из уведомления
+        notificationRequestId = intent?.getIntExtra("request_id", -1)?.takeIf { it > 0 }
 
         // Регистрируем FCM токен при каждом старте (если пользователь залогинен)
         if (tokenStorage.getToken() != null) {
@@ -94,9 +100,19 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                NavGraph(isLoggedIn = tokenStorage.getToken() != null)
+                NavGraph(
+                    isLoggedIn = tokenStorage.getToken() != null,
+                    startRequestId = notificationRequestId,
+                )
             }
         }
+    }
+
+    /** Обрабатываем новый Intent когда приложение уже открыто (FLAG_ACTIVITY_SINGLE_TOP). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val requestId = intent.getIntExtra("request_id", -1).takeIf { it > 0 }
+        notificationRequestId = requestId
     }
 }
 

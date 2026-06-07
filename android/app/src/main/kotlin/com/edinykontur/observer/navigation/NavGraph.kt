@@ -1,6 +1,7 @@
 package com.edinykontur.observer.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,7 +20,7 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun NavGraph(isLoggedIn: Boolean = false) {
+fun NavGraph(isLoggedIn: Boolean = false, startRequestId: Int? = null) {
     val navController = rememberNavController()
 
     NavHost(
@@ -59,6 +60,13 @@ fun NavGraph(isLoggedIn: Boolean = false) {
                 requestId = requestId,
                 onBack = { navController.popBackStack() },
             )
+        }
+    }
+
+    // Если приложение открыто из уведомления — переходим сразу к заявке
+    LaunchedEffect(startRequestId) {
+        if (isLoggedIn && startRequestId != null) {
+            navController.navigate(Screen.RequestDetail.createRoute(startRequestId))
         }
     }
 }
