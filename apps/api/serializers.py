@@ -7,6 +7,7 @@ from rest_framework.authtoken.models import Token
 from apps.logistics.constants import (
     STATUS_DELIVERED,
     STATUS_IN_TRANSIT,
+    STATUS_READY_TO_SHIP,
     STATUS_SHIPPED,
     STATUS_TRANSPORT_ASSIGNED,
 )
@@ -242,6 +243,7 @@ class RequestDetailSerializer(serializers.ModelSerializer):
 
 # Переходы, которые ВОДИТЕЛЬ может делать самостоятельно
 DRIVER_STATUS_TRANSITIONS = {
+    STATUS_READY_TO_SHIP:      STATUS_SHIPPED,    # водитель загрузился напрямую
     STATUS_TRANSPORT_ASSIGNED: STATUS_SHIPPED,
     STATUS_SHIPPED:            STATUS_IN_TRANSIT,
     STATUS_IN_TRANSIT:         STATUS_DELIVERED,
