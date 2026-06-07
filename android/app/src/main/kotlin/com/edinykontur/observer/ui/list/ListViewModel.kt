@@ -12,12 +12,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Статусы, считающиеся "завершёнными" (архив). */
+private val COMPLETED_STATUSES = setOf("delivered", "closed", "cancelled")
+
 data class RequestListUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val requests: List<RequestListItemDto> = emptyList(),
+    val allRequests: List<RequestListItemDto> = emptyList(),
     val error: String? = null,
-)
+    /** Если false — показываем только активные (не завершённые). */
+    val showCompleted: Boolean = false,
+) {
+    /** Список с учётом текущего фильтра. */
+    val requests: List<RequestListItemDto>
+        get() = if (showCompleted) allRequests
+                else allRequests.filter { it.status !in COMPLETED_STATUSES }
+
+    val activeCount: Int
+        get() = allRequests.count { it.status !in COMPLETED_STATUSES }
+
+    val completedCount: Int
+        get() = allRequests.count { it.status in COMPLETED_STATUSES }
+}
 
 @HiltViewModel
 class ListViewModel @Inject constructor(
@@ -39,6 +55,11 @@ class ListViewModel @Inject constructor(
         }
     }
 
+    /** Переключить режим "показать завершённые". */
+    fun toggleShowCompleted() {
+        _uiState.value = _uiState.value.copy(showCompleted = !_uiState.value.showCompleted)
+    }
+
     private fun load(incremental: Boolean) {
         viewModelScope.launch {
             loadInner(incremental)
@@ -47,10 +68,11 @@ class ListViewModel @Inject constructor(
 
     private suspend fun loadInner(incremental: Boolean) {
         when (val result = requestRepository.fetchRequests(incremental)) {
-            is ApiResult.Success -> _uiState.value = RequestListUiState(
-                requests = result.data,
+            is ApiResult.Success -> _uiState.value = _uiState.value.copy(
+                allRequests = result.data,
                 isLoading = false,
                 isRefreshing = false,
+                error = null,
             )
             is ApiResult.Error   -> _uiState.value = _uiState.value.copy(
                 isLoading = false,

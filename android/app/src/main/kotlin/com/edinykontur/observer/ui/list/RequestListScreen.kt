@@ -5,7 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -49,6 +51,15 @@ fun RequestListScreen(
                     actionIconContentColor = EkColors.Amber,
                 ),
                 actions = {
+                    // Кнопка архива — подсвечена когда архив включён
+                    IconButton(onClick = viewModel::toggleShowCompleted) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = if (uiState.showCompleted) "Скрыть архив" else "Показать архив",
+                            tint = if (uiState.showCompleted) EkColors.Amber
+                                   else EkColors.Amber.copy(alpha = 0.45f),
+                        )
+                    }
                     IconButton(onClick = { viewModel.logout(onLogout) }) {
                         Icon(Icons.Default.Logout, contentDescription = stringResource(R.string.logout))
                     }
@@ -87,19 +98,51 @@ fun RequestListScreen(
                     }
                 }
 
-                uiState.requests.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.no_requests), color = EkColors.Muted)
-                    }
-                }
-
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(uiState.requests, key = { it.id }) { request ->
-                            RequestCard(request, onClick = { onRequestClick(request.id) })
+                        // Баннер когда архив включён
+                        if (uiState.showCompleted && uiState.completedCount > 0) {
+                            item(key = "archive_banner") {
+                                ArchiveBanner(
+                                    activeCount    = uiState.activeCount,
+                                    completedCount = uiState.completedCount,
+                                    onHide         = viewModel::toggleShowCompleted,
+                                )
+                            }
+                        }
+
+                        if (uiState.requests.isEmpty()) {
+                            item(key = "empty") {
+                                Box(
+                                    Modifier
+                                        .fillParentMaxWidth()
+                                        .padding(vertical = 64.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        if (uiState.showCompleted) "Нет заявок"
+                                        else "Нет активных заявок",
+                                        color = EkColors.Muted,
+                                    )
+                                }
+                            }
+                        } else {
+                            items(uiState.requests, key = { it.id }) { request ->
+                                RequestCard(request, onClick = { onRequestClick(request.id) })
+                            }
+                        }
+
+                        // Подсказка "показать архив" в конце активного списка
+                        if (!uiState.showCompleted && uiState.completedCount > 0) {
+                            item(key = "show_archive_hint") {
+                                ShowArchiveHint(
+                                    count   = uiState.completedCount,
+                                    onClick = viewModel::toggleShowCompleted,
+                                )
+                            }
                         }
                     }
                 }
@@ -108,18 +151,85 @@ fun RequestListScreen(
     }
 }
 
+// ── Баннер "Включён архив" ─────────────────────────────────────────────────────
+
+@Composable
+private fun ArchiveBanner(activeCount: Int, completedCount: Int, onHide: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(EkColors.BrownFaint, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column {
+            Text(
+                "Включён архив",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = EkColors.BrownDarkest,
+            )
+            Text(
+                "Активных: $activeCount · Завершённых: $completedCount",
+                fontSize = 11.sp,
+                color = EkColors.Muted,
+            )
+        }
+        TextButton(onClick = onHide) {
+            Text("Скрыть", fontSize = 12.sp, color = EkColors.Amber)
+        }
+    }
+}
+
+// ── Подсказка в конце списка ──────────────────────────────────────────────────
+
+@Composable
+private fun ShowArchiveHint(count: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        TextButton(onClick = onClick) {
+            Icon(
+                Icons.Default.History,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = EkColors.Muted,
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "Показать завершённые ($count)",
+                fontSize = 13.sp,
+                color = EkColors.Muted,
+            )
+        }
+    }
+}
+
+// ── Карточка заявки ────────────────────────────────────────────────────────────
+
 @Composable
 fun RequestCard(
     item: RequestListItemDto,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isCompleted = item.status in setOf("delivered", "closed", "cancelled")
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = EkColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCompleted) EkColors.BrownFaint.copy(alpha = 0.5f)
+                             else EkColors.Surface,
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isCompleted) 0.dp else 2.dp,
+        ),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -131,7 +241,7 @@ fun RequestCard(
                     text = item.clientName,
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
-                    color = EkColors.BrownDarkest,
+                    color = if (isCompleted) EkColors.Muted else EkColors.BrownDarkest,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -179,6 +289,7 @@ fun StatusBadge(status: String, label: String) {
     val (bg, fg) = when (status) {
         "problem"             -> EkColors.RedLight  to EkColors.Red
         "delivered", "closed" -> EkColors.GreenLight to EkColors.GreenDark
+        "cancelled"           -> EkColors.BrownFaint to EkColors.Muted
         "shipped", "in_transit" -> EkColors.PrimaryContainer to EkColors.AmberDarker
         else                  -> EkColors.BrownFaint to EkColors.Muted
     }

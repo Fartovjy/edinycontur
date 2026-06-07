@@ -114,6 +114,7 @@ data class PhotoDto(
 data class StatusTransitionDto(
     val status: String,
     val display: String,
+    @Json(name = "requires_odometer") val requiresOdometer: Boolean = false,
 )
 
 // ── Входящие данные для запросов ───────────────────────────────────────────────

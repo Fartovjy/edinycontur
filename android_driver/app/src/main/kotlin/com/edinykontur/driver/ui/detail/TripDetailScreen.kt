@@ -102,7 +102,8 @@ fun TripDetailScreen(
                 trip = uiState.trip!!,
                 uiState = uiState,
                 modifier = Modifier.padding(padding),
-                onStatusUpdate = { status -> viewModel.updateStatus(tripId, status) },
+                onStatusUpdate           = { status -> viewModel.updateStatus(tripId, status) },
+                onStatusWithOdometer     = { status, km -> viewModel.updateStatusWithOdometer(tripId, status, km) },
                 onOdometerSave = { km -> viewModel.saveOdometer(tripId, km) },
                 onPhotoUpload  = { uri, type -> viewModel.uploadPhoto(context, tripId, uri, type) },
             )
@@ -116,6 +117,7 @@ private fun TripDetailContent(
     uiState: TripDetailUiState,
     modifier: Modifier = Modifier,
     onStatusUpdate: (String) -> Unit,
+    onStatusWithOdometer: (String, Int) -> Unit,
     onOdometerSave: (Int) -> Unit,
     onPhotoUpload:  (Uri, String) -> Unit,
 ) {
@@ -200,9 +202,10 @@ private fun TripDetailContent(
                     trip = trip,
                     isUpdating = uiState.statusUpdating,
                     onStatusUpdate = onStatusUpdate,
+                    onStatusWithOdometer = onStatusWithOdometer,
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DrvColors.Border)
-                // Одометр
+                // Одометр (ручной ввод — всегда доступен)
                 OdometerSection(
                     currentKm    = trip.odometerKm,
                     isSaving     = uiState.odometerSaving,
@@ -245,6 +248,63 @@ private fun TripDetailContent(
     }
 }
 
+// ── Вспомогательная функция: отображение статуса для водителя ─────────────────
+
+private fun driverStatusLabel(status: String): String = when (status) {
+    "transport_assigned" -> "Новый рейс"
+    "shipped"            -> "Загрузился. В пути"
+    "in_transit"         -> "Разгрузился. В пути"
+    "delivered"          -> "На базе. Свободен"
+    "problem"            -> "Проблема"
+    else                 -> status
+}
+
+// ── Диалог обязательного ввода пробега ────────────────────────────────────────
+
+@Composable
+private fun OdometerRequiredDialog(
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember { mutableStateOf("") }
+    val km = text.trim().toIntOrNull()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Введите пробег") },
+        text = {
+            Column {
+                Text(
+                    "Для записи «Разгрузился. В пути» необходимо указать текущий пробег автомобиля.",
+                    fontSize = 14.sp,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Пробег, км") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DrvColors.Green,
+                        focusedLabelColor  = DrvColors.GreenDark,
+                    ),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (km != null && km > 0) onConfirm(km) },
+                enabled = km != null && km > 0,
+            ) { Text("Подтвердить") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        },
+    )
+}
+
 // ── Секция статуса ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -252,18 +312,44 @@ private fun StatusSection(
     trip: TripDetail,
     isUpdating: Boolean,
     onStatusUpdate: (String) -> Unit,
+    onStatusWithOdometer: (String, Int) -> Unit,
 ) {
+    var showOdometerDialog by remember { mutableStateOf(false) }
+    var pendingStatus by remember { mutableStateOf("") }
+
+    if (showOdometerDialog) {
+        OdometerRequiredDialog(
+            onConfirm = { km ->
+                showOdometerDialog = false
+                onStatusWithOdometer(pendingStatus, km)
+            },
+            onDismiss = { showOdometerDialog = false },
+        )
+    }
+
     Column {
         InfoLabel("Текущий статус")
-        Text(trip.statusDisplay, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = DrvColors.Text)
+        Text(
+            driverStatusLabel(trip.status),
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+            color = DrvColors.Text,
+        )
         Spacer(Modifier.height(10.dp))
 
         if (trip.allowedStatusTransitions.isNotEmpty()) {
             trip.allowedStatusTransitions.forEach { transition ->
                 Button(
-                    onClick = { onStatusUpdate(transition.status) },
+                    onClick = {
+                        if (transition.requiresOdometer) {
+                            pendingStatus = transition.status
+                            showOdometerDialog = true
+                        } else {
+                            onStatusUpdate(transition.status)
+                        }
+                    },
                     enabled = !isUpdating,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = DrvColors.Green),
                 ) {
                     if (isUpdating) {
@@ -271,14 +357,25 @@ private fun StatusSection(
                     } else {
                         Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(transition.display, fontWeight = FontWeight.SemiBold)
+                        Text(transition.display, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
+                }
+                if (transition.requiresOdometer) {
+                    Text(
+                        "Требуется ввод пробега",
+                        fontSize = 11.sp,
+                        color = DrvColors.Muted,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    )
+                } else {
+                    Spacer(Modifier.height(4.dp))
                 }
             }
         } else {
             Text(
                 when (trip.status) {
-                    "delivered" -> "✓ Доставлено"
+                    "delivered" -> "✓ На базе. Свободен"
+                    "closed"    -> "✓ Рейс закрыт"
                     else        -> "Нет доступных переходов"
                 },
                 color = DrvColors.Muted, fontSize = 13.sp,

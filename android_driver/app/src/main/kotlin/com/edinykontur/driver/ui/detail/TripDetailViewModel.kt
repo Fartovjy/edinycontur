@@ -62,6 +62,33 @@ class TripDetailViewModel @Inject constructor(
         }
     }
 
+    /** Сохраняет пробег и затем меняет статус (для "Разгрузился. В пути"). */
+    fun updateStatusWithOdometer(tripId: Int, status: String, km: Int) {
+        _uiState.value = _uiState.value.copy(statusUpdating = true, actionError = null)
+        viewModelScope.launch {
+            // Шаг 1: сохранить одометр
+            when (val result = tripRepository.saveOdometer(tripId, km)) {
+                is ApiResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        statusUpdating = false,
+                        actionError = "Ошибка сохранения пробега: ${result.message}",
+                    )
+                    return@launch
+                }
+                is ApiResult.Success -> Unit
+            }
+            // Шаг 2: обновить статус
+            when (val result = tripRepository.updateStatus(tripId, status)) {
+                is ApiResult.Success -> {
+                    _uiState.value = _uiState.value.copy(statusUpdating = false, statusSuccess = status)
+                    load(tripId)
+                }
+                is ApiResult.Error -> _uiState.value = _uiState.value.copy(
+                    statusUpdating = false, actionError = result.message)
+            }
+        }
+    }
+
     fun saveOdometer(tripId: Int, km: Int) {
         _uiState.value = _uiState.value.copy(odometerSaving = true, actionError = null)
         viewModelScope.launch {

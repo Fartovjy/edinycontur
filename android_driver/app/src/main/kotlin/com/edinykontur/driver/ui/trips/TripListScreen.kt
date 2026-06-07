@@ -296,6 +296,15 @@ private fun TripCard(trip: TripListItem, onClick: () -> Unit) {
 
 @Composable
 private fun StatusChip(status: String, display: String) {
+    // Перегружаем отображение для водителя (server display — для логиста, не для водителя)
+    val driverLabel = when (status) {
+        "transport_assigned" -> "Новый рейс"
+        "shipped"            -> "Загрузился. В пути"
+        "in_transit"         -> "Разгрузился. В пути"
+        "delivered"          -> "На базе. Свободен"
+        "problem"            -> "Проблема"
+        else                 -> display
+    }
     val (bg, fg) = when (status) {
         "transport_assigned" -> DrvColors.AmberLight to DrvColors.Amber
         "shipped"            -> DrvColors.BlueLight  to DrvColors.Blue
@@ -309,7 +318,7 @@ private fun StatusChip(status: String, display: String) {
         shape = RoundedCornerShape(6.dp),
     ) {
         Text(
-            display,
+            driverLabel,
             color = fg,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,

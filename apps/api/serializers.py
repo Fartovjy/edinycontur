@@ -247,12 +247,18 @@ DRIVER_STATUS_TRANSITIONS = {
     STATUS_IN_TRANSIT:         STATUS_DELIVERED,
 }
 
-STATUS_DISPLAY = dict([
-    (STATUS_TRANSPORT_ASSIGNED, "Назначен транспорт"),
-    (STATUS_SHIPPED,            "Отгружена"),
-    (STATUS_IN_TRANSIT,         "В пути"),
-    (STATUS_DELIVERED,          "Доставлена"),
-])
+# Кнопка-действие — что водитель нажимает, чтобы перейти в следующий статус
+DRIVER_ACTION_DISPLAY = {
+    STATUS_SHIPPED:    "Загрузился. В пути",
+    STATUS_IN_TRANSIT: "Разгрузился. В пути",
+    STATUS_DELIVERED:  "На базе. Свободен",
+}
+
+# Переходы, требующие ввода пробега перед подтверждением
+DRIVER_ODOMETER_REQUIRED = {STATUS_IN_TRANSIT}
+
+# Алиас для list-serializer (следующее действие в карточке)
+STATUS_DISPLAY = DRIVER_ACTION_DISPLAY
 
 
 # ─── Driver: RequestPhoto ───────────────────────────────────────────────────────
@@ -433,7 +439,11 @@ class TripDetailSerializer(serializers.ModelSerializer):
         ns = DRIVER_STATUS_TRANSITIONS.get(obj.status)
         if not ns:
             return []
-        return [{"status": ns, "display": STATUS_DISPLAY.get(ns, ns)}]
+        return [{
+            "status": ns,
+            "display": DRIVER_ACTION_DISPLAY.get(ns, ns),
+            "requires_odometer": ns in DRIVER_ODOMETER_REQUIRED,
+        }]
 
 
 # ─── Driver: Input serializers ─────────────────────────────────────────────────
