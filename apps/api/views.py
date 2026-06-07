@@ -20,6 +20,7 @@ from apps.logistics.constants import (
     STATUS_DELIVERED,
     STATUS_IN_TRANSIT,
     STATUS_PROBLEM,
+    STATUS_READY_TO_SHIP,
     STATUS_SHIPPED,
     STATUS_TRANSPORT_ASSIGNED,
 )
@@ -305,6 +306,7 @@ class DriverTripListView(APIView):
         month_ago  = today - timedelta(days=30)
 
         ACTIVE_STATUSES = [
+            STATUS_READY_TO_SHIP,       # назначен, но ещё не transport_assigned
             STATUS_TRANSPORT_ASSIGNED,
             STATUS_SHIPPED,
             STATUS_IN_TRANSIT,
@@ -321,7 +323,8 @@ class DriverTripListView(APIView):
                 When(status=STATUS_IN_TRANSIT,         then=1),
                 When(status=STATUS_SHIPPED,            then=2),
                 When(status=STATUS_TRANSPORT_ASSIGNED, then=3),
-                When(status=STATUS_DELIVERED,          then=4),
+                When(status=STATUS_READY_TO_SHIP,      then=4),
+                When(status=STATUS_DELIVERED,          then=5),
                 default=9,
                 output_field=IntegerField(),
             )

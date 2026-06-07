@@ -251,6 +251,7 @@ private fun TripDetailContent(
 // ── Вспомогательная функция: отображение статуса для водителя ─────────────────
 
 private fun driverStatusLabel(status: String): String = when (status) {
+    "ready_to_ship"      -> "Готовится к отправке"
     "transport_assigned" -> "Новый рейс"
     "shipped"            -> "Загрузился. В пути"
     "in_transit"         -> "Разгрузился. В пути"
@@ -374,9 +375,10 @@ private fun StatusSection(
         } else {
             Text(
                 when (trip.status) {
-                    "delivered" -> "✓ На базе. Свободен"
-                    "closed"    -> "✓ Рейс закрыт"
-                    else        -> "Нет доступных переходов"
+                    "ready_to_ship" -> "⏳ Ожидайте — заявка готовится к отправке"
+                    "delivered"     -> "✓ На базе. Свободен"
+                    "closed"        -> "✓ Рейс закрыт"
+                    else            -> "Нет доступных переходов"
                 },
                 color = DrvColors.Muted, fontSize = 13.sp,
             )

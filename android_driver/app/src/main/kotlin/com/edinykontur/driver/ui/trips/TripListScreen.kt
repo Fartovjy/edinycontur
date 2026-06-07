@@ -298,6 +298,7 @@ private fun TripCard(trip: TripListItem, onClick: () -> Unit) {
 private fun StatusChip(status: String, display: String) {
     // Перегружаем отображение для водителя (server display — для логиста, не для водителя)
     val driverLabel = when (status) {
+        "ready_to_ship"      -> "Готовится"
         "transport_assigned" -> "Новый рейс"
         "shipped"            -> "Загрузился. В пути"
         "in_transit"         -> "Разгрузился. В пути"
@@ -306,6 +307,7 @@ private fun StatusChip(status: String, display: String) {
         else                 -> display
     }
     val (bg, fg) = when (status) {
+        "ready_to_ship"      -> DrvColors.Bg         to DrvColors.Muted
         "transport_assigned" -> DrvColors.AmberLight to DrvColors.Amber
         "shipped"            -> DrvColors.BlueLight  to DrvColors.Blue
         "in_transit"         -> Color(0xFFe0f2fe)    to Color(0xFF0369a1)
