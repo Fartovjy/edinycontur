@@ -18,7 +18,9 @@ from apps.logistics.constants import (
     STATUS_CANCELLED,
     STATUS_CLOSED,
     STATUS_DELIVERED,
+    STATUS_IN_TRANSIT,
     STATUS_PROBLEM,
+    STATUS_SHIPPED,
     STATUS_TRANSPORT_ASSIGNED,
 )
 from apps.logistics.models import LogisticsRequest

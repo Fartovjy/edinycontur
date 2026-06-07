@@ -1,13 +1,10 @@
 package com.edinykontur.observer.ui.list
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -38,112 +35,75 @@ fun RequestListScreen(
     Scaffold(
         containerColor = EkColors.Bg,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Единый Контур", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Заявки", fontSize = 12.sp, color = EkColors.Muted)
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("Единый Контур", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("Заявки", fontSize = 12.sp, color = EkColors.Muted)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = EkColors.BrownDark,
+                        titleContentColor = EkColors.Amber,
+                        actionIconContentColor = EkColors.Amber,
+                    ),
+                    actions = {
+                        IconButton(onClick = { viewModel.logout(onLogout) }) {
+                            Icon(Icons.Default.Logout, contentDescription = stringResource(R.string.logout))
+                        }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = EkColors.BrownDark,
-                    titleContentColor = EkColors.Amber,
-                    actionIconContentColor = EkColors.Amber,
-                ),
-                actions = {
-                    // Кнопка архива — подсвечена когда архив включён
-                    IconButton(onClick = viewModel::toggleShowCompleted) {
-                        Icon(
-                            Icons.Default.History,
-                            contentDescription = if (uiState.showCompleted) "Скрыть архив" else "Показать архив",
-                            tint = if (uiState.showCompleted) EkColors.Amber
-                                   else EkColors.Amber.copy(alpha = 0.45f),
-                        )
-                    }
-                    IconButton(onClick = { viewModel.logout(onLogout) }) {
-                        Icon(Icons.Default.Logout, contentDescription = stringResource(R.string.logout))
-                    }
-                }
-            )
+                )
+                // ── Фильтр-таб ──────────────────────────────────────────────
+                FilterTabRow(
+                    selected      = uiState.filter,
+                    activeCount   = uiState.activeCount,
+                    problemCount  = uiState.problemCount,
+                    archiveCount  = uiState.archiveCount,
+                    onSelect      = viewModel::setFilter,
+                )
+            }
         }
     ) { paddingValues ->
 
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+            onRefresh    = viewModel::refresh,
+            modifier     = Modifier.fillMaxSize().padding(paddingValues),
         ) {
             when {
-                uiState.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = EkColors.Amber)
-                    }
+                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = EkColors.Amber)
                 }
 
-                uiState.error != null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                uiState.error ?: stringResource(R.string.error_loading),
-                                color = EkColors.Red,
-                                modifier = Modifier.padding(16.dp),
-                            )
-                            Button(
-                                onClick = viewModel::refresh,
-                                colors = ButtonDefaults.buttonColors(containerColor = EkColors.Amber),
-                            ) { Text("Повторить") }
+                uiState.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(uiState.error ?: stringResource(R.string.error_loading),
+                            color = EkColors.Red, modifier = Modifier.padding(16.dp))
+                        Button(onClick = viewModel::refresh,
+                            colors = ButtonDefaults.buttonColors(containerColor = EkColors.Amber)) {
+                            Text("Повторить")
                         }
                     }
                 }
 
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        // Баннер когда архив включён
-                        if (uiState.showCompleted && uiState.completedCount > 0) {
-                            item(key = "archive_banner") {
-                                ArchiveBanner(
-                                    activeCount    = uiState.activeCount,
-                                    completedCount = uiState.completedCount,
-                                    onHide         = viewModel::toggleShowCompleted,
-                                )
-                            }
-                        }
+                uiState.requests.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        when (uiState.filter) {
+                            RequestFilter.ACTIVE   -> "Нет активных заявок"
+                            RequestFilter.PROBLEMS -> "Нет заявок с ошибками"
+                            RequestFilter.ARCHIVE  -> "Архив пуст"
+                        },
+                        color = EkColors.Muted,
+                    )
+                }
 
-                        if (uiState.requests.isEmpty()) {
-                            item(key = "empty") {
-                                Box(
-                                    Modifier
-                                        .fillParentMaxWidth()
-                                        .padding(vertical = 64.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        if (uiState.showCompleted) "Нет заявок"
-                                        else "Нет активных заявок",
-                                        color = EkColors.Muted,
-                                    )
-                                }
-                            }
-                        } else {
-                            items(uiState.requests, key = { it.id }) { request ->
-                                RequestCard(request, onClick = { onRequestClick(request.id) })
-                            }
-                        }
-
-                        // Подсказка "показать архив" в конце активного списка
-                        if (!uiState.showCompleted && uiState.completedCount > 0) {
-                            item(key = "show_archive_hint") {
-                                ShowArchiveHint(
-                                    count   = uiState.completedCount,
-                                    onClick = viewModel::toggleShowCompleted,
-                                )
-                            }
-                        }
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(uiState.requests, key = { it.id }) { request ->
+                        RequestCard(request, onClick = { onRequestClick(request.id) })
                     }
                 }
             }
@@ -151,60 +111,102 @@ fun RequestListScreen(
     }
 }
 
-// ── Баннер "Включён архив" ─────────────────────────────────────────────────────
+// ── Три кнопки фильтра ─────────────────────────────────────────────────────────
 
 @Composable
-private fun ArchiveBanner(activeCount: Int, completedCount: Int, onHide: () -> Unit) {
+private fun FilterTabRow(
+    selected:     RequestFilter,
+    activeCount:  Int,
+    problemCount: Int,
+    archiveCount: Int,
+    onSelect:     (RequestFilter) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(EkColors.BrownFaint, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .height(IntrinsicSize.Min),
     ) {
-        Column {
-            Text(
-                "Включён архив",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = EkColors.BrownDarkest,
-            )
-            Text(
-                "Активных: $activeCount · Завершённых: $completedCount",
-                fontSize = 11.sp,
-                color = EkColors.Muted,
-            )
-        }
-        TextButton(onClick = onHide) {
-            Text("Скрыть", fontSize = 12.sp, color = EkColors.Amber)
-        }
+        FilterTab(
+            label    = "Текущие",
+            count    = activeCount,
+            active   = selected == RequestFilter.ACTIVE,
+            onClick  = { onSelect(RequestFilter.ACTIVE) },
+            modifier = Modifier.weight(1f),
+        )
+        FilterTab(
+            label    = "С ошибками",
+            count    = problemCount,
+            active   = selected == RequestFilter.PROBLEMS,
+            onClick  = { onSelect(RequestFilter.PROBLEMS) },
+            warn     = problemCount > 0,
+            modifier = Modifier.weight(1f),
+        )
+        FilterTab(
+            label    = "Архив",
+            count    = archiveCount,
+            active   = selected == RequestFilter.ARCHIVE,
+            onClick  = { onSelect(RequestFilter.ARCHIVE) },
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
-// ── Подсказка в конце списка ──────────────────────────────────────────────────
-
 @Composable
-private fun ShowArchiveHint(count: Int, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        contentAlignment = Alignment.Center,
+private fun FilterTab(
+    label:    String,
+    count:    Int,
+    active:   Boolean,
+    onClick:  () -> Unit,
+    warn:     Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    val bg  = if (active) EkColors.BrownDark else EkColors.BrownFaint
+    val fg  = if (active) EkColors.Amber     else if (warn) EkColors.Red else EkColors.Muted
+    val ind = if (active) 3.dp               else 0.dp
+
+    Surface(
+        color    = bg,
+        modifier = modifier
+            .clickable(onClick = onClick),
     ) {
-        TextButton(onClick = onClick) {
-            Icon(
-                Icons.Default.History,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = EkColors.Muted,
-            )
-            Spacer(Modifier.width(6.dp))
+        Column(
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
-                "Показать завершённые ($count)",
-                fontSize = 13.sp,
-                color = EkColors.Muted,
+                label,
+                fontSize    = 13.sp,
+                fontWeight  = if (active) FontWeight.Bold else FontWeight.Normal,
+                color       = fg,
+                maxLines    = 1,
             )
+            if (count > 0) {
+                Text(
+                    count.toString(),
+                    fontSize   = 11.sp,
+                    color      = fg.copy(alpha = if (active) 1f else 0.7f),
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+            // Активная полоска снизу
+            Spacer(Modifier.height(4.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(ind)
+                    .then(
+                        if (active)
+                            Modifier.padding(0.dp)
+                        else
+                            Modifier
+                    ),
+            ) {
+                if (active) {
+                    Surface(color = EkColors.Amber, modifier = Modifier.fillMaxSize()) {}
+                }
+            }
         }
     }
 }
@@ -213,72 +215,51 @@ private fun ShowArchiveHint(count: Int, onClick: () -> Unit) {
 
 @Composable
 fun RequestCard(
-    item: RequestListItemDto,
-    onClick: () -> Unit,
+    item:     RequestListItemDto,
+    onClick:  () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isCompleted = item.status in setOf("delivered", "closed", "cancelled")
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) EkColors.BrownFaint.copy(alpha = 0.5f)
-                             else EkColors.Surface,
+        modifier  = modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors    = CardDefaults.cardColors(
+            containerColor = if (isCompleted) EkColors.BrownFaint.copy(alpha = 0.5f) else EkColors.Surface,
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isCompleted) 0.dp else 2.dp,
-        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 0.dp else 2.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f)) {
-                // Клиент (крупно)
                 Text(
-                    text = item.clientName,
+                    text       = item.clientName,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = if (isCompleted) EkColors.Muted else EkColors.BrownDarkest,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    fontSize   = 17.sp,
+                    color      = if (isCompleted) EkColors.Muted else EkColors.BrownDarkest,
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(4.dp))
-                // Номер, дата, статус
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment     = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = "№ ${item.requestNumber}",
-                        fontSize = 12.sp,
-                        color = EkColors.Muted,
-                    )
+                    Text("№ ${item.requestNumber}", fontSize = 12.sp, color = EkColors.Muted)
                     if (!item.plannedDeliveryDate.isNullOrBlank()) {
                         Text("·", fontSize = 12.sp, color = EkColors.Muted)
                         Text(
-                            text = "дост. ${item.plannedDeliveryDate.take(10)}",
-                            fontSize = 12.sp,
-                            color = EkColors.Muted,
+                            "дост. ${item.plannedDeliveryDate.take(10)}",
+                            fontSize = 12.sp, color = EkColors.Muted,
                         )
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                // Бэйдж статуса
                 StatusBadge(status = item.status, label = item.statusDisplay)
             }
 
-            // Иконка проблемы
             if (item.hasOpenProblem) {
                 Spacer(Modifier.width(8.dp))
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = "Проблема",
-                    tint = EkColors.Red,
-                    modifier = Modifier.size(22.dp),
-                )
+                Icon(Icons.Default.Warning, contentDescription = "Проблема",
+                    tint = EkColors.Red, modifier = Modifier.size(22.dp))
             }
         }
     }
@@ -287,23 +268,14 @@ fun RequestCard(
 @Composable
 fun StatusBadge(status: String, label: String) {
     val (bg, fg) = when (status) {
-        "problem"             -> EkColors.RedLight  to EkColors.Red
-        "delivered", "closed" -> EkColors.GreenLight to EkColors.GreenDark
-        "cancelled"           -> EkColors.BrownFaint to EkColors.Muted
+        "problem"               -> EkColors.RedLight    to EkColors.Red
+        "delivered", "closed"   -> EkColors.GreenLight  to EkColors.GreenDark
+        "cancelled"             -> EkColors.BrownFaint  to EkColors.Muted
         "shipped", "in_transit" -> EkColors.PrimaryContainer to EkColors.AmberDarker
-        else                  -> EkColors.BrownFaint to EkColors.Muted
+        else                    -> EkColors.BrownFaint  to EkColors.Muted
     }
-    Surface(
-        shape = MaterialTheme.shapes.small,
-        color = bg,
-        modifier = Modifier.wrapContentSize(),
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-        )
+    Surface(shape = MaterialTheme.shapes.small, color = bg, modifier = Modifier.wrapContentSize()) {
+        Text(label, color = fg, fontSize = 11.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
