@@ -1233,12 +1233,14 @@ def request_calendar(request):
     user_role = get_user_role(request.user)
     active_status_filters = _calendar_status_filters_for_request(request)
     active_status_filter_set = set(active_status_filters)
+    _hidden_filters = {"shipment"} if user_role == ROLE_TRANSPORT else set()
     calendar_filters = [
         {
             **item,
             "checked": item["key"] in active_status_filter_set,
         }
         for item in CALENDAR_STATUS_FILTERS
+        if item["key"] not in _hidden_filters
     ]
 
     open_problem_qs = ProblemReport.objects.filter(
@@ -1298,7 +1300,7 @@ def request_calendar(request):
                 css = (
                     CALENDAR_STATUS_FILTER_CLASSES["delivery"]
                     if req.assigned_vehicle_id
-                    else CALENDAR_STATUS_FILTER_CLASSES["supply"]
+                    else "calendar-request-no-vehicle"
                 )
                 requests_by_date.setdefault(req.planned_ship_date, []).append(
                     TransportPendingCalendarEntry(req, css)
