@@ -1286,40 +1286,17 @@ def request_calendar(request):
                     )
                 )
 
-        # Delivery entries: заявки с назначенной машиной
-        # Позиция в календаре: planned_ship_date, fallback — planned_delivery_date
+        # Delivery entries: все заявки с planned_ship_date в текущем месяце
+        # Транспортный отдел сам назначает эту дату; машина не обязательна
         if "delivery" in active_status_filter_set:
             delivery_reqs = (
                 requests_qs
-                .filter(assigned_vehicle__isnull=False)
-                .filter(
-                    Q(planned_ship_date__range=(month_start, month_end))
-                    | Q(planned_delivery_date__range=(month_start, month_end))
-                )
+                .filter(planned_ship_date__range=(month_start, month_end))
                 .order_by("priority", "client_name")
             )
             for req in delivery_reqs:
-                cal_date = req.planned_ship_date or req.planned_delivery_date
-                if not cal_date or cal_date < month_start or cal_date > month_end:
-                    continue
-                requests_by_date.setdefault(cal_date, []).append(
-                    CalendarEntry(req, CALENDAR_STATUS_FILTER_CLASSES["delivery"])
-                )
-
-            # Заявки с датой отправки, но без машины — жёлтые, drag устанавливает planned_ship_date
-            pending_date_reqs = (
-                requests_qs
-                .filter(
-                    assigned_vehicle__isnull=True,
-                    planned_ship_date__range=(month_start, month_end),
-                )
-                .order_by("priority", "client_name")
-            )
-            for req in pending_date_reqs:
                 requests_by_date.setdefault(req.planned_ship_date, []).append(
-                    TransportPendingCalendarEntry(
-                        req, CALENDAR_STATUS_FILTER_CLASSES["supply"], "нет машины"
-                    )
+                    TransportPendingCalendarEntry(req, CALENDAR_STATUS_FILTER_CLASSES["delivery"])
                 )
 
         undated_requests = []

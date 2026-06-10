@@ -455,7 +455,7 @@
         <div class="fw-semibold mb-2">Новые уведомления</div>
 
         {% if pending_transport %}
-          <div class="notif-section-label">Нет машины — перетащите в календарь</div>
+          <div class="notif-section-label">Нет даты отгрузки</div>
           {% for req in pending_transport %}
             <div class="notif-pill notif-pill-pending"
                  draggable="true"
@@ -466,7 +466,6 @@
                 {{ req.request_number }} · {{ req.client_name }}
                 {% if req.planned_delivery_date %}<span style="opacity:.65"> · до {{ req.planned_delivery_date|date:"d.m" }}</span>{% endif %}
               </a>
-              <span class="notif-pill-date" style="color:#b45309">нет машины</span>
             </div>
           {% endfor %}
           {% if unread_notifications %}<div style="height:.4rem"></div>{% endif %}

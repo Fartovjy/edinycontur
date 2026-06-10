@@ -17,7 +17,7 @@ def unread_notifications(request):
         is_read=False,
     ).select_related("request", "pickup_request")
 
-    # Для Транспортного отдела: заявки без машины ожидают в уведомлениях (перетаскиваемые)
+    # Для Транспортного отдела: заявки без даты отгрузки ожидают в уведомлениях (перетаскиваемые)
     pending_transport = []
     if role == ROLE_TRANSPORT or (hasattr(request.user, "is_superuser") and request.user.is_superuser):
         try:
@@ -30,7 +30,7 @@ def unread_notifications(request):
                 LogisticsRequest.objects
                 .filter(
                     status__in=[STATUS_READY_TO_SHIP, STATUS_TRANSPORT_ASSIGNED],
-                    assigned_vehicle__isnull=True,
+                    planned_ship_date__isnull=True,
                     is_archived=False,
                 )
                 .order_by("planned_delivery_date", "-updated_at")
