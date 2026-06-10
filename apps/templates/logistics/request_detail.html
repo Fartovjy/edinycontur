@@ -742,7 +742,7 @@
                       <select class="form-select" id="assigned_vehicle_transport" name="assigned_vehicle" required>
                         <option value="">Выберите машину</option>
                         {% for vehicle in vehicles %}
-                          <option value="{{ vehicle.id }}" {% if request_obj.assigned_vehicle_id == vehicle.id %}selected{% endif %}>{{ vehicle }}</option>
+                          <option value="{{ vehicle.id }}" {% if request_obj.assigned_vehicle_id == vehicle.id %}selected{% endif %}>{{ vehicle }}{% if vehicle.max_weight_kg %} — {{ vehicle.max_weight_kg }} кг{% endif %}</option>
                         {% endfor %}
                       </select>
                     </div>
