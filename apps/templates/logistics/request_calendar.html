@@ -191,8 +191,8 @@
               <a class="calendar-request {{ item.calendar_class }}"
                  href="{{ item.get_absolute_url }}"
                  draggable="true"
-                 data-drag-id="{{ item.drag_id|default:item.pk }}"
-                 data-drag-type="{{ item.drag_type|default:'delivery' }}"
+                 data-drag-id="{{ item.drag_id }}"
+                 data-drag-type="{{ item.drag_type }}"
                  title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
                 {{ item.client_name|default:item.request_number }}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}

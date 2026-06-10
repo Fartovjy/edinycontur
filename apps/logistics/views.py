@@ -1313,6 +1313,8 @@ def request_calendar(request):
                 continue
             day_items = requests_by_date.setdefault(calendar_date, [])
             request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
+            request_obj.drag_id   = request_obj.pk
+            request_obj.drag_type = "delivery"
             day_items.append(request_obj)
 
         undated_requests = []
@@ -1327,6 +1329,8 @@ def request_calendar(request):
             if calendar_group not in active_status_filter_set:
                 continue
             request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
+            request_obj.drag_id   = request_obj.pk
+            request_obj.drag_type = "delivery"
             undated_requests.append(request_obj)
             if len(undated_requests) >= 20:
                 break
