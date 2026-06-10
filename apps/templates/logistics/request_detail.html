@@ -641,22 +641,34 @@
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
         <h2 class="h5 mb-3">Наблюдатели</h2>
-        {% if current_viewers %}
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            {% for viewer in current_viewers %}
-              <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:var(--ek-bg);border:1px solid var(--ek-border);font-size:.875rem;">
-                <span>{{ viewer.get_full_name|default:viewer.username }}</span>
-                <form method="post" class="d-inline m-0">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="remove_viewer">
-                  <input type="hidden" name="viewer_user_id" value="{{ viewer.pk }}">
-                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="line-height:1;" title="Удалить">✕</button>
-                </form>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="text-muted small mb-3">Наблюдатели не добавлены</p>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          {% for viewer in current_viewers %}
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background:var(--ek-bg);border:1px solid var(--ek-border);font-size:.875rem;">
+              <span>{{ viewer.get_full_name|default:viewer.username }}</span>
+              <form method="post" class="d-inline m-0">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove_viewer">
+                <input type="hidden" name="viewer_user_id" value="{{ viewer.pk }}">
+                <button type="submit" class="btn btn-link btn-sm p-0 text-danger" style="line-height:1;" title="Удалить">✕</button>
+              </form>
+            </div>
+          {% endfor %}
+          {% if available_viewers %}
+            <form method="post" class="d-inline-flex align-items-center gap-2 m-0">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_viewer">
+              <select name="viewer_user_id" class="form-select form-select-sm" style="min-width:10rem;max-width:16rem;font-size:.8rem;">
+                <option value="">— добавить —</option>
+                {% for v in available_viewers %}
+                  <option value="{{ v.pk }}">{{ v.get_full_name|default:v.username }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-outline-secondary" style="white-space:nowrap;">+ добавить</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if not current_viewers and not available_viewers %}
+          <p class="text-muted small mt-2 mb-0">Нет доступных наблюдателей</p>
         {% endif %}
       </div>
     </div>
