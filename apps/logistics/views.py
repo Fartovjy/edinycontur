@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Value, When
+from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Sum, Value, When
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1585,6 +1585,36 @@ def request_detail(request, pk):
             driver = get_object_or_404(Driver, pk=request.POST.get("assigned_driver"), is_active=True)
             vehicle = get_object_or_404(Vehicle, pk=request.POST.get("assigned_vehicle"), is_active=True)
             planned_ship_date = parse_date(request.POST.get("planned_ship_date") or "")
+
+            # ── Проверка грузоподъёмности ──────────────────────────────────
+            if vehicle.max_weight_kg > 0:
+                ship_date = planned_ship_date or request_obj.planned_ship_date
+                others_qs = (
+                    LogisticsRequest.objects
+                    .filter(assigned_vehicle=vehicle, planned_ship_date=ship_date)
+                    .exclude(pk=request_obj.pk)
+                )
+                other_total = others_qs.aggregate(w=Sum("cargo_weight_kg"))["w"] or 0
+                total_kg = float(other_total) + float(request_obj.cargo_weight_kg or 0)
+                capacity = vehicle.max_weight_kg
+                ratio = total_kg / capacity
+
+                if ratio > 1.15:
+                    messages.error(
+                        request,
+                        f"Машина сломается! Суммарный вес рейса {total_kg:.0f} кг "
+                        f"превышает грузоподъёмность {capacity} кг "
+                        f"на {(ratio - 1) * 100:.0f}%. Назначение запрещено.",
+                    )
+                    return redirect(request_obj)
+                elif ratio > 1.0:
+                    messages.warning(
+                        request,
+                        f"Перегруз: суммарный вес рейса {total_kg:.0f} кг "
+                        f"превышает грузоподъёмность {capacity} кг "
+                        f"на {(ratio - 1) * 100:.0f}%.",
+                    )
+
             request_obj.assigned_driver = driver
             request_obj.assigned_vehicle = vehicle
             update_fields = ["assigned_driver", "assigned_vehicle", "updated_at"]
