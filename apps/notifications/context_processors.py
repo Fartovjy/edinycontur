@@ -17,9 +17,8 @@ def unread_notifications(request):
         is_read=False,
     ).select_related("request", "pickup_request")
 
-    # Для Транспортного отдела: заявки ожидают в уведомлениях
-    pending_transport = []        # нет машины — не перетаскиваемые
-    pending_transport_ready = []  # машина есть, нет водителя — перетаскиваемые
+    # Для Транспортного отдела: заявки без машины ожидают в уведомлениях (перетаскиваемые)
+    pending_transport = []
     if role == ROLE_TRANSPORT or (hasattr(request.user, "is_superuser") and request.user.is_superuser):
         try:
             from apps.logistics.models import LogisticsRequest
@@ -27,33 +26,23 @@ def unread_notifications(request):
                 STATUS_READY_TO_SHIP,
                 STATUS_TRANSPORT_ASSIGNED,
             )
-            base_qs = (
+            pending_transport = list(
                 LogisticsRequest.objects
                 .filter(
                     status__in=[STATUS_READY_TO_SHIP, STATUS_TRANSPORT_ASSIGNED],
+                    assigned_vehicle__isnull=True,
                     is_archived=False,
                 )
                 .order_by("planned_delivery_date", "-updated_at")
-            )
-            pending_transport = list(
-                base_qs
-                .filter(assigned_vehicle__isnull=True)
                 .only("id", "request_number", "client_name", "planned_delivery_date", "status")
-                [:30]
-            )
-            pending_transport_ready = list(
-                base_qs
-                .filter(assigned_vehicle__isnull=False, assigned_driver__isnull=True)
-                .only("id", "request_number", "client_name", "planned_delivery_date", "planned_ship_date", "status")
                 [:30]
             )
         except Exception:
             pending_transport = []
-            pending_transport_ready = []
 
     return {
         "unread_notifications": notifications[:5],
         "unread_notifications_count": notifications.count(),
         "pending_transport": pending_transport,
-        "pending_transport_ready": pending_transport_ready,
+        "pending_transport_ready": [],
     }
