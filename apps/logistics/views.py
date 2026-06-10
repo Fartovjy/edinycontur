@@ -1287,7 +1287,7 @@ def request_calendar(request):
                 )
 
         # Delivery entries: все заявки с planned_ship_date в текущем месяце
-        # Транспортный отдел сам назначает эту дату; машина не обязательна
+        # Зелёная = машина назначена, жёлтая = машина не назначена
         if "delivery" in active_status_filter_set:
             delivery_reqs = (
                 requests_qs
@@ -1295,8 +1295,13 @@ def request_calendar(request):
                 .order_by("priority", "client_name")
             )
             for req in delivery_reqs:
+                css = (
+                    CALENDAR_STATUS_FILTER_CLASSES["delivery"]
+                    if req.assigned_vehicle_id
+                    else CALENDAR_STATUS_FILTER_CLASSES["supply"]
+                )
                 requests_by_date.setdefault(req.planned_ship_date, []).append(
-                    TransportPendingCalendarEntry(req, CALENDAR_STATUS_FILTER_CLASSES["delivery"])
+                    TransportPendingCalendarEntry(req, css)
                 )
 
         undated_requests = []

@@ -450,7 +450,7 @@
   </nav>
 
   <main class="container-fluid content-shell py-4">
-    {% if pending_transport or unread_notifications %}
+    {% if pending_transport or pending_transport_no_vehicle or unread_notifications %}
       <div class="alert alert-info mb-3" role="alert" id="notif-block">
         <div class="fw-semibold mb-2">Новые уведомления</div>
 
@@ -468,11 +468,24 @@
               </a>
             </div>
           {% endfor %}
+          {% if pending_transport_no_vehicle or unread_notifications %}<div style="height:.4rem"></div>{% endif %}
+        {% endif %}
+
+        {% if pending_transport_no_vehicle %}
+          <div class="notif-section-label">Не назначена машина</div>
+          {% for req in pending_transport_no_vehicle %}
+            <div class="notif-pill notif-pill-ready">
+              <a href="{% url 'request_detail' req.pk %}">
+                {{ req.request_number }} · {{ req.client_name }}
+                {% if req.planned_ship_date %}<span style="opacity:.65"> · {{ req.planned_ship_date|date:"d.m" }}</span>{% endif %}
+              </a>
+            </div>
+          {% endfor %}
           {% if unread_notifications %}<div style="height:.4rem"></div>{% endif %}
         {% endif %}
 
         {% if unread_notifications %}
-          {% if pending_transport %}<div class="notif-section-label">Уведомления</div>{% endif %}
+          {% if pending_transport or pending_transport_no_vehicle %}<div class="notif-section-label">Уведомления</div>{% endif %}
         {% for notification in unread_notifications %}
           {% if notification.pickup_request %}
             <div class="notif-pill notif-pill-supply"
