@@ -19,6 +19,14 @@ class Vehicle(models.Model):
     service_due_km = models.PositiveIntegerField("До следующего ТО, км", null=True, blank=True)
     next_inspection_date = models.DateField("Дата следующего технического осмотра", null=True, blank=True)
     is_active = models.BooleanField("Активен", default=True)
+    default_driver = models.ForeignKey(
+        "Driver",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="default_vehicle",
+        verbose_name="Водитель по умолчанию",
+    )
 
     class Meta:
         ordering = ["plate_number"]

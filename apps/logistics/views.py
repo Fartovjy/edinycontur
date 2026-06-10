@@ -538,7 +538,7 @@ def _request_detail_context(request_obj, user=None, attachment_form=None, proble
         "timeline": _request_timeline(request_obj),
         "driver_contact_phones": _driver_contact_phones(request_obj),
         "drivers": Driver.objects.filter(is_active=True).order_by("full_name"),
-        "vehicles": Vehicle.objects.filter(is_active=True).order_by("plate_number"),
+        "vehicles": Vehicle.objects.filter(is_active=True).select_related("default_driver").order_by("plate_number"),
         "back_url": back_url or reverse("request_list"),
         "warehouse_statuses": [
             (status, label)

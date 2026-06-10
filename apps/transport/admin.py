@@ -9,7 +9,7 @@ class VehicleAdmin(admin.ModelAdmin):
     list_filter = ("vehicle_type", "is_active")
     search_fields = ("plate_number", "name", "vehicle_type")
     fieldsets = (
-        (None, {"fields": ("plate_number", "name", "vehicle_type", "is_active")}),
+        (None, {"fields": ("plate_number", "name", "vehicle_type", "is_active", "default_driver")}),
         ("Характеристики", {"fields": ("max_weight_kg", "max_volume_m3", "color", "year")}),
         ("Медиа и заметки", {"fields": ("photo", "notes")}),
     )
