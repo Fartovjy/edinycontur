@@ -111,6 +111,29 @@
     height: .6rem;
     border-radius: 3px;
   }
+  /* Личные задачи */
+  .calendar-task {
+    display: flex;
+    align-items: center;
+    gap: .28rem;
+    border-radius: 5px;
+    padding: .15rem .4rem;
+    margin-bottom: .22rem;
+    font-size: .77rem;
+    line-height: 1.2;
+    background: #ede9fe;
+    border-left: 3px solid #7c3aed;
+    color: #3b0764;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .calendar-task:hover { filter: brightness(.95); }
+  .calendar-task.done { text-decoration: line-through; opacity: .55; background: #f3f4f6; border-left-color: #9ca3af; color: #6b7280; }
+  .calendar-task.overdue { background: #fee2e2; border-left-color: #ef4444; color: #7f1d1d; }
+  .calendar-task-check { font-size: .7rem; flex-shrink: 0; }
 </style>
 
 <div class="card border-0 shadow-sm mb-3 {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">
@@ -152,6 +175,12 @@
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>
             {% endfor %}
+            {% for task in day.user_tasks %}
+              <div class="calendar-task{% if task.is_done %} done{% elif task.is_overdue %} overdue{% endif %}" data-task-id="{{ task.pk }}" title="{{ task.text }}">
+                <span class="calendar-task-check">{% if task.is_done %}✅{% else %}☐{% endif %}</span>
+                <span style="overflow:hidden;text-overflow:ellipsis">{{ task.text }}</span>
+              </div>
+            {% endfor %}
           </div>
         {% endfor %}
       {% endfor %}
@@ -171,6 +200,28 @@
     });
   </script>
 {% endif %}
+
+<script>
+(function () {
+  const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  document.querySelector('.calendar-grid').addEventListener('click', async function (e) {
+    const task = e.target.closest('.calendar-task');
+    if (!task) return;
+    const id = task.dataset.taskId;
+    if (!id) return;
+    try {
+      const resp = await fetch('/user-task/' + id + '/toggle/', {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF },
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      task.classList.toggle('done', data.is_done);
+      task.classList.toggle('overdue', !data.is_done && data.is_overdue);
+      task.querySelector('.calendar-task-check').textContent = data.is_done ? '✅' : '☐';
+    } catch { /* silent */ }
+  });
+})();
+</script>
 
 {% if undated_requests %}
   <div class="card border-0 shadow-sm {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">

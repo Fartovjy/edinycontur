@@ -27,6 +27,7 @@ from apps.documents.forms import AttachmentForm
 from apps.documents.models import Attachment
 from apps.notifications.models import Notification
 from apps.notifications.services import create_role_notification, notify_viewers
+from apps.checklists.models import UserTask
 from apps.problems.forms import CloseProblemForm, ProblemReportForm
 from apps.problems.models import ProblemReport
 from apps.transport.models import Driver, Vehicle
@@ -1314,6 +1315,15 @@ def request_calendar(request):
             if len(undated_requests) >= 20:
                 break
 
+    # Личные задачи пользователя с due_date в этом месяце
+    user_tasks_qs = UserTask.objects.filter(
+        user=request.user,
+        due_date__range=(month_start, month_end),
+    ).order_by("is_done", "due_date", "id")
+    tasks_by_date = {}
+    for ut in user_tasks_qs:
+        tasks_by_date.setdefault(ut.due_date, []).append(ut)
+
     weeks = []
     for week in calendar_module.Calendar(firstweekday=0).monthdatescalendar(month_start.year, month_start.month):
         days = []
@@ -1327,6 +1337,7 @@ def request_calendar(request):
                     "is_weekend": day.weekday() >= 5,
                     "is_holiday": (day.month, day.day) in FIXED_HOLIDAYS,
                     "requests": requests_by_date.get(day, []),
+                    "user_tasks": tasks_by_date.get(day, []),
                 }
             )
         weeks.append(days)
