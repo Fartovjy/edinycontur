@@ -1375,7 +1375,7 @@ def request_calendar(request):
 
 
 @login_required
-@role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_TRANSPORT)
+@role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR, ROLE_SUPPLY, ROLE_TRANSPORT, ROLE_WAREHOUSE)
 def calendar_reschedule(request):
     """AJAX: перенести заявку или забор на другую дату в календаре."""
     if request.method != "POST":

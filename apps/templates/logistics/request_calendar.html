@@ -190,7 +190,9 @@
             {% for item in day.requests %}
               <a class="calendar-request {{ item.calendar_class }}"
                  href="{{ item.get_absolute_url }}"
-                 {% if user.profile.role == 'transport' or user.is_superuser or user.profile.role == 'admin' %}draggable="true" data-drag-id="{{ item.drag_id }}" data-drag-type="{{ item.drag_type }}"{% endif %}
+                 draggable="true"
+                 data-drag-id="{{ item.drag_id|default:item.pk }}"
+                 data-drag-type="{{ item.drag_type|default:'delivery' }}"
                  title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
                 {{ item.client_name|default:item.request_number }}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
@@ -246,7 +248,6 @@
 })();
 </script>
 
-{% if user.profile.role == 'transport' or user.is_superuser or user.profile.role == 'admin' %}
 <script>
 (function () {
   const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
@@ -336,7 +337,6 @@
   });
 })();
 </script>
-{% endif %}
 
 {% if undated_requests %}
   <div class="card border-0 shadow-sm {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">
