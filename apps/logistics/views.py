@@ -158,6 +158,15 @@ class CalendarEntry:
         return "delivery"
 
 
+class TransportPendingCalendarEntry(CalendarEntry):
+    """Заявка с planned_ship_date, но без назначенной машины — показывается в календаре жёлтой."""
+    __slots__ = ()
+
+    @property
+    def drag_type(self):
+        return "transport_ship"
+
+
 class PickupCalendarEntry:
     """Обёртка над SupplyPickupRequest для отображения в транспортном календаре."""
 
@@ -1276,7 +1285,7 @@ def request_calendar(request):
                     )
                 )
 
-        # Delivery entries: только заявки с назначенной машиной
+        # Delivery entries: заявки с назначенной машиной
         # Позиция в календаре: planned_ship_date, fallback — planned_delivery_date
         if "delivery" in active_status_filter_set:
             delivery_reqs = (
@@ -1294,6 +1303,22 @@ def request_calendar(request):
                     continue
                 requests_by_date.setdefault(cal_date, []).append(
                     CalendarEntry(req, CALENDAR_STATUS_FILTER_CLASSES["delivery"])
+                )
+
+            # Заявки с датой отправки, но без машины — жёлтые, drag устанавливает planned_ship_date
+            pending_date_reqs = (
+                requests_qs
+                .filter(
+                    assigned_vehicle__isnull=True,
+                    planned_ship_date__range=(month_start, month_end),
+                )
+                .order_by("priority", "client_name")
+            )
+            for req in pending_date_reqs:
+                requests_by_date.setdefault(req.planned_ship_date, []).append(
+                    TransportPendingCalendarEntry(
+                        req, CALENDAR_STATUS_FILTER_CLASSES["supply"], "нет машины"
+                    )
                 )
 
         undated_requests = []
