@@ -4,7 +4,7 @@ from apps.accounts.constants import ROLE_DRIVER, ROLE_OPERATOR
 from apps.accounts.permissions import get_user_role
 from apps.logistics.constants import STATUS_CANCELLED, STATUS_CLOSED, STATUS_DELIVERED
 
-from .models import RequestChecklistItem
+from .models import RequestChecklistItem, UserTask
 
 
 COMPLETED_STATUSES = {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED}
@@ -36,4 +36,5 @@ def current_tasks_count(request):
         qs = qs.filter(request__assigned_driver__user=request.user)
 
     count = qs.values("request_id").distinct().count()
-    return {"current_tasks_count": count}
+    user_tasks_count = UserTask.objects.filter(user=request.user, is_done=False).count()
+    return {"current_tasks_count": count + user_tasks_count}

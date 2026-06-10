@@ -5,7 +5,7 @@ from collections import OrderedDict
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.accounts.constants import ROLE_ADMIN, ROLE_DRIVER, ROLE_OPERATOR
@@ -13,7 +13,7 @@ from apps.accounts.permissions import get_user_role
 from apps.logistics.constants import STATUS_CANCELLED, STATUS_CLOSED, STATUS_DELIVERED
 from apps.logistics.models import LogisticsRequest
 
-from .models import RequestChecklistItem
+from .models import RequestChecklistItem, UserTask
 
 
 def _can_toggle(user, item):
@@ -126,8 +126,61 @@ def current_tasks(request):
             "editable": can_toggle or True,  # своя роль — всегда editable
         })
 
+    user_tasks = (
+        UserTask.objects
+        .filter(user=user)
+        .order_by("is_done", "due_date", "-created_at")
+    )
+
     return render(request, "checklists/current_tasks.html", {
         "blocks": blocks,
         "role_label": role_labels.get(role, role),
         "role_code": role,
+        "user_tasks": user_tasks,
     })
+
+
+@login_required
+def user_task_create(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "method not allowed"}, status=405)
+    text = request.POST.get("text", "").strip()
+    if not text:
+        return JsonResponse({"error": "Текст не может быть пустым"}, status=400)
+    due_date_raw = request.POST.get("due_date", "").strip() or None
+    due_date = None
+    if due_date_raw:
+        from datetime import date
+        try:
+            due_date = date.fromisoformat(due_date_raw)
+        except ValueError:
+            return JsonResponse({"error": "Неверный формат даты"}, status=400)
+    task = UserTask.objects.create(user=request.user, text=text, due_date=due_date)
+    return JsonResponse({
+        "id": task.pk,
+        "text": task.text,
+        "due_date": task.due_date.strftime("%d.%m.%Y") if task.due_date else None,
+        "due_date_iso": task.due_date.isoformat() if task.due_date else None,
+        "is_done": False,
+        "is_overdue": task.is_overdue,
+    })
+
+
+@login_required
+def user_task_toggle(request, task_pk):
+    if request.method != "POST":
+        return JsonResponse({"error": "method not allowed"}, status=405)
+    task = get_object_or_404(UserTask, pk=task_pk, user=request.user)
+    task.is_done = not task.is_done
+    task.done_at = timezone.now() if task.is_done else None
+    task.save(update_fields=["is_done", "done_at"])
+    return JsonResponse({"is_done": task.is_done, "is_overdue": task.is_overdue})
+
+
+@login_required
+def user_task_delete(request, task_pk):
+    if request.method != "POST":
+        return JsonResponse({"error": "method not allowed"}, status=405)
+    task = get_object_or_404(UserTask, pk=task_pk, user=request.user)
+    task.delete()
+    return JsonResponse({"deleted": True})

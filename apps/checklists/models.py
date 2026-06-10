@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from apps.accounts.constants import ROLE_CHOICES
 
@@ -88,3 +89,33 @@ class RequestChecklistItem(models.Model):
 
     def __str__(self):
         return f"[{self.role}] {self.text[:60]}"
+
+
+class UserTask(models.Model):
+    """Произвольное дело, созданное пользователем вручную."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_tasks",
+        verbose_name="Пользователь",
+    )
+    text = models.CharField("Текст задачи", max_length=500)
+    due_date = models.DateField("Крайняя дата", null=True, blank=True)
+    is_done = models.BooleanField("Выполнено", default=False)
+    done_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Личное дело"
+        verbose_name_plural = "Личные дела"
+        ordering = ["is_done", "due_date", "-created_at"]
+
+    def __str__(self):
+        return self.text[:80]
+
+    @property
+    def is_overdue(self):
+        if self.is_done or not self.due_date:
+            return False
+        return self.due_date < timezone.localdate()

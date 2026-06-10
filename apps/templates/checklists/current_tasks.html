@@ -32,6 +32,44 @@
     background: #fff;
   }
   .ct-link:hover { background: var(--amber); color: #fff; }
+
+  /* Личные дела */
+  .ut-section { margin-bottom: 2rem; }
+  .ut-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: .75rem;
+  }
+  .ut-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .55rem .85rem;
+    border-radius: 8px;
+    background: var(--ek-surface, #fff);
+    border: 1px solid var(--ek-border, #e8d9b8);
+    margin-bottom: .4rem;
+    transition: opacity .2s;
+  }
+  .ut-item.done { opacity: .55; }
+  .ut-item.overdue { border-left: 3px solid #ef4444; }
+  .ut-item-text { flex: 1; font-size: .92rem; }
+  .ut-item.done .ut-item-text { text-decoration: line-through; color: var(--ek-muted); }
+  .ut-due {
+    font-size: .75rem; font-weight: 600; padding: .1rem .45rem;
+    border-radius: 999px; background: #fef3c7; color: #92400e; flex-shrink: 0;
+  }
+  .ut-due.overdue { background: #fee2e2; color: #b91c1c; }
+  .ut-due.done { background: #f3f4f6; color: #9ca3af; }
+  .ut-btn { border: none; background: none; cursor: pointer; padding: 2px 5px; color: var(--ek-muted); font-size: .85rem; line-height: 1; flex-shrink: 0; }
+  .ut-btn:hover { color: var(--ek-text); }
+  .ut-add-form {
+    display: flex; gap: .5rem; flex-wrap: wrap;
+    padding: .65rem .85rem;
+    background: #fbf6ec;
+    border: 1px dashed var(--ek-border, #e8d9b8);
+    border-radius: 8px;
+    margin-top: .5rem;
+  }
+  .ut-add-form input[type="text"] { flex: 1; min-width: 180px; }
+  .ut-add-form input[type="date"] { width: 150px; }
 </style>
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
@@ -44,6 +82,44 @@
   </div>
 </div>
 
+{# ── Личные дела ── #}
+<div class="ut-section">
+  <div class="ut-section-head">
+    <h2 class="h5 mb-0">Мои дела</h2>
+    <button class="btn btn-sm btn-outline-secondary" id="ut-toggle-form">+ Добавить</button>
+  </div>
+
+  <div id="ut-add-form-wrap" style="display:none">
+    <form class="ut-add-form" id="ut-add-form">
+      {% csrf_token %}
+      <input type="text" class="form-control form-control-sm" name="text" id="ut-text" placeholder="Описание задачи" maxlength="500" required>
+      <input type="date" class="form-control form-control-sm" name="due_date" id="ut-due-date">
+      <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="ut-cancel">Отмена</button>
+    </form>
+  </div>
+
+  <div id="ut-list">
+    {% for task in user_tasks %}
+      <div class="ut-item{% if task.is_done %} done{% elif task.is_overdue %} overdue{% endif %}" data-task-id="{{ task.pk }}" id="ut-task-{{ task.pk }}">
+        <button class="ut-btn ut-check" title="{% if task.is_done %}Снять отметку{% else %}Отметить выполненным{% endif %}">
+          {% if task.is_done %}✅{% else %}☐{% endif %}
+        </button>
+        <span class="ut-item-text">{{ task.text }}</span>
+        {% if task.due_date %}
+          <span class="ut-due{% if task.is_overdue %} overdue{% elif task.is_done %} done{% endif %}">
+            до {{ task.due_date|date:"d.m.Y" }}
+          </span>
+        {% endif %}
+        <button class="ut-btn ut-del" title="Удалить">✕</button>
+      </div>
+    {% empty %}
+      <div class="text-muted" id="ut-empty-msg" style="font-size:.88rem;padding:.4rem .85rem">Нет личных задач</div>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Чек-листы заявок ── #}
 {% if blocks %}
   {% for blk in blocks %}
     <div class="ct-card">
@@ -67,4 +143,105 @@
     Все ваши задачи выполнены. Хорошая работа!
   </div>
 {% endif %}
+
+<script>
+(function () {
+  const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+  // ── форма добавления ──
+  document.getElementById('ut-toggle-form').addEventListener('click', () => {
+    const wrap = document.getElementById('ut-add-form-wrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+    if (wrap.style.display === 'block') document.getElementById('ut-text').focus();
+  });
+  document.getElementById('ut-cancel').addEventListener('click', () => {
+    document.getElementById('ut-add-form-wrap').style.display = 'none';
+    document.getElementById('ut-add-form').reset();
+  });
+
+  document.getElementById('ut-add-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    try {
+      const resp = await fetch('{% url "checklists:user_task_create" %}', {
+        method: 'POST', headers: {'X-CSRFToken': CSRF}, body: data,
+      });
+      if (!resp.ok) { const err = await resp.json(); alert(err.error || 'Ошибка'); return; }
+      const task = await resp.json();
+      addTaskToList(task);
+      form.reset();
+      document.getElementById('ut-add-form-wrap').style.display = 'none';
+      document.getElementById('ut-empty-msg')?.remove();
+    } catch { alert('Ошибка сети'); }
+  });
+
+  function addTaskToList(task) {
+    const list = document.getElementById('ut-list');
+    const overdue = task.is_overdue;
+    const div = document.createElement('div');
+    div.className = 'ut-item' + (overdue ? ' overdue' : '');
+    div.dataset.taskId = task.id;
+    div.id = 'ut-task-' + task.id;
+    div.innerHTML = `
+      <button class="ut-btn ut-check" title="Отметить выполненным">☐</button>
+      <span class="ut-item-text">${escHtml(task.text)}</span>
+      ${task.due_date ? `<span class="ut-due${overdue ? ' overdue' : ''}">до ${task.due_date}</span>` : ''}
+      <button class="ut-btn ut-del" title="Удалить">✕</button>
+    `;
+    bindTaskEvents(div);
+    list.prepend(div);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── делегирование событий на список ──
+  document.getElementById('ut-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.ut-btn');
+    if (!btn) return;
+    const item = btn.closest('.ut-item');
+    const id = item?.dataset.taskId;
+    if (!id) return;
+
+    if (btn.classList.contains('ut-check')) {
+      try {
+        const resp = await fetch(`/user-task/${id}/toggle/`, {
+          method: 'POST', headers: {'X-CSRFToken': CSRF},
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        item.classList.toggle('done', data.is_done);
+        item.classList.toggle('overdue', !data.is_done && data.is_overdue);
+        btn.innerHTML = data.is_done ? '✅' : '☐';
+        btn.title = data.is_done ? 'Снять отметку' : 'Отметить выполненным';
+        item.querySelector('.ut-item-text').style.textDecoration = data.is_done ? 'line-through' : '';
+        const dueBadge = item.querySelector('.ut-due');
+        if (dueBadge) dueBadge.classList.toggle('done', data.is_done);
+      } catch { /* silent */ }
+    }
+
+    if (btn.classList.contains('ut-del')) {
+      if (!confirm('Удалить задачу?')) return;
+      try {
+        const resp = await fetch(`/user-task/${id}/delete/`, {
+          method: 'POST', headers: {'X-CSRFToken': CSRF},
+        });
+        if (resp.ok) {
+          item.remove();
+          if (!document.querySelector('#ut-list .ut-item')) {
+            document.getElementById('ut-list').insertAdjacentHTML(
+              'beforeend',
+              '<div class="text-muted" id="ut-empty-msg" style="font-size:.88rem;padding:.4rem .85rem">Нет личных задач</div>'
+            );
+          }
+        }
+      } catch { /* silent */ }
+    }
+  });
+
+  function bindTaskEvents() {} // пустышка — делегирование выше
+})();
+</script>
 {% endblock %}
