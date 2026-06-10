@@ -1410,6 +1410,11 @@ def calendar_reschedule(request):
         obj.planned_delivery_date = new_date
         obj.save(update_fields=["planned_delivery_date", "updated_at"])
         return JsonResponse({"ok": True})
+    elif obj_type == "transport_ship":
+        obj = get_object_or_404(LogisticsRequest, pk=obj_id)
+        obj.planned_ship_date = new_date
+        obj.save(update_fields=["planned_ship_date", "updated_at"])
+        return JsonResponse({"ok": True})
     elif obj_type == "pickup":
         obj = get_object_or_404(SupplyPickupRequest, pk=obj_id)
         obj.pickup_date = new_date

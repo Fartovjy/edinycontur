@@ -379,6 +379,8 @@
     .notif-pill-plain    { background: #f3f4f6; color: #374151; border-left-color: #9ca3af; }
     .notif-pill-pending  { background: #fff7ed; color: #7c2d12; border-left-color: #f97316; }
     .notif-pill-pending a { color: #9a3412; }
+    .notif-pill-ready    { background: #fef9c3; color: #78350f; border-left-color: #f59e0b; }
+    .notif-pill-ready a  { color: #78350f; }
     .notif-section-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: .3rem; margin-top: .1rem; }
   </style>
 </head>
@@ -448,7 +450,7 @@
   </nav>
 
   <main class="container-fluid content-shell py-4">
-    {% if pending_transport or unread_notifications %}
+    {% if pending_transport or pending_transport_ready or unread_notifications %}
       <div class="alert alert-info mb-3" role="alert" id="notif-block">
         <div class="fw-semibold mb-2">Новые уведомления</div>
 
@@ -462,11 +464,33 @@
               </a>
             </div>
           {% endfor %}
+          {% if pending_transport_ready or unread_notifications %}<div style="height:.4rem"></div>{% endif %}
+        {% endif %}
+
+        {% if pending_transport_ready %}
+          <div class="notif-section-label">Нет водителя — перетащите в календарь</div>
+          {% for req in pending_transport_ready %}
+            <div class="notif-pill notif-pill-ready"
+                 draggable="true"
+                 data-drag-id="{{ req.pk }}"
+                 data-drag-type="transport_ship">
+              <span class="notif-pill-drag" title="Перетащить в календарь">⠿</span>
+              <a href="{% url 'request_detail' req.pk %}">
+                {{ req.request_number }} · {{ req.client_name }}
+                {% if req.planned_delivery_date %}<span style="opacity:.65"> · до {{ req.planned_delivery_date|date:"d.m" }}</span>{% endif %}
+              </a>
+              {% if req.planned_ship_date %}
+                <span class="notif-pill-date">{{ req.planned_ship_date|date:"d.m" }}</span>
+              {% else %}
+                <span class="notif-pill-date" style="color:#b45309">дата не задана</span>
+              {% endif %}
+            </div>
+          {% endfor %}
           {% if unread_notifications %}<div style="height:.4rem"></div>{% endif %}
         {% endif %}
 
         {% if unread_notifications %}
-          {% if pending_transport %}<div class="notif-section-label">Уведомления</div>{% endif %}
+          {% if pending_transport or pending_transport_ready %}<div class="notif-section-label">Уведомления</div>{% endif %}
         {% for notification in unread_notifications %}
           {% if notification.pickup_request %}
             <div class="notif-pill notif-pill-supply"
