@@ -149,6 +149,14 @@ class CalendarEntry:
     def request_number(self):
         return self._req.request_number
 
+    @property
+    def drag_id(self):
+        return self._req.pk
+
+    @property
+    def drag_type(self):
+        return "delivery"
+
 
 class PickupCalendarEntry:
     """Обёртка над SupplyPickupRequest для отображения в транспортном календаре."""
@@ -170,6 +178,14 @@ class PickupCalendarEntry:
     @property
     def request_number(self):
         return self._pickup.request_number
+
+    @property
+    def drag_id(self):
+        return self._pickup.pk
+
+    @property
+    def drag_type(self):
+        return "pickup"
 
 
 # ── Status-group → LogisticsRequest statuses mapping (shared with list view) ──
@@ -1356,6 +1372,39 @@ def request_calendar(request):
             "calendar_filters": calendar_filters,
         },
     )
+
+
+@login_required
+@role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_TRANSPORT)
+def calendar_reschedule(request):
+    """AJAX: перенести заявку или забор на другую дату в календаре."""
+    if request.method != "POST":
+        return JsonResponse({"error": "method not allowed"}, status=405)
+
+    obj_id   = request.POST.get("id", "").strip()
+    obj_type = request.POST.get("type", "").strip()
+    date_str = request.POST.get("date", "").strip()
+
+    if not obj_id or not obj_type or not date_str:
+        return JsonResponse({"error": "missing params"}, status=400)
+
+    try:
+        new_date = date.fromisoformat(date_str)
+    except ValueError:
+        return JsonResponse({"error": "invalid date"}, status=400)
+
+    if obj_type == "delivery":
+        obj = get_object_or_404(LogisticsRequest, pk=obj_id)
+        obj.planned_delivery_date = new_date
+        obj.save(update_fields=["planned_delivery_date", "updated_at"])
+        return JsonResponse({"ok": True})
+    elif obj_type == "pickup":
+        obj = get_object_or_404(SupplyPickupRequest, pk=obj_id)
+        obj.pickup_date = new_date
+        obj.save(update_fields=["pickup_date"])
+        return JsonResponse({"ok": True})
+    else:
+        return JsonResponse({"error": "invalid type"}, status=400)
 
 
 @login_required

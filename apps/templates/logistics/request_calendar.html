@@ -134,6 +134,22 @@
   .calendar-task.done { text-decoration: line-through; opacity: .55; background: #f3f4f6; border-left-color: #9ca3af; color: #6b7280; }
   .calendar-task.overdue { background: #fee2e2; border-left-color: #ef4444; color: #7f1d1d; }
   .calendar-task-check { font-size: .7rem; flex-shrink: 0; }
+
+  /* Drag-and-drop */
+  .calendar-request[draggable="true"] { cursor: grab; }
+  .calendar-request[draggable="true"]:active { cursor: grabbing; }
+  .calendar-request.dragging { opacity: .3; pointer-events: none; }
+  .calendar-day.drag-over {
+    background: #fef3c7 !important;
+    box-shadow: inset 0 0 0 2px var(--amber) !important;
+    border-color: var(--amber) !important;
+  }
+  .calendar-day.drop-success {
+    background: #dcfce7 !important;
+    box-shadow: inset 0 0 0 2px var(--green) !important;
+    border-color: var(--green) !important;
+    transition: background .6s, box-shadow .6s, border-color .6s;
+  }
 </style>
 
 <div class="card border-0 shadow-sm mb-3 {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">
@@ -164,13 +180,18 @@
     <div class="calendar-grid">
       {% for week in weeks %}
         {% for day in week %}
-          <div class="calendar-day {% if not day.in_month %}outside{% endif %} {% if day.is_weekend %}weekend{% endif %} {% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %} {% if user.profile.role == 'operator' %}can-create{% endif %}" {% if user.profile.role == 'operator' %}data-create-url="{% url 'request_create' %}?planned_delivery_date={{ day.date|date:'Y-m-d' }}"{% endif %}>
+          <div class="calendar-day {% if not day.in_month %}outside{% endif %} {% if day.is_weekend %}weekend{% endif %} {% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %} {% if user.profile.role == 'operator' %}can-create{% endif %}"
+               data-date="{{ day.date|date:'Y-m-d' }}"
+               {% if user.profile.role == 'operator' %}data-create-url="{% url 'request_create' %}?planned_delivery_date={{ day.date|date:'Y-m-d' }}"{% endif %}>
             <div class="calendar-date">
               {{ day.number }}
               {% if day.is_holiday %}<span class="badge text-bg-warning ms-1">праздник</span>{% endif %}
             </div>
             {% for item in day.requests %}
-              <a class="calendar-request {{ item.calendar_class }}" href="{{ item.get_absolute_url }}" title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
+              <a class="calendar-request {{ item.calendar_class }}"
+                 href="{{ item.get_absolute_url }}"
+                 {% if user.profile.role == 'transport' or user.is_superuser or user.profile.role == 'admin' %}draggable="true" data-drag-id="{{ item.drag_id }}" data-drag-type="{{ item.drag_type }}"{% endif %}
+                 title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
                 {{ item.client_name|default:item.request_number }}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>
@@ -204,6 +225,8 @@
 <script>
 (function () {
   const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+  // ── toggle личных задач ────────────────────────────────────────────────
   document.querySelector('.calendar-grid').addEventListener('click', async function (e) {
     const task = e.target.closest('.calendar-task');
     if (!task) return;
@@ -222,6 +245,98 @@
   });
 })();
 </script>
+
+{% if user.profile.role == 'transport' or user.is_superuser or user.profile.role == 'admin' %}
+<script>
+(function () {
+  const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+  const RESCHEDULE_URL = '{% url "calendar_reschedule" %}';
+  let dragEl = null;   // DOM-элемент перетаскиваемой карточки (null = из уведомлений)
+
+  // ── dragstart на карточках внутри календаря ────────────────────────────
+  function initDraggables() {
+    document.querySelectorAll('.calendar-request[draggable="true"]').forEach(function (el) {
+      if (el._dragBound) return;
+      el._dragBound = true;
+      el.addEventListener('dragstart', function (e) {
+        dragEl = el;
+        const payload = JSON.stringify({ id: el.dataset.dragId, type: el.dataset.dragType });
+        e.dataTransfer.setData('application/json', payload);
+        e.dataTransfer.setData('text/plain', payload);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(function () { el.classList.add('dragging'); }, 0);
+      });
+      el.addEventListener('dragend', function () {
+        el.classList.remove('dragging');
+        dragEl = null;
+      });
+    });
+  }
+  initDraggables();
+
+  // ── drop-зоны на клетках ───────────────────────────────────────────────
+  document.querySelectorAll('.calendar-day[data-date]').forEach(function (day) {
+    day.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      day.classList.add('drag-over');
+    });
+    day.addEventListener('dragleave', function (e) {
+      if (!day.contains(e.relatedTarget)) {
+        day.classList.remove('drag-over');
+      }
+    });
+    day.addEventListener('drop', async function (e) {
+      e.preventDefault();
+      day.classList.remove('drag-over');
+
+      let payload;
+      try {
+        const raw = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain');
+        payload = JSON.parse(raw);
+      } catch { return; }
+
+      const newDate = day.dataset.date;
+      if (!payload.id || !payload.type || !newDate) return;
+
+      // Сохраняем ссылку до await (dragend обнуляет её синхронно)
+      const movedEl = dragEl;
+
+      try {
+        const resp = await fetch(RESCHEDULE_URL, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': CSRF },
+          body: new URLSearchParams({ id: payload.id, type: payload.type, date: newDate }),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(function () { return {}; });
+          alert('Ошибка перемещения: ' + (err.error || resp.statusText));
+          return;
+        }
+
+        // Визуальное подтверждение
+        day.classList.add('drop-success');
+        setTimeout(function () { day.classList.remove('drop-success'); }, 900);
+
+        if (movedEl) {
+          // Переместить DOM-карточку в нужную клетку
+          movedEl.classList.remove('dragging');
+          const firstTask = day.querySelector('.calendar-task');
+          firstTask ? day.insertBefore(movedEl, firstTask) : day.appendChild(movedEl);
+          initDraggables(); // перепривязать если нужно
+        } else {
+          // Пришло из панели уведомлений — обновить страницу
+          setTimeout(function () { window.location.reload(); }, 500);
+        }
+      } catch (err) {
+        console.error('reschedule error', err);
+      }
+    });
+  });
+})();
+</script>
+{% endif %}
 
 {% if undated_requests %}
   <div class="card border-0 shadow-sm {% if user.profile.role == 'driver' %}driver-calendar{% endif %}">

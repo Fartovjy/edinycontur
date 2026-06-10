@@ -14,7 +14,7 @@ def unread_notifications(request):
         Q(recipient_user=request.user)
         | Q(recipient_role=role, recipient_user__isnull=True),
         is_read=False,
-    ).select_related("request")
+    ).select_related("request", "pickup_request")
 
     return {
         "unread_notifications": notifications[:5],

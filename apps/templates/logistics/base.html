@@ -356,6 +356,27 @@
       border-color: var(--amber) !important;
       color: var(--brown-darkest) !important;
     }
+
+    /* ── Notification pills (calendar-style) ─────── */
+    .notif-pill {
+      display: flex; align-items: center; gap: .5rem;
+      border-radius: 5px;
+      padding: .28rem .6rem;
+      margin-bottom: .3rem;
+      font-size: .8rem;
+      line-height: 1.25;
+      border-left: 3px solid;
+      overflow: hidden;
+    }
+    .notif-pill a { color: inherit; text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .notif-pill a:hover { text-decoration: underline; }
+    .notif-pill-date { font-size: .72rem; opacity: .7; flex-shrink: 0; }
+    .notif-pill-drag  { font-size: .75rem; opacity: .55; flex-shrink: 0; cursor: grab; line-height: 1; }
+    .notif-pill[draggable="true"] { cursor: default; }
+    .notif-pill[draggable="true"] .notif-pill-drag { cursor: grab; }
+    .notif-pill-delivery { background: #bbf7d0; color: #14532d; border-left-color: #15803d; }
+    .notif-pill-supply   { background: #fef3c7; color: #78350f; border-left-color: #d97706; }
+    .notif-pill-plain    { background: #f3f4f6; color: #374151; border-left-color: #9ca3af; }
   </style>
 </head>
 <body>
@@ -425,13 +446,33 @@
 
   <main class="container-fluid content-shell py-4">
     {% if unread_notifications %}
-      <div class="alert alert-info mb-3" role="alert">
-        <div class="fw-semibold mb-1">Новые уведомления</div>
+      <div class="alert alert-info mb-3" role="alert" id="notif-block">
+        <div class="fw-semibold mb-2">Новые уведомления</div>
         {% for notification in unread_notifications %}
-          <div>
-            <a class="alert-link" href="{% if notification.pickup_request %}{{ notification.pickup_request.get_absolute_url }}{% elif notification.request %}{{ notification.request.get_absolute_url }}{% else %}#{% endif %}">{{ notification.message }}</a>
-            <span class="text-muted small">{{ notification.created_at|date:"d.m.Y H:i" }}</span>
-          </div>
+          {% if notification.pickup_request %}
+            <div class="notif-pill notif-pill-supply"
+                 draggable="true"
+                 data-drag-id="{{ notification.pickup_request.id }}"
+                 data-drag-type="pickup">
+              <span class="notif-pill-drag" title="Перетащить в календарь">⠿</span>
+              <a href="{{ notification.pickup_request.get_absolute_url }}">{{ notification.message }}</a>
+              <span class="notif-pill-date">{{ notification.created_at|date:"d.m H:i" }}</span>
+            </div>
+          {% elif notification.request %}
+            <div class="notif-pill notif-pill-delivery"
+                 draggable="true"
+                 data-drag-id="{{ notification.request.id }}"
+                 data-drag-type="delivery">
+              <span class="notif-pill-drag" title="Перетащить в календарь">⠿</span>
+              <a href="{{ notification.request.get_absolute_url }}">{{ notification.message }}</a>
+              <span class="notif-pill-date">{{ notification.created_at|date:"d.m H:i" }}</span>
+            </div>
+          {% else %}
+            <div class="notif-pill notif-pill-plain">
+              <a href="#">{{ notification.message }}</a>
+              <span class="notif-pill-date">{{ notification.created_at|date:"d.m H:i" }}</span>
+            </div>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}
@@ -551,6 +592,25 @@
     }
 
     setInterval(checkNotifications, POLL_INTERVAL_MS);
+  })();
+
+  // ── Drag-start для пилюль уведомлений ─────────────────────────────────
+  (function () {
+    document.querySelectorAll('.notif-pill[draggable="true"]').forEach(function (pill) {
+      pill.addEventListener('dragstart', function (e) {
+        var payload = JSON.stringify({
+          id:   pill.dataset.dragId,
+          type: pill.dataset.dragType,
+        });
+        e.dataTransfer.setData('application/json', payload);
+        e.dataTransfer.setData('text/plain', payload);
+        e.dataTransfer.effectAllowed = 'move';
+        pill.style.opacity = '0.45';
+      });
+      pill.addEventListener('dragend', function () {
+        pill.style.opacity = '';
+      });
+    });
   })();
   </script>
   {% endif %}

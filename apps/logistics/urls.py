@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("", views.request_list, name="request_list"),
     path("calendar/", views.request_calendar, name="request_calendar"),
+    path("calendar/reschedule/", views.calendar_reschedule, name="calendar_reschedule"),
     path("clients/", views.client_list, name="client_list"),
     path("clients/new/", views.client_create, name="client_create"),
     path("clients/<int:pk>/edit/", views.client_edit, name="client_edit"),
