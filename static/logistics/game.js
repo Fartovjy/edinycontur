@@ -442,6 +442,8 @@ function syncVehicles(apiVehicles, isInitial) {
                 assignedCity = CITIES_BY_ABBR[assignedAbbr] || 'Город';
             }
 
+            let capacityTons = Math.round(v.capacity_kg / 100) / 10;
+
             return {
                 id: v.id,
                 index: index,
@@ -450,6 +452,7 @@ function syncVehicles(apiVehicles, isInitial) {
                 driver: v.driver,
                 type: type,
                 capacity: capacity,
+                capacityTons: capacityTons,
                 scoreMult: scoreMult,
                 
                 color: color,
@@ -608,7 +611,7 @@ function renderTruckSlots() {
         
         const badge = document.createElement('div');
         badge.className = 'truck-badge';
-        const typeLabel = `${truck.name || truck.type} (${truck.capacity}т)`;
+        const typeLabel = `${truck.name || truck.type} (${truck.capacityTons}т)`;
         const plateLabel = truck.plate ? `[${truck.plate}]` : '';
         const cityLabel = truck.isAssigned ? truck.assignedAbbr : 'СВОБОДЕН';
         
