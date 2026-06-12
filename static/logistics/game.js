@@ -467,14 +467,27 @@ function syncVehicles(apiVehicles, isInitial) {
         });
         
         renderTruckSlots();
+        trucks.forEach(t => {
+            const apiV = apiVehicles.find(val => val.id === t.id);
+            if (apiV && apiV.is_active === false) {
+                setTruckBrokenState(t, true);
+            }
+        });
         isTrucksInitialized = true;
     } else {
         // Incremental updates: update status parameters of loaded trucks if changed on server
         apiVehicles.forEach(apiV => {
             const localT = trucks.find(t => t.id === apiV.id);
-            if (localT && !localT.isDeparting && !localT.isBroken) {
-                // If cargo count changed in DB, rebuild cargo hold blocks
-                const apiCount = apiV.assigned_requests ? apiV.assigned_requests.length : 0;
+            if (localT && !localT.isDeparting) {
+                // Synchronize broken status from API
+                const isBroken = apiV.is_active === false;
+                if (localT.isBroken !== isBroken) {
+                    setTruckBrokenState(localT, isBroken);
+                }
+                
+                if (!localT.isBroken) {
+                    // If cargo count changed in DB, rebuild cargo hold blocks
+                    const apiCount = apiV.assigned_requests ? apiV.assigned_requests.length : 0;
                 if (apiCount !== localT.loadedBoxes.length) {
                     localT.loadedBoxes = [];
                     localT.loadedUnits = 0;
@@ -594,7 +607,7 @@ function renderTruckSlots() {
         
         const badge = document.createElement('div');
         badge.className = 'truck-badge';
-        const typeLabel = `${truck.type} (${truck.capacity}т)`;
+        const typeLabel = `${truck.name || truck.type} (${truck.capacity}т)`;
         const plateLabel = truck.plate ? `[${truck.plate}]` : '';
         const cityLabel = truck.isAssigned ? truck.assignedAbbr : 'СВОБОДЕН';
         
@@ -1168,105 +1181,86 @@ async function departTruck(truckIndex) {
     }, 1500);
 }
 
-// --- Automatic Fleet Breakdowns ---
-function triggerBreakdown() {
-    const candidates = trucks.filter(t => !t.isBroken && !t.isDeparting);
-    if (candidates.length === 0) return;
+// --- Fleet Breakdowns Sync ---
+function setTruckBrokenState(truck, isBroken) {
+    if (truck.isBroken === isBroken) return;
     
-    const truck = candidates[Math.floor(Math.random() * candidates.length)];
+    truck.isBroken = isBroken;
     
-    truck.isBroken = true;
-    truck.isTimerActive = false;
-    truck.domTimerBg.classList.remove('active');
-    truck.domDepartBtn.disabled = true;
-    
-    // Cargo disruption: Dump all loaded cargo back to conveyor and unassign in DB!
-    if (truck.loadedUnits > 0) {
-        truck.loadedBoxes.forEach(async (box) => {
-            // Eject in DB
-            await assignRequestToVehicle(box.id, 0);
+    if (isBroken) {
+        // Transition to broken state
+        truck.isTimerActive = false;
+        if (truck.domTimerBg) truck.domTimerBg.classList.remove('active');
+        if (truck.domDepartBtn) truck.domDepartBtn.disabled = true;
+        
+        // Eject all boxes
+        if (truck.loadedUnits > 0) {
+            truck.loadedBoxes.forEach(async (box) => {
+                await assignRequestToVehicle(box.id, 0);
+                spawnRequestBox(box.id, box.abbr, box.size, box.deadline, box.size * 1000);
+            });
+            truck.loadedUnits = 0;
+            truck.loadedBoxes = [];
+        }
+        
+        truck.color = 'neutral';
+        truck.isAssigned = false;
+        truck.assignedCity = '';
+        truck.assignedAbbr = '';
+        
+        if (truck.dom) {
+            truck.dom.className = 'truck-slot neutral broken';
+            truck.domCapacityLabel.textContent = `0 / ${truck.capacity}`;
+            truck.domCapacityLabel.classList.remove('full');
+            truck.domCityTag.textContent = 'РЕМОНТ';
+            truck.domIcon.style.color = '#ef4444';
             
-            // Re-spawn on conveyor locally
-            spawnRequestBox(box.id, box.abbr, box.size, box.deadline, box.size * 1000);
-        });
-        
-        truck.domCargoHold.innerHTML = '';
-        truck.loadedUnits = 0;
-        truck.loadedBoxes = [];
-    }
-    
-    truck.color = 'neutral';
-    truck.isAssigned = false;
-    truck.assignedCity = '';
-    truck.assignedAbbr = '';
-    
-    truck.dom.className = 'truck-slot neutral broken';
-    truck.domCapacityLabel.textContent = `0 / ${truck.capacity}`;
-    truck.domCapacityLabel.classList.remove('full');
-    truck.domCityTag.textContent = 'РЕМОНТ';
-    truck.domIcon.style.color = '#ef4444';
-    
-    const overlay = document.createElement('div');
-    overlay.className = 'repair-overlay';
-    overlay.innerHTML = `
-        <div class="repair-title font-outfit">ПОЛОМКА</div>
-        <div class="repair-progress-bg">
-            <div class="repair-progress-fill" style="width: 0%;"></div>
-        </div>
-    `;
-    truck.dom.appendChild(overlay);
-    
-    truck.domRepairOverlay = overlay;
-    truck.domRepairProgress = overlay.querySelector('.repair-progress-fill');
-    
-    truck.repairDuration = Math.random() * 4 + 6; 
-    truck.repairTimer = truck.repairDuration;
-    
-    const rect = truck.dom.getBoundingClientRect();
-    spawnParticles(rect.left + rect.width / 2, rect.top + 30, '#ef4444', 20);
-    playSound('alarm');
-}
-
-function updateRepair(truck, dt) {
-    truck.repairTimer -= dt;
-    
-    const progress = ((truck.repairDuration - truck.repairTimer) / truck.repairDuration) * 100;
-    if (truck.domRepairProgress) {
-        truck.domRepairProgress.style.width = `${progress}%`;
-    }
-    
-    const rect = truck.dom.getBoundingClientRect();
-    if (Math.random() < 0.15) {
-        spawnParticles(
-            rect.left + rect.width / 2 + (Math.random() - 0.5) * 10,
-            rect.top + 20,
-            'rgba(100, 100, 100, 0.4)',
-            1,
-            'smoke'
-        );
-    }
-    
-    if (truck.repairTimer <= 0) {
-        truck.isBroken = false;
-        
+            // Remove existing overlay if any
+            if (truck.domRepairOverlay) {
+                truck.domRepairOverlay.remove();
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'repair-overlay';
+            overlay.innerHTML = `
+                <div class="repair-title font-outfit">ПОЛОМКА</div>
+                <div class="repair-progress-bg">
+                    <div class="repair-progress-fill"></div>
+                </div>
+            `;
+            truck.dom.appendChild(overlay);
+            truck.domRepairOverlay = overlay;
+            
+            const rect = truck.dom.getBoundingClientRect();
+            spawnParticles(rect.left + rect.width / 2, rect.top + 30, '#ef4444', 20);
+        }
+        playSound('alarm');
+    } else {
+        // Transition to active state
         if (truck.domRepairOverlay) {
             truck.domRepairOverlay.remove();
+            truck.domRepairOverlay = null;
         }
         
-        truck.dom.classList.remove('broken');
-        truck.domCityTag.textContent = 'СВОБОДЕН';
-        truck.domIcon.style.color = COLOR_HEX.neutral;
-        
-        truck.domCargoHold.innerHTML = '';
-        for (let i = 0; i < truck.capacity; i++) {
-            const slotMarker = document.createElement('div');
-            slotMarker.className = 'cargo-hold-slot-marker';
-            truck.domCargoHold.appendChild(slotMarker);
+        if (truck.dom) {
+            truck.dom.className = 'truck-slot neutral';
+            truck.domCityTag.textContent = 'СВОБОДЕН';
+            truck.domIcon.style.color = COLOR_HEX.neutral;
+            truck.domCapacityLabel.textContent = `0 / ${truck.capacity}`;
+            truck.domCapacityLabel.classList.remove('full');
+            if (truck.domDepartBtn) truck.domDepartBtn.disabled = true;
+            
+            truck.domCargoHold.innerHTML = '';
+            for (let i = 0; i < truck.capacity; i++) {
+                const slotMarker = document.createElement('div');
+                slotMarker.className = 'cargo-hold-slot-marker';
+                truck.domCargoHold.appendChild(slotMarker);
+            }
+            
+            const rRect = truck.dom.getBoundingClientRect();
+            spawnParticles(rRect.left + rRect.width / 2, rRect.top + 30, '#10b981', 12);
         }
-        
         playSound('repaired');
-        const rRect = truck.dom.getBoundingClientRect();
-        spawnParticles(rRect.left + rRect.width / 2, rRect.top + 30, '#10b981', 12);
     }
 }
 
@@ -1359,7 +1353,17 @@ function updateGame(dt) {
     // 2. Update Truck loading timers & inside cargo deadlines
     trucks.forEach(truck => {
         if (truck.isBroken) {
-            updateRepair(truck, dt);
+            // Spawn smoke occasionally
+            if (Math.random() < 0.15 && truck.dom) {
+                const rect = truck.dom.getBoundingClientRect();
+                spawnParticles(
+                    rect.left + rect.width / 2 + (Math.random() - 0.5) * 10,
+                    rect.top + 20,
+                    'rgba(100, 100, 100, 0.4)',
+                    1,
+                    'smoke'
+                );
+            }
         } else if (truck.isTimerActive && !truck.isDeparting) {
             // Ticking deadlines inside loaded box elements
             truck.loadedBoxes.forEach(box => {
@@ -1405,13 +1409,6 @@ function updateGame(dt) {
     if (apiPollTimer >= API_POLL_INTERVAL) {
         pollApi();
         apiPollTimer = 0;
-    }
-    
-    // 4. Breakdown Spawner Timer
-    breakdownTimer -= dt;
-    if (breakdownTimer <= 0) {
-        triggerBreakdown();
-        breakdownTimer = Math.max(8, 20 - level * 1.5) + Math.random() * 8;
     }
 }
 

@@ -716,10 +716,17 @@ body {
 }
 
 .repair-progress-fill {
-    width: 0%;
+    width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, #ef4444, #f59e0b);
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #ef4444);
+    background-size: 200% 100%;
     border-radius: 3px;
+    animation: repairScanner 1.5s infinite linear;
+}
+
+@keyframes repairScanner {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 /* Overlay Screens (Glassmorphism Modal UI) */

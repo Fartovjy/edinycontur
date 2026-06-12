@@ -2648,7 +2648,7 @@ def game_api(request):
             "weight_kg": float(r.cargo_weight_kg or 0),
             "days_left": days_left,
         })
-    vehicles = Vehicle.objects.filter(is_active=True).select_related("default_driver").order_by("plate_number")
+    vehicles = Vehicle.objects.select_related("default_driver").order_by("plate_number")
     veh_list = []
     for v in vehicles:
         assigned = LogisticsRequest.objects.filter(assigned_vehicle=v, is_archived=False).exclude(status__in=excluded)
@@ -2671,6 +2671,7 @@ def game_api(request):
             "name": v.name or v.vehicle_type or "",
             "capacity_kg": float(v.max_weight_kg or 0),
             "driver": str(v.default_driver) if v.default_driver else "",
+            "is_active": v.is_active,
             "assigned_requests": assigned_list,
         })
     return JsonResponse({"requests": req_list, "vehicles": veh_list})
