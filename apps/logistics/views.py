@@ -1,4 +1,5 @@
 import calendar as calendar_module
+import json
 import re
 from datetime import date, timedelta
 
@@ -2616,3 +2617,66 @@ def admin_panel(request):
         "status_breakdown": status_breakdown,
         "recent_requests": recent_requests,
     })
+
+
+# ── Game views ─────────────────────────────────────────────────────────────────
+
+@login_required
+def game_view(request):
+    return render(request, "logistics/game.html")
+
+
+@login_required
+def game_api(request):
+    today = date.today()
+    excluded = {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED, STATUS_SHIPPED}
+    reqs = (
+        LogisticsRequest.objects.filter(is_archived=False, assigned_vehicle__isnull=True)
+        .exclude(status__in=excluded)
+        .order_by("planned_delivery_date", "id")[:40]
+    )
+    req_list = []
+    for r in reqs:
+        days_left = 999
+        if r.planned_delivery_date:
+            days_left = (r.planned_delivery_date - today).days
+        req_list.append({
+            "id": r.pk,
+            "number": r.request_number,
+            "client": r.client_name,
+            "delivery_date": r.planned_delivery_date.isoformat() if r.planned_delivery_date else None,
+            "weight_kg": float(r.cargo_weight_kg or 0),
+            "days_left": days_left,
+        })
+    vehicles = Vehicle.objects.filter(is_active=True).select_related("default_driver").order_by("plate_number")
+    veh_list = [{
+        "id": v.pk,
+        "plate": v.plate_number,
+        "name": v.name or v.vehicle_type or "",
+        "capacity_kg": float(v.max_weight_kg or 0),
+        "driver": str(v.default_driver) if v.default_driver else "",
+    } for v in vehicles]
+    return JsonResponse({"requests": req_list, "vehicles": veh_list})
+
+
+@login_required
+def game_assign(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False}, status=405)
+    if not request.user.is_superuser and get_user_role(request.user) not in {ROLE_ADMIN, ROLE_TRANSPORT}:
+        return JsonResponse({"ok": False, "error": "Нет доступа"}, status=403)
+    try:
+        data = json.loads(request.body)
+        req_id = int(data["request_id"])
+        veh_id = int(data["vehicle_id"])
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Неверные данные"}, status=400)
+    try:
+        req_obj = LogisticsRequest.objects.get(pk=req_id)
+        vehicle = Vehicle.objects.select_related("default_driver").get(pk=veh_id, is_active=True)
+    except (LogisticsRequest.DoesNotExist, Vehicle.DoesNotExist):
+        return JsonResponse({"ok": False, "error": "Не найдено"}, status=404)
+    req_obj.assigned_vehicle = vehicle
+    req_obj.assigned_driver = vehicle.default_driver
+    req_obj.save(update_fields=["assigned_vehicle", "assigned_driver", "updated_at"])
+    return JsonResponse({"ok": True, "vehicle_plate": vehicle.plate_number})

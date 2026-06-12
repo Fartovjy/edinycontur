@@ -37,4 +37,7 @@ urlpatterns = [
     path("pickups/new/", views.supply_pickup_create, name="supply_pickup_create"),
     path("pickups/<int:pk>/", views.supply_pickup_detail, name="supply_pickup_detail"),
     path("pickups/<int:pk>/update-date/", views.supply_pickup_update_date, name="supply_pickup_update_date"),
+    path("games/", views.game_view, name="game"),
+    path("games/api/", views.game_api, name="game_api"),
+    path("games/assign/", views.game_assign, name="game_assign"),
 ]
