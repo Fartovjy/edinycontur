@@ -40,4 +40,5 @@ urlpatterns = [
     path("games/", views.game_view, name="game"),
     path("games/api/", views.game_api, name="game_api"),
     path("games/assign/", views.game_assign, name="game_assign"),
+    path("games/depart/", views.game_depart, name="game_depart"),
 ]

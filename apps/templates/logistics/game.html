@@ -1,732 +1,166 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Конвейер — Единый Контур</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #12121f;
-  color: #e8e0d8;
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── HUD ─────────────────────────────────── */
-.hud {
-  background: #1a1a32;
-  border-bottom: 2px solid #2a2a50;
-  padding: 0 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex-shrink: 0;
-  height: 48px;
-}
-.hud-logo {
-  font-weight: 800;
-  font-size: .95rem;
-  letter-spacing: .06em;
-  color: #e2c27d;
-  white-space: nowrap;
-  text-decoration: none;
-}
-.hud-sep { width: 1px; height: 22px; background: #2a3060; flex-shrink: 0; }
-.hud-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-}
-.hud-stat-val { font-size: 1.05rem; font-weight: 800; line-height: 1; }
-.hud-stat-lbl { font-size: .62rem; color: #6a7090; text-transform: uppercase; letter-spacing: .06em; margin-top: .1rem; }
-.hud-right { margin-left: auto; display: flex; gap: .6rem; align-items: center; }
-.hud-time { font-size: .72rem; color: #4a5080; }
-.hud-link {
-  background: none;
-  border: 1px solid #2a3060;
-  color: #8a90b0;
-  padding: .18rem .6rem;
-  border-radius: 5px;
-  text-decoration: none;
-  font-size: .75rem;
-  transition: all .15s;
-}
-.hud-link:hover { background: #2a3060; color: #e8e0d8; }
-
-/* ── Game area ───────────────────────────── */
-.game-area {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* ── Conveyor belt ───────────────────────── */
-.conveyor {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: #0e0e20;
-}
-
-/* Subtle vertical stripe effect */
-.belt-lanes {
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0px,
-      transparent 199px,
-      rgba(255,255,255,.025) 199px,
-      rgba(255,255,255,.025) 200px
-    );
-  pointer-events: none;
-}
-
-/* Moving belt texture */
-.belt-floor {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 0;
-  height: 6px;
-  background: linear-gradient(90deg,
-    #2a2a50 0%,
-    #3a3a70 20%,
-    #2a2a50 40%,
-    #3a3a70 60%,
-    #2a2a50 80%,
-    #3a3a70 100%
-  );
-  background-size: 200px 100%;
-  animation: beltScroll 2s linear infinite;
-}
-@keyframes beltScroll {
-  from { background-position: 0 0; }
-  to   { background-position: -200px 0; }
-}
-
-/* Deadline zone */
-.belt-deadline {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 90px;
-  background: linear-gradient(0deg, rgba(239,68,68,.12) 0%, transparent 100%);
-  border-top: 2px dashed rgba(239,68,68,.35);
-  pointer-events: none;
-}
-.belt-deadline-label {
-  position: absolute;
-  top: -22px; right: 12px;
-  font-size: .66rem;
-  color: rgba(239,68,68,.5);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-
-/* Empty state */
-.conveyor-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: .6rem;
-  color: #2a3050;
-  pointer-events: none;
-}
-.conveyor-empty-icon { font-size: 3.5rem; }
-.conveyor-empty-text { font-size: .88rem; font-weight: 600; }
-
-/* ── Request card ────────────────────────── */
-.req-card {
-  position: absolute;
-  width: 188px;
-  border-radius: 8px;
-  padding: .55rem .7rem;
-  cursor: grab;
-  user-select: none;
-  border-left: 4px solid transparent;
-  box-shadow: 0 4px 16px rgba(0,0,0,.4);
-  touch-action: none;
-  transition: opacity .15s;
-}
-.req-card:hover { filter: brightness(1.08); }
-.req-card.is-dragging {
-  opacity: .7;
-  cursor: grabbing;
-}
-
-/* Urgency colours */
-.urg-safe     { background: rgba(20,83,45,.88);  border-left-color: #22c55e; }
-.urg-moderate { background: rgba(120,53,15,.88); border-left-color: #f59e0b; }
-.urg-warning  { background: rgba(124,45,18,.88); border-left-color: #f97316; }
-.urg-critical { background: rgba(127,29,29,.92); border-left-color: #ef4444; }
-
-.req-num {
-  font-size: .65rem;
-  font-weight: 700;
-  opacity: .6;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.req-client {
-  font-size: .85rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: .12rem 0 .06rem;
-  line-height: 1.2;
-}
-.req-meta {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .7rem;
-  opacity: .75;
-}
-.req-days-badge {
-  font-weight: 800;
-  font-size: .72rem;
-  opacity: 1;
-  white-space: nowrap;
-}
-.req-weight {
-  font-size: .65rem;
-  opacity: .55;
-  margin-top: .1rem;
-}
-
-/* ── Vehicles panel ──────────────────────── */
-.vehicles-panel {
-  width: 252px;
-  background: #111120;
-  border-left: 2px solid #1e1e40;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-.vehicles-header {
-  padding: .55rem .9rem;
-  font-size: .7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: #5a6090;
-  border-bottom: 1px solid #1e1e40;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-}
-.vehicles-header-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: .3; }
-}
-.vehicles-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: .5rem;
-  display: flex;
-  flex-direction: column;
-  gap: .45rem;
-}
-.vehicles-list::-webkit-scrollbar { width: 3px; }
-.vehicles-list::-webkit-scrollbar-thumb { background: #2a2a50; border-radius: 3px; }
-
-/* Vehicle slot */
-.vehicle-slot {
-  background: #1a1a30;
-  border: 2px solid #252545;
-  border-radius: 8px;
-  padding: .55rem .7rem;
-  position: relative;
-  transition: border-color .15s, background .15s, transform .12s;
-  cursor: default;
-}
-.vehicle-slot.drag-over {
-  border-color: #22c55e;
-  background: rgba(34,197,94,.1);
-  transform: scale(1.02);
-}
-.vehicle-slot.just-assigned {
-  border-color: rgba(34,197,94,.5);
-  background: rgba(34,197,94,.07);
-  animation: assignedPop .5s ease-out;
-}
-@keyframes assignedPop {
-  0%   { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-
-.veh-plate {
-  font-size: .88rem;
-  font-weight: 800;
-  font-family: 'Courier New', monospace;
-  color: #e2c27d;
-  letter-spacing: .08em;
-}
-.veh-name {
-  font-size: .73rem;
-  color: #5a6090;
-  margin: .1rem 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.veh-driver {
-  font-size: .69rem;
-  color: #4a5070;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.veh-cap {
-  font-size: .65rem;
-  color: #3a4060;
-  margin-top: .18rem;
-}
-.veh-hint {
-  position: absolute;
-  inset: 0;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(34,197,94,.15);
-  font-size: .8rem;
-  font-weight: 700;
-  color: #22c55e;
-  opacity: 0;
-  transition: opacity .12s;
-  pointer-events: none;
-}
-.vehicle-slot.drag-over .veh-hint { opacity: 1; }
-
-/* No vehicles state */
-.vehicles-empty {
-  padding: 1rem .5rem;
-  font-size: .75rem;
-  color: #3a4060;
-  text-align: center;
-}
-
-/* ── Flash notifications ─────────────────── */
-.flash-stack {
-  position: fixed;
-  top: 52px; right: .8rem;
-  display: flex;
-  flex-direction: column;
-  gap: .3rem;
-  z-index: 9999;
-  pointer-events: none;
-}
-.flash-item {
-  padding: .35rem .8rem;
-  border-radius: 6px;
-  font-size: .78rem;
-  font-weight: 600;
-  transform: translateX(110%);
-  transition: transform .25s ease, opacity .25s;
-  opacity: 0;
-  max-width: 240px;
-  word-break: break-word;
-}
-.flash-item.show { transform: translateX(0); opacity: 1; }
-.flash-item.ok   { background: #15803d; color: #d1fae5; }
-.flash-item.err  { background: #b91c1c; color: #fee2e2; }
-.flash-item.warn { background: #b45309; color: #fef3c7; }
-
-/* ── Ghost drag element ──────────────────── */
-#drag-ghost {
-  position: fixed;
-  pointer-events: none;
-  z-index: 8888;
-  opacity: .85;
-  transform: rotate(2deg) scale(1.05);
-  transition: none;
-  display: none;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Логистический Переполох | Единый Контур</title>
+    <!-- Google Fonts: Outfit for numbers and headers, Inter for copy -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'logistics/styles.css' %}">
 </head>
 <body>
+    <div class="game-wrapper">
+        <!-- HUD / Верхняя панель -->
+        <header class="game-hud">
+            <div class="hud-left">
+                <div class="stat-box">
+                    <span class="stat-label">СЧЕТ</span>
+                    <span id="score-val" class="stat-value font-outfit">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">РЕКОРД</span>
+                    <span id="highscore-val" class="stat-value font-outfit">0</span>
+                </div>
+            </div>
+            
+            <div class="hud-center">
+                <div class="level-badge font-outfit">
+                    УРОВЕНЬ <span id="level-val">1</span>
+                </div>
+            </div>
 
-<!-- HUD -->
-<div class="hud">
-  <a class="hud-logo" href="/">ЕК</a>
-  <div class="hud-sep"></div>
-  <div class="hud-stat">
-    <div class="hud-stat-val" id="s-queue">—</div>
-    <div class="hud-stat-lbl">В очереди</div>
-  </div>
-  <div class="hud-stat">
-    <div class="hud-stat-val" id="s-assigned" style="color:#22c55e">0</div>
-    <div class="hud-stat-lbl">Назначено</div>
-  </div>
-  <div class="hud-stat">
-    <div class="hud-stat-val" id="s-missed" style="color:#ef4444">0</div>
-    <div class="hud-stat-lbl">Пропущено</div>
-  </div>
-  <div class="hud-right">
-    <span class="hud-time" id="poll-label">загрузка...</span>
-    <a class="hud-link" href="{% url 'request_list' %}">← Заявки</a>
-    <a class="hud-link" href="{% url 'request_calendar' %}">Календарь</a>
-  </div>
-</div>
+            <div class="hud-right">
+                <div class="reputation-container">
+                    <div class="reputation-label">
+                        <span>РЕПУТАЦИЯ</span>
+                        <span id="reputation-pct" class="font-outfit">100%</span>
+                    </div>
+                    <div class="reputation-bar-bg">
+                        <div id="reputation-bar-fill" class="reputation-bar-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+                <div class="hud-buttons">
+                    <button id="btn-sound" class="hud-btn" aria-label="Звук">
+                        <svg class="icon-sound-on" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
+                        </svg>
+                        <svg class="icon-sound-off hide" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.44 14,18.7V20.77C15.38,20.44 16.63,19.79 17.7,18.9L20.73,21.9L22,20.63L4.27,3M19,12C19,12.9 18.82,13.75 18.48,14.53L20,16.05C20.63,14.82 21,13.45 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.48,12.42 16.5,12.21 16.5,12Z"/>
+                        </svg>
+                    </button>
+                    <button id="btn-pause" class="hud-btn" aria-label="Пауза">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M14,19H18V5H14M6,19H10V5H6V19Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
 
-<!-- Main -->
-<div class="game-area">
+        <!-- Легенда городов -->
+        <div class="cities-legend">
+            <span class="legend-item red">МСК</span>
+            <span class="legend-item orange">СПБ</span>
+            <span class="legend-item yellow">КЗН</span>
+            <span class="legend-item green">ЕКБ</span>
+            <span class="legend-item cyan">НСК</span>
+            <span class="legend-item blue">КРД</span>
+            <span class="legend-item purple">ВЛД</span>
+        </div>
 
-  <!-- Conveyor -->
-  <div class="conveyor" id="conveyor">
-    <div class="belt-lanes"></div>
-    <div class="belt-floor"></div>
-    <div class="belt-deadline">
-      <span class="belt-deadline-label">Дедлайн доставки</span>
+        <!-- Основная игровая зона -->
+        <main class="game-field">
+            <!-- Зона конвейера -->
+            <div class="conveyor-section">
+                <div class="conveyor-belt-bg"></div>
+                <div class="conveyor-belt-rollers"></div>
+                <!-- Контейнер для динамического создания коробок -->
+                <div id="conveyor-boxes" class="conveyor-boxes-container"></div>
+                <div class="recycler-bin" title="Зона утилизации (пропущенные коробки)">
+                    <div class="bin-glow"></div>
+                    <svg viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Зона парковки машин (7 фургонов) -->
+            <div id="trucks-bay" class="trucks-bay">
+                <!-- Фургоны генерируются динамически в JS -->
+            </div>
+            
+            <!-- Информационный оверлей для обучения / перетаскивания -->
+            <div id="drag-overlay" class="drag-overlay hide">
+                <div class="drag-indicator-text">Распределите заказ в свободную машину или машину того же города</div>
+            </div>
+
+            <!-- Контейнер для эффекта частиц -->
+            <canvas id="particles-canvas" class="particles-canvas"></canvas>
+        </main>
+
+        <!-- Экран старта -->
+        <div id="screen-start" class="screen-overlay active">
+            <div class="glass-card">
+                <h1 class="game-title font-outfit">ЛОГИСТИЧЕСКИЙ ПЕРЕПОЛОХ</h1>
+                <p class="game-subtitle">Logistics Flow</p>
+                <div class="high-score-badge">
+                    <span>Лучший результат:</span>
+                    <strong id="start-highscore" class="font-outfit">0</strong>
+                </div>
+                
+                <div class="tutorial-card">
+                    <h3 class="font-outfit">Как играть:</h3>
+                    <ul>
+                        <li>🚚 <strong>Свободный автопарк:</strong> Все машины приезжают серыми (свободными). Первый загруженный заказ задает машине город назначения и её цвет!</li>
+                        <li>🔒 <strong>Блокировка маршрута:</strong> После этого в машину можно грузить только заказы в <strong>тот же город</strong>.</li>
+                        <li>📅 <strong>Таймер доставки:</strong> В каждом заказе есть срок отправки (например, <code>📅 15с</code>). Таймер машины равен сроку <strong>самого срочного заказа</strong> внутри неё! Успейте отправить!</li>
+                        <li>📐 <strong>Размеры машин и грузов:</strong> Заказы весят 1т, 2т или 3т. Машины бывают 3 типов: <strong>Газель (3т)</strong>, <strong>Камаз (6т)</strong> и <strong>Фура (9т)</strong>.</li>
+                        <li>🔄 <strong>Оптимизация и выгрузка:</strong> Вы можете кликнуть по коробке внутри машины, чтобы <strong>выгрузить её обратно на конвейер</strong> и переупаковать машину эффективнее.</li>
+                        <li>⚙️ <strong>Внезапные поломки:</strong> Машина может сломаться сама по себе. При этом <strong>весь её груз сбрасывается на конвейер</strong> с сохранением срочности, а сама она уходит на авторемонт.</li>
+                    </ul>
+                </div>
+
+                <button id="btn-start" class="btn-primary font-outfit">НАЧАТЬ СМЕНУ</button>
+            </div>
+        </div>
+
+        <!-- Экран паузы -->
+        <div id="screen-pause" class="screen-overlay hide">
+            <div class="glass-card">
+                <h2 class="menu-title font-outfit">СМЕНА НА ПАУЗЕ</h2>
+                <div class="menu-buttons">
+                    <button id="btn-resume" class="btn-primary font-outfit">ПРОДОЛЖИТЬ</button>
+                    <button id="btn-restart-pause" class="btn-secondary font-outfit">НАЧАТЬ ЗАНОВО</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Экран Game Over -->
+        <div id="screen-gameover" class="screen-overlay hide">
+            <div class="glass-card">
+                <h2 class="menu-title font-outfit text-danger">СМЕНА ОКОНЧЕНА</h2>
+                <p class="gameover-reason">Ваша репутация как диспетчера упала до 0% из-за просроченных доставок.</p>
+                
+                <div class="score-summary">
+                    <div class="summary-row">
+                        <span>Заработано очков:</span>
+                        <strong id="final-score" class="font-outfit text-primary">0</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Макс. уровень:</span>
+                        <strong id="final-level" class="font-outfit text-accent">1</strong>
+                    </div>
+                </div>
+
+                <button id="btn-restart" class="btn-primary font-outfit">ИГРАТЬ СНОВА</button>
+            </div>
+        </div>
     </div>
-    <div class="conveyor-empty" id="empty-state">
-      <div class="conveyor-empty-icon">✅</div>
-      <div class="conveyor-empty-text">Все заявки распределены</div>
-    </div>
-  </div>
 
-  <!-- Vehicles -->
-  <div class="vehicles-panel">
-    <div class="vehicles-header">
-      <div class="vehicles-header-dot"></div>
-      Автопарк
-    </div>
-    <div class="vehicles-list" id="veh-list">
-      <div class="vehicles-empty">Загрузка...</div>
-    </div>
-  </div>
-
-</div>
-
-<!-- Flash stack -->
-<div class="flash-stack" id="flash-stack"></div>
-
-<!-- Ghost element for custom drag visual -->
-<div id="drag-ghost"></div>
-
-<script>
-var CSRF = '{{ csrf_token }}';
-var API_STATE  = '{% url "game_api" %}';
-var API_ASSIGN = '{% url "game_assign" %}';
-
-/* ── State ──────────────────────────────── */
-var cards      = [];          // {id, el, y, speed}
-var knownIds   = new Set();
-var vehicles   = [];          // {id, plate, el}
-var vehBuilt   = false;
-
-var cntAssigned = 0;
-var cntMissed   = 0;
-var lastTs      = null;
-var dragId      = null;       // id of currently dragged card
-var ghostEl     = document.getElementById('drag-ghost');
-
-var conveyor    = document.getElementById('conveyor');
-var emptyState  = document.getElementById('empty-state');
-var vehList     = document.getElementById('veh-list');
-var pollLabel   = document.getElementById('poll-label');
-
-/* ── Helpers ────────────────────────────── */
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function urgClass(d) {
-  if (d > 14) return 'urg-safe';
-  if (d > 7)  return 'urg-moderate';
-  if (d > 3)  return 'urg-warning';
-  return 'urg-critical';
-}
-function calcSpeed(d) {
-  return Math.min(140, Math.max(32, 240 / Math.max(0.5, d)));
-}
-function fmtDate(iso) {
-  if (!iso) return '—';
-  var p = iso.split('-');
-  return p[2] + '.' + p[1] + '.' + p[0].slice(2);
-}
-function daysLabel(n) {
-  if (n <= 0) return '🔴 просрочено';
-  if (n === 1) return '1 день';
-  if (n < 5)  return n + ' дня';
-  return n + ' дней';
-}
-function convX(id) {
-  /* Spread cards into columns based on request id */
-  var ch = conveyor.offsetWidth - 210;
-  var cols = Math.max(1, Math.floor(ch / 204));
-  cols = Math.min(cols, 4);
-  var col = id % cols;
-  return 12 + col * Math.floor(ch / cols);
-}
-
-/* ── Spawn card ─────────────────────────── */
-function spawnCard(req) {
-  if (knownIds.has(req.id)) return;
-  knownIds.add(req.id);
-
-  var urg = urgClass(req.days_left);
-  var spd = calcSpeed(req.days_left);
-  var startY = -130 - (req.id % 12) * 55;  /* stagger */
-
-  var el = document.createElement('div');
-  el.className = 'req-card ' + urg;
-  el.style.left = convX(req.id) + 'px';
-  el.style.top  = startY + 'px';
-  el.dataset.rid = req.id;
-
-  var wt = req.weight_kg > 0 ? '<div class="req-weight">' + req.weight_kg + ' кг</div>' : '';
-  el.innerHTML =
-    '<div class="req-num">' + esc(req.number || '#' + req.id) + '</div>' +
-    '<div class="req-client">' + esc(req.client || 'Клиент не указан') + '</div>' +
-    '<div class="req-meta">' +
-      '<span>' + fmtDate(req.delivery_date) + '</span>' +
-      '<span class="req-days-badge">' + daysLabel(req.days_left) + '</span>' +
-    '</div>' +
-    wt;
-
-  conveyor.appendChild(el);
-  attachCardDrag(el, req.id);
-
-  cards.push({ id: req.id, el: el, y: startY, speed: spd });
-  updateStats();
-}
-
-/* ── Remove card ────────────────────────── */
-function removeCard(id) {
-  cards = cards.filter(function(c) {
-    if (c.id !== id) return true;
-    c.el.style.transition = 'opacity .3s, transform .3s';
-    c.el.style.opacity = '0';
-    c.el.style.transform += ' translateY(-10px)';
-    setTimeout(function() { if (c.el.parentNode) c.el.parentNode.removeChild(c.el); }, 320);
-    return false;
-  });
-  updateStats();
-}
-
-/* ── Update HUD stats ───────────────────── */
-function updateStats() {
-  document.getElementById('s-queue').textContent = cards.length;
-  document.getElementById('s-assigned').textContent = cntAssigned;
-  document.getElementById('s-missed').textContent = cntMissed;
-  emptyState.style.display = cards.length ? 'none' : 'flex';
-}
-
-/* ── Drag & drop (mouse + touch) ────────── */
-function attachCardDrag(el, reqId) {
-  var startX, startY, origX, origY, isDragging = false;
-  var cardY = 0;
-
-  function getCard() {
-    return cards.find(function(c) { return c.id === reqId; });
-  }
-
-  function onDown(e) {
-    if (e.button !== undefined && e.button !== 0) return;
-    e.preventDefault();
-    var card = getCard();
-    if (!card) return;
-    isDragging = true;
-    dragId = reqId;
-
-    var cx = e.touches ? e.touches[0].clientX : e.clientX;
-    var cy = e.touches ? e.touches[0].clientY : e.clientY;
-    var rect = el.getBoundingClientRect();
-    startX = cx - rect.left;
-    startY = cy - rect.top;
-    origX = rect.left;
-    origY = rect.top;
-    cardY = card.y;
-
-    /* Show ghost */
-    ghostEl.innerHTML = el.outerHTML;
-    ghostEl.style.width = el.offsetWidth + 'px';
-    ghostEl.style.display = 'block';
-    ghostEl.style.left = (cx - startX) + 'px';
-    ghostEl.style.top  = (cy - startY) + 'px';
-    el.classList.add('is-dragging');
-  }
-
-  function onMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    var cx = e.touches ? e.touches[0].clientX : e.clientX;
-    var cy = e.touches ? e.touches[0].clientY : e.clientY;
-    ghostEl.style.left = (cx - startX) + 'px';
-    ghostEl.style.top  = (cy - startY) + 'px';
-
-    /* Highlight vehicle under ghost */
-    vehicles.forEach(function(v) {
-      var r = v.el.getBoundingClientRect();
-      var over = cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
-      v.el.classList.toggle('drag-over', over);
-    });
-  }
-
-  function onUp(e) {
-    if (!isDragging) return;
-    isDragging = false;
-    dragId = null;
-    el.classList.remove('is-dragging');
-    ghostEl.style.display = 'none';
-
-    var cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-    var cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-
-    var dropped = null;
-    vehicles.forEach(function(v) {
-      v.el.classList.remove('drag-over');
-      var r = v.el.getBoundingClientRect();
-      if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) {
-        dropped = v;
-      }
-    });
-
-    if (dropped) {
-      assignRequest(reqId, dropped.id, dropped.el, dropped.plate);
-    }
-  }
-
-  el.addEventListener('mousedown', onDown);
-  el.addEventListener('touchstart', onDown, {passive: false});
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('touchmove', onMove, {passive: false});
-  window.addEventListener('mouseup', onUp);
-  window.addEventListener('touchend', onUp);
-}
-
-/* ── Assign request ─────────────────────── */
-function assignRequest(reqId, vehId, slotEl, plate) {
-  fetch(API_ASSIGN, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ request_id: reqId, vehicle_id: vehId })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.ok) {
-      removeCard(reqId);
-      cntAssigned++;
-      updateStats();
-      slotEl.classList.add('just-assigned');
-      setTimeout(function() { slotEl.classList.remove('just-assigned'); }, 1800);
-      flash('Назначено → ' + esc(d.vehicle_plate || plate), 'ok');
-    } else {
-      flash(d.error || 'Ошибка назначения', 'err');
-    }
-  })
-  .catch(function() { flash('Сеть недоступна', 'err'); });
-}
-
-/* ── Build vehicle slots ────────────────── */
-function buildVehicles(list) {
-  vehicles = [];
-  vehList.innerHTML = '';
-  if (!list.length) {
-    vehList.innerHTML = '<div class="vehicles-empty">Нет активных автомобилей</div>';
-    return;
-  }
-  list.forEach(function(v) {
-    var el = document.createElement('div');
-    el.className = 'vehicle-slot';
-    var capStr = v.capacity_kg > 0 ? (Math.round(v.capacity_kg / 100) / 10) + ' т' : '';
-    el.innerHTML =
-      '<div class="veh-plate">' + esc(v.plate) + '</div>' +
-      '<div class="veh-name">' + esc(v.name || v.plate) + '</div>' +
-      (v.driver ? '<div class="veh-driver">&#128100; ' + esc(v.driver) + '</div>' : '') +
-      (capStr ? '<div class="veh-cap">' + capStr + '</div>' : '') +
-      '<div class="veh-hint">Назначить</div>';
-    vehList.appendChild(el);
-    vehicles.push({ id: v.id, plate: v.plate, el: el });
-  });
-}
-
-/* ── Flash notification ─────────────────── */
-var flashStack = document.getElementById('flash-stack');
-function flash(msg, type) {
-  var el = document.createElement('div');
-  el.className = 'flash-item ' + (type || 'ok');
-  el.textContent = msg;
-  flashStack.appendChild(el);
-  requestAnimationFrame(function() {
-    requestAnimationFrame(function() { el.classList.add('show'); });
-  });
-  setTimeout(function() {
-    el.classList.remove('show');
-    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
-  }, 2600);
-}
-
-/* ── Game loop ──────────────────────────── */
-function loop(ts) {
-  if (!lastTs) lastTs = ts;
-  var dt = Math.min((ts - lastTs) / 1000, 0.08);
-  lastTs = ts;
-
-  var ch = conveyor.offsetHeight;
-  var missed = [];
-
-  cards.forEach(function(c) {
-    c.y += c.speed * dt;
-    c.el.style.top = Math.round(c.y) + 'px';
-    if (c.y > ch + 5 && c.id !== dragId) missed.push(c.id);
-  });
-
-  missed.forEach(function(id) {
-    removeCard(id);
-    cntMissed++;
-    updateStats();
-    flash('Заявка пропущена — срок прошёл!', 'warn');
-  });
-
-  requestAnimationFrame(loop);
-}
-
-/* ── Fetch from server ──────────────────── */
-function fetchState() {
-  fetch(API_STATE)
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    var now = new Date();
-    pollLabel.textContent = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
-    if (!vehBuilt) {
-      buildVehicles(d.vehicles || []);
-      vehBuilt = true;
-    }
-    (d.requests || []).forEach(spawnCard);
-    updateStats();
-  })
-  .catch(function() {
-    pollLabel.textContent = 'нет связи';
-  });
-}
-
-/* ── Boot ───────────────────────────────── */
-fetchState();
-setInterval(fetchState, 28000);
-requestAnimationFrame(loop);
-</script>
+    <!-- Game Script -->
+    <script src="{% static 'logistics/game.js' %}"></script>
 </body>
 </html>

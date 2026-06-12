@@ -2649,13 +2649,30 @@ def game_api(request):
             "days_left": days_left,
         })
     vehicles = Vehicle.objects.filter(is_active=True).select_related("default_driver").order_by("plate_number")
-    veh_list = [{
-        "id": v.pk,
-        "plate": v.plate_number,
-        "name": v.name or v.vehicle_type or "",
-        "capacity_kg": float(v.max_weight_kg or 0),
-        "driver": str(v.default_driver) if v.default_driver else "",
-    } for v in vehicles]
+    veh_list = []
+    for v in vehicles:
+        assigned = LogisticsRequest.objects.filter(assigned_vehicle=v, is_archived=False).exclude(status__in=excluded)
+        assigned_list = []
+        for r in assigned:
+            days_left = 999
+            if r.planned_delivery_date:
+                days_left = (r.planned_delivery_date - today).days
+            assigned_list.append({
+                "id": r.pk,
+                "number": r.request_number,
+                "client": r.client_name,
+                "delivery_date": r.planned_delivery_date.isoformat() if r.planned_delivery_date else None,
+                "weight_kg": float(r.cargo_weight_kg or 0),
+                "days_left": days_left,
+            })
+        veh_list.append({
+            "id": v.pk,
+            "plate": v.plate_number,
+            "name": v.name or v.vehicle_type or "",
+            "capacity_kg": float(v.max_weight_kg or 0),
+            "driver": str(v.default_driver) if v.default_driver else "",
+            "assigned_requests": assigned_list,
+        })
     return JsonResponse({"requests": req_list, "vehicles": veh_list})
 
 
@@ -2673,10 +2690,39 @@ def game_assign(request):
         return JsonResponse({"ok": False, "error": "Неверные данные"}, status=400)
     try:
         req_obj = LogisticsRequest.objects.get(pk=req_id)
+    except LogisticsRequest.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Заявка не найдена"}, status=404)
+        
+    if veh_id == 0:
+        req_obj.assigned_vehicle = None
+        req_obj.assigned_driver = None
+        req_obj.save(update_fields=["assigned_vehicle", "assigned_driver", "updated_at"])
+        return JsonResponse({"ok": True, "unassigned": True})
+        
+    try:
         vehicle = Vehicle.objects.select_related("default_driver").get(pk=veh_id, is_active=True)
-    except (LogisticsRequest.DoesNotExist, Vehicle.DoesNotExist):
-        return JsonResponse({"ok": False, "error": "Не найдено"}, status=404)
+    except Vehicle.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "Машина не найдена"}, status=404)
+        
     req_obj.assigned_vehicle = vehicle
     req_obj.assigned_driver = vehicle.default_driver
     req_obj.save(update_fields=["assigned_vehicle", "assigned_driver", "updated_at"])
     return JsonResponse({"ok": True, "vehicle_plate": vehicle.plate_number})
+
+
+@login_required
+def game_depart(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False}, status=405)
+    if not request.user.is_superuser and get_user_role(request.user) not in {ROLE_ADMIN, ROLE_TRANSPORT}:
+        return JsonResponse({"ok": False, "error": "Нет доступа"}, status=403)
+    try:
+        data = json.loads(request.body)
+        veh_id = int(data["vehicle_id"])
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Неверные данные"}, status=400)
+        
+    excluded = {STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELLED, STATUS_SHIPPED}
+    reqs = LogisticsRequest.objects.filter(assigned_vehicle_id=veh_id, is_archived=False).exclude(status__in=excluded)
+    count = reqs.update(status=STATUS_SHIPPED)
+    return JsonResponse({"ok": True, "shipped_count": count})
