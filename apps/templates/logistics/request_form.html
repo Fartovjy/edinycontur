@@ -350,6 +350,21 @@
 })();
 </script>
 {% endif %}
+
+{% if vehicles %}
+<script>
+(function () {
+  var vSel = document.getElementById("id_assigned_vehicle");
+  var dSel = document.getElementById("id_assigned_driver");
+  if (!vSel || !dSel) return;
+  var map = {{% for v in vehicles %}{% if v.default_driver_id %}"{{ v.id }}": "{{ v.default_driver_id }}", {% endif %}{% endfor %}};
+  vSel.addEventListener("change", function () {
+    var driverId = map[vSel.value];
+    if (driverId) { dSel.value = driverId; }
+  });
+})();
+</script>
+{% endif %}
 {% if enable_client_tools %}
   {{ client_last_addresses|json_script:"client-last-addresses" }}
   <script>

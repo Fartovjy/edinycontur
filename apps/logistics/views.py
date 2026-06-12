@@ -2250,6 +2250,7 @@ def request_edit(request, pk):
         "inactive_vehicle_ids": inactive_vehicle_ids,
         "current_viewers": current_viewers,
         "available_viewers": available_viewers,
+        "vehicles": Vehicle.objects.filter(is_active=True).select_related("default_driver").order_by("plate_number"),
     })
 
 
