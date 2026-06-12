@@ -340,20 +340,9 @@
           return;
         }
 
-        // Визуальное подтверждение
+        // Перезагрузить страницу — гарантирует корректное положение хвостов многодневных таблеток
         day.classList.add('drop-success');
-        setTimeout(function () { day.classList.remove('drop-success'); }, 900);
-
-        if (movedEl) {
-          // Переместить DOM-карточку в нужную клетку
-          movedEl.classList.remove('dragging');
-          const firstTask = day.querySelector('.calendar-task');
-          firstTask ? day.insertBefore(movedEl, firstTask) : day.appendChild(movedEl);
-          initDraggables(); // перепривязать если нужно
-        } else {
-          // Пришло из панели уведомлений — обновить страницу
-          setTimeout(function () { window.location.reload(); }, 500);
-        }
+        setTimeout(function () { window.location.reload(); }, 600);
       } catch (err) {
         console.error('reschedule error', err);
       }
