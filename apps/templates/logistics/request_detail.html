@@ -759,35 +759,13 @@
                     </div>
                   </div>
                   <button class="btn btn-primary mt-3" type="submit">Назначить транспорт</button>
-                  <form method="post" class="d-inline ms-2">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="refresh_route">
-                    <button type="submit" class="btn btn-outline-secondary mt-3">↻ Маршрут</button>
-                  </form>
+                </form>
+                <form method="post" class="d-inline ms-2">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="refresh_route">
+                  <button type="submit" class="btn btn-outline-secondary mt-3">↻ Маршрут</button>
                 </form>
               </div>
-              <script>
-              (function () {
-                const vehicleDriverMap = {};
-                {% for v in vehicles %}{% if v.default_driver_id %}vehicleDriverMap["{{ v.id }}"] = "{{ v.default_driver_id }}";
-                {% endif %}{% endfor %}
-                const vSel = document.getElementById("assigned_vehicle_transport");
-                const dSel = document.getElementById("assigned_driver_transport");
-                if (vSel && dSel) {
-                  vSel.addEventListener("change", function () {
-                    const driverId = vehicleDriverMap[vSel.value];
-                    if (driverId) {
-                      dSel.value = driverId;
-                    }
-                  });
-                  // Если машина уже выбрана при загрузке и водитель не назначен — подставить
-                  if (vSel.value && !dSel.value) {
-                    const driverId = vehicleDriverMap[vSel.value];
-                    if (driverId) dSel.value = driverId;
-                  }
-                }
-              })();
-              </script>
             {% endif %}
 
             {% if user.profile.role == "warehouse" %}
