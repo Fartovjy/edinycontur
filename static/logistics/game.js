@@ -395,18 +395,18 @@ async function pollApi(isInitial = false) {
 function syncVehicles(apiVehicles, isInitial) {
     if (isInitial || !isTrucksInitialized) {
         trucks = apiVehicles.map((v, index) => {
-            // Map capacity in kg to 3, 6, 9 visual slots
-            let capacity = 6;
-            let type = 'Камаз';
-            let scoreMult = 1.5;
-            if (v.capacity_kg <= 3500) {
-                capacity = 3;
-                type = 'Газель';
-                scoreMult = 1.0;
-            } else if (v.capacity_kg > 12000) {
-                capacity = 9;
+            // Map capacity in kg directly to visual slots (in tons)
+            let capacity = Math.max(1, Math.round(v.capacity_kg / 1000));
+            let type = 'Фургон';
+            let scoreMult = 1.0;
+            if (capacity > 6) {
                 type = 'Фура';
                 scoreMult = 2.2;
+            } else if (capacity > 3) {
+                type = 'Камаз';
+                scoreMult = 1.5;
+            } else {
+                type = 'Газель';
             }
 
             // Sync loaded requests
