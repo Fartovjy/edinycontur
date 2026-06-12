@@ -532,7 +532,8 @@ function syncVehicles(apiVehicles, isInitial) {
                     redrawTruckCargoHold(localT);
                 }
             }
-        });
+        }
+    });
     }
 }
 
