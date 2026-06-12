@@ -106,6 +106,11 @@ class LogisticsRequest(models.Model):
     assigned_driver = models.ForeignKey("transport.Driver", on_delete=models.SET_NULL, null=True, blank=True, related_name="requests", verbose_name="Водитель")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_requests", verbose_name="Создал")
     viewer_users = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="viewable_requests", verbose_name="Наблюдатели")
+    route_distance_km = models.FloatField("Расстояние туда-обратно, км", null=True, blank=True)
+    route_direction_css = models.CharField("CSS-класс направления", max_length=10, blank=True, default="")
+    route_direction_label = models.CharField("Направление", max_length=4, blank=True, default="")
+    route_direction_arrow = models.CharField("Стрелка направления", max_length=2, blank=True, default="")
+    route_days = models.PositiveSmallIntegerField("Дней в пути", null=True, blank=True)
     created_at = models.DateTimeField("Создана", default=timezone.now)
     updated_at = models.DateTimeField("Обновлена", auto_now=True)
     is_archived = models.BooleanField("В архиве", default=False)
@@ -133,6 +138,29 @@ class LogisticsRequest(models.Model):
         except (IndexError, ValueError):
             last_number = 0
         return f"{prefix}{last_number + 1:02d}"
+
+    def refresh_route_info(self):
+        """Геокодирует адреса и обновляет route_* поля. Вызывается явно из view, не из save()."""
+        from django.conf import settings as django_settings
+        from .route_utils import compute_route_info
+        api_key = getattr(django_settings, "YANDEX_GEOCODER_API_KEY", "")
+        wh_addr = self.warehouse.address if self.warehouse_id else ""
+        if not wh_addr or not self.client_address:
+            return False
+        try:
+            info = compute_route_info(wh_addr, self.client_address, api_key)
+        except Exception:
+            return False
+        self.route_distance_km = info["route_distance_km"]
+        self.route_direction_css = info["route_direction_css"]
+        self.route_direction_label = info["route_direction_label"]
+        self.route_direction_arrow = info["route_direction_arrow"]
+        self.route_days = info["route_days"]
+        self.save(update_fields=[
+            "route_distance_km", "route_direction_css", "route_direction_label",
+            "route_direction_arrow", "route_days", "updated_at",
+        ])
+        return bool(info["route_distance_km"])
 
     def save(self, *args, **kwargs):
         if self.request_number:

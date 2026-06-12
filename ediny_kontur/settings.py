@@ -167,6 +167,7 @@ APP_MIN_VERSION_DRIVER   = os.environ.get("APP_MIN_VERSION_DRIVER",   "1.0")
 BASE_URL = WEB_APP_BASE_URL
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_NAME = os.environ.get("TELEGRAM_BOT_NAME", "biovetk_bot")
+YANDEX_GEOCODER_API_KEY = os.environ.get("YANDEX_GEOCODER_API_KEY", "")
 
 # ── Email ──────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

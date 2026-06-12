@@ -158,14 +158,58 @@ class CalendarEntry:
     def drag_type(self):
         return "delivery"
 
+    @property
+    def route_direction_css(self):
+        return ""
+
+    @property
+    def route_direction_label(self):
+        return ""
+
+    @property
+    def route_direction_arrow(self):
+        return ""
+
+    @property
+    def route_days(self):
+        return None
+
+    @property
+    def width_style(self):
+        return ""
+
 
 class TransportPendingCalendarEntry(CalendarEntry):
-    """Заявка с planned_ship_date, но без назначенной машины — показывается в календаре жёлтой."""
+    """Заявка с planned_ship_date — показывается в транспортном календаре."""
     __slots__ = ()
 
     @property
     def drag_type(self):
         return "transport_ship"
+
+    @property
+    def route_direction_css(self):
+        return self._req.route_direction_css or ""
+
+    @property
+    def route_direction_label(self):
+        return self._req.route_direction_label or ""
+
+    @property
+    def route_direction_arrow(self):
+        return self._req.route_direction_arrow or ""
+
+    @property
+    def route_days(self):
+        return self._req.route_days
+
+    @property
+    def width_style(self):
+        days = self._req.route_days
+        if not days or days <= 1:
+            return ""
+        gap = (days - 1) * 0.4
+        return f"width: calc({days * 100}% + {gap:.1f}rem); position: relative; z-index: 10; overflow: hidden;"
 
 
 class PickupCalendarEntry:
@@ -1579,6 +1623,19 @@ def request_detail(request, pk):
             messages.success(request, "Данные по Честному Знаку обновлены.")
             return redirect(request_obj)
 
+        if action == "refresh_route":
+            if not request.user.is_superuser and user_role not in {ROLE_ADMIN, ROLE_TRANSPORT}:
+                raise PermissionDenied
+            fresh = get_object_or_404(
+                LogisticsRequest.objects.select_related("warehouse"), pk=pk
+            )
+            ok = fresh.refresh_route_info()
+            if ok:
+                messages.success(request, "Маршрут пересчитан.")
+            else:
+                messages.warning(request, "Не удалось рассчитать маршрут — проверьте API-ключ или адреса.")
+            return redirect(fresh)
+
         if action == "assign_transport":
             if not request.user.is_superuser and get_user_role(request.user) not in {ROLE_ADMIN, ROLE_TRANSPORT}:
                 raise PermissionDenied
@@ -1974,6 +2031,12 @@ def request_create(request):
             # Создать snapshot чек-листов из активных шаблонов
             from apps.checklists.services import create_checklist_for_request
             create_checklist_for_request(request_obj)
+
+            if request_obj.client_address:
+                try:
+                    request_obj.refresh_route_info()
+                except Exception:
+                    pass
 
             messages.success(request, "Заявка создана.")
             return redirect(request_obj)

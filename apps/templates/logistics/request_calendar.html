@@ -76,6 +76,19 @@
   .calendar-request-problem  { background: #fee2e2; color: #7f1d1d; border-left: 3px solid var(--red); }
   /* Оранжевый — машина не назначена (Transport) */
   .calendar-request-no-vehicle { background: #fed7aa; color: #7c2d12; border-left: 3px solid #f97316; }
+  /* Бейдж направления внутри пилюли */
+  .route-badge { font-size: .68em; font-weight: 700; opacity: .85; margin-left: .3rem; white-space: nowrap; }
+  /* Цвет правой границы = направление (левая/фон сохраняют зелёный/оранжевый) */
+  .calendar-request.dir-n  { border-right: 3px solid #3b82f6; }
+  .calendar-request.dir-ne { border-right: 3px solid #8b5cf6; }
+  .calendar-request.dir-e  { border-right: 3px solid #ec4899; }
+  .calendar-request.dir-se { border-right: 3px solid #f97316; }
+  .calendar-request.dir-s  { border-right: 3px solid #ef4444; }
+  .calendar-request.dir-sw { border-right: 3px solid #14b8a6; }
+  .calendar-request.dir-w  { border-right: 3px solid #22c55e; }
+  .calendar-request.dir-nw { border-right: 3px solid #a3e635; }
+  /* Разрешить пилюлям выходить за границу ячейки (многодневные рейсы) */
+  .calendar-day { overflow: visible; }
 
   .driver-calendar .calendar-request-created,
   .driver-calendar .calendar-request-supply,
@@ -190,13 +203,15 @@
               {% if day.is_holiday %}<span class="badge text-bg-warning ms-1">праздник</span>{% endif %}
             </div>
             {% for item in day.requests %}
-              <a class="calendar-request {{ item.calendar_class }}"
+              <a class="calendar-request {{ item.calendar_class }}{% if item.route_direction_css %} {{ item.route_direction_css }}{% endif %}"
                  href="{{ item.get_absolute_url }}"
                  draggable="true"
                  data-drag-id="{{ item.drag_id }}"
                  data-drag-type="{{ item.drag_type }}"
-                 title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}">
+                 {% if item.width_style %}style="{{ item.width_style }}"{% endif %}
+                 title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}{% if item.route_direction_label %} · {{ item.route_direction_label }}{% if item.route_days %} · {{ item.route_days }} дн.{% endif %}{% endif %}">
                 {{ item.client_name|default:item.request_number }}
+                {% if item.route_direction_arrow %}<span class="route-badge">{{ item.route_direction_arrow }}{{ item.route_direction_label }}{% if item.route_days %} {{ item.route_days }}д{% endif %}</span>{% endif %}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>
             {% endfor %}

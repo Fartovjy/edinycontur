@@ -468,6 +468,12 @@
               <div class="info-label">Мест / Объём</div>
               <div class="info-value">{{ request_obj.cargo_places_count }} шт{% if request_obj.cargo_volume_m3 %} · {{ request_obj.cargo_volume_m3 }} м³{% endif %}</div>
             </div>
+            {% if request_obj.route_direction_label %}
+            <div>
+              <div class="info-label">Маршрут</div>
+              <div class="info-value">{{ request_obj.route_direction_arrow }} {{ request_obj.route_direction_label }} · {{ request_obj.route_distance_km|floatformat:0 }} км · {{ request_obj.route_days }} дн.</div>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -761,6 +767,11 @@
                     </div>
                   </div>
                   <button class="btn btn-primary mt-3" type="submit">Назначить транспорт</button>
+                  <form method="post" class="d-inline ms-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="refresh_route">
+                    <button type="submit" class="btn btn-outline-secondary mt-3">↻ Маршрут</button>
+                  </form>
                 </form>
               </div>
               <script>
