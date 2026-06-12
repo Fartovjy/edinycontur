@@ -308,7 +308,7 @@
         Водители
       </a>
       {% if user.is_superuser or user.profile.role == "admin" %}
-      <a href="/admin/accounts/user/" class="ap-action-btn">
+      <a href="/ek-site-admin/accounts/user/" class="ap-action-btn">
         <span class="ap-action-icon" style="background:#f5f4f2">⚙️</span>
         Пользователи и роли
       </a>
@@ -316,7 +316,7 @@
     </div>
 
     {% if user.is_superuser or user.profile.role == "admin" %}
-    <a href="/admin/" class="ap-django-link">Django admin →</a>
+    <a href="/ek-site-admin/" class="ap-django-link">Django admin →</a>
     {% endif %}
 
   </div>
