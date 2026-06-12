@@ -44,21 +44,25 @@ def geocode_yandex(address, api_key):
 
 def geocode_nominatim(address):
     """Fallback геокодер через OpenStreetMap Nominatim. Без API-ключа, бесплатно."""
-    try:
-        r = http_requests.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": address, "format": "json", "limit": 1, "accept-language": "ru"},
-            headers={"User-Agent": "ediny-kontur-logistics/1.0"},
-            timeout=REQUEST_TIMEOUT,
-        )
-        r.raise_for_status()
-        results = r.json()
-        if not results:
-            return None
-        return float(results[0]["lat"]), float(results[0]["lon"])
-    except Exception as exc:
-        log.warning("geocode_nominatim failed for %r: %s", address, exc)
-        return None
+    for params in [
+        {"q": address, "format": "json", "limit": 1, "accept-language": "ru", "countrycodes": "ru"},
+        {"q": address + ", Россия", "format": "json", "limit": 1, "accept-language": "ru"},
+    ]:
+        try:
+            r = http_requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
+                headers={"User-Agent": "ediny-kontur-logistics/1.0"},
+                timeout=REQUEST_TIMEOUT,
+            )
+            r.raise_for_status()
+            results = r.json()
+            if results:
+                return float(results[0]["lat"]), float(results[0]["lon"])
+            log.warning("geocode_nominatim empty results for %r (params=%s)", address, params)
+        except Exception as exc:
+            log.warning("geocode_nominatim failed for %r: %s", address, exc)
+    return None
 
 
 def geocode(address, api_key=""):
