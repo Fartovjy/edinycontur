@@ -124,6 +124,17 @@ class Particle {
     }
 }
 
+function spawnParticles(x, y, color, count, type = 'spark') {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = x - rect.left;
+    const canvasY = y - rect.top;
+    
+    for (let i = 0; i < count; i++) {
+        particles.push(new Particle(canvasX, canvasY, color, type));
+    }
+}
+
 // Helper to fetch CSRF token from cookies
 function getCsrfToken() {
     return document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
@@ -1322,10 +1333,9 @@ function updateGame(dt) {
                 playSound('error');
                 
                 const rect = boxObj.dom.getBoundingClientRect();
-                const parentRect = domConveyorBoxes.getBoundingClientRect();
                 spawnParticles(
-                    rect.left - parentRect.left + rect.width / 2,
-                    rect.top - parentRect.top + rect.height / 2,
+                    rect.left + rect.width / 2,
+                    rect.top + rect.height / 2,
                     '#ef4444',
                     10
                 );
