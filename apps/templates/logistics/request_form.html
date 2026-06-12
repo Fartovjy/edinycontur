@@ -357,11 +357,16 @@
   var vSel = document.getElementById("id_assigned_vehicle");
   var dSel = document.getElementById("id_assigned_driver");
   if (!vSel || !dSel) return;
-  var map = {{% for v in vehicles %}{% if v.default_driver_id %}"{{ v.id }}": "{{ v.default_driver_id }}", {% endif %}{% endfor %}};
-  vSel.addEventListener("change", function () {
+  var map = {};
+  {% for v in vehicles %}{% if v.default_driver_id %}map["{{ v.id }}"] = "{{ v.default_driver_id }}";
+  {% endif %}{% endfor %}
+  function applyDriver() {
     var driverId = map[vSel.value];
     if (driverId) { dSel.value = driverId; }
-  });
+  }
+  vSel.addEventListener("change", applyDriver);
+  // При загрузке: если машина уже выбрана, а водитель нет — подставить
+  if (vSel.value && !dSel.value) { applyDriver(); }
 })();
 </script>
 {% endif %}
