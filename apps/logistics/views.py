@@ -1675,8 +1675,8 @@ def request_detail(request, pk):
         if action == "assign_transport":
             if not request.user.is_superuser and get_user_role(request.user) not in {ROLE_ADMIN, ROLE_TRANSPORT}:
                 raise PermissionDenied
-            driver = get_object_or_404(Driver, pk=request.POST.get("assigned_driver"), is_active=True)
-            vehicle = get_object_or_404(Vehicle, pk=request.POST.get("assigned_vehicle"), is_active=True)
+            vehicle = get_object_or_404(Vehicle.objects.select_related("default_driver"), pk=request.POST.get("assigned_vehicle"), is_active=True)
+            driver = vehicle.default_driver
             planned_ship_date = parse_date(request.POST.get("planned_ship_date") or "")
 
             # ── Проверка грузоподъёмности ──────────────────────────────────
@@ -1708,9 +1708,9 @@ def request_detail(request, pk):
                         f"на {(ratio - 1) * 100:.0f}%.",
                     )
 
-            request_obj.assigned_driver = driver
             request_obj.assigned_vehicle = vehicle
-            update_fields = ["assigned_driver", "assigned_vehicle", "updated_at"]
+            request_obj.assigned_driver = driver  # может быть None если у машины нет водителя по умолчанию
+            update_fields = ["assigned_vehicle", "assigned_driver", "updated_at"]
             if planned_ship_date:
                 request_obj.planned_ship_date = planned_ship_date
                 update_fields.append("planned_ship_date")
@@ -1720,7 +1720,7 @@ def request_detail(request, pk):
                 f"Вам назначена заявка {request_obj.request_number} ({request_obj.client_name}). "
                 f"Адрес доставки: {request_obj.client_address}.",
             )
-            messages.success(request, "Водитель и машина назначены.")
+            messages.success(request, "Машина назначена." + (" Водитель: " + str(driver) + "." if driver else " Водитель по умолчанию не задан — назначьте в карточке машины."))
             return redirect(request_obj)
 
         if action == "warehouse_status":
@@ -2348,6 +2348,11 @@ def vehicle_edit(request, pk):
             vehicle.service_due_km = None
         insp_raw = request.POST.get("next_inspection_date", "").strip()
         vehicle.next_inspection_date = parse_date(insp_raw) if insp_raw else None
+        driver_raw = request.POST.get("default_driver", "").strip()
+        if driver_raw:
+            vehicle.default_driver_id = int(driver_raw)
+        else:
+            vehicle.default_driver_id = None
         photo = request.FILES.get("photo")
         if photo:
             vehicle.photo = photo
@@ -2355,7 +2360,10 @@ def vehicle_edit(request, pk):
         messages.success(request, f"Автомобиль {vehicle.plate_number} обновлён.")
         return redirect("vehicle_list")
 
-    return render(request, "logistics/vehicle_edit.html", {"vehicle": vehicle})
+    return render(request, "logistics/vehicle_edit.html", {
+        "vehicle": vehicle,
+        "drivers": Driver.objects.filter(is_active=True).order_by("full_name"),
+    })
 
 
 # ── Drivers ───────────────────────────────────────────────────────────────────

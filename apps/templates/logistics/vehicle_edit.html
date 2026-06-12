@@ -148,6 +148,17 @@
               </div>
             </div>
 
+            <!-- Default driver -->
+            <div class="col-12 col-sm-6">
+              <label class="form-label" for="v-driver">Водитель по умолчанию</label>
+              <select class="form-select" id="v-driver" name="default_driver">
+                <option value="">— не назначен —</option>
+                {% for driver in drivers %}
+                  <option value="{{ driver.id }}" {% if vehicle.default_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
             <!-- Notes -->
             <div class="col-12">
               <label class="form-label" for="v-notes">Заметки</label>

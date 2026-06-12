@@ -752,15 +752,7 @@
                         {% endfor %}
                       </select>
                     </div>
-                    <div>
-                      <label class="form-label fw-semibold" for="assigned_driver_transport">Водитель</label>
-                      <select class="form-select" id="assigned_driver_transport" name="assigned_driver" required>
-                        <option value="">Выберите водителя</option>
-                        {% for driver in drivers %}
-                          <option value="{{ driver.id }}" {% if request_obj.assigned_driver_id == driver.id %}selected{% endif %}>{{ driver }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
+
                     <div>
                       <label class="form-label fw-semibold" for="planned_ship_date_transport">Дата отправки</label>
                       <input class="form-control" id="planned_ship_date_transport" name="planned_ship_date" type="date" value="{{ request_obj.planned_ship_date|date:'Y-m-d' }}">
