@@ -1485,6 +1485,64 @@ function triggerGameOver() {
     showOverlay(domGameOverScreen);
 }
 
+function resetTruckSlot(truckIndex) {
+    const truck = trucks[truckIndex];
+    if (!truck) return;
+    
+    truck.color = 'neutral';
+    truck.isAssigned = false;
+    truck.assignedCity = '';
+    truck.assignedAbbr = '';
+    truck.loadedUnits = 0;
+    truck.loadedBoxes = [];
+    truck.isDeparting = false;
+    truck.isTimerActive = false;
+    truck.timer = 0;
+    
+    if (truck.dom) {
+        truck.dom.className = 'truck-slot neutral';
+        truck.dom.classList.remove('departing');
+        if (truck.domTimerBg) truck.domTimerBg.classList.remove('active');
+        if (truck.domDepartBtn) truck.domDepartBtn.disabled = true;
+    }
+    
+    redrawTruckCargoHold(truck);
+}
+
+function startGame() {
+    hideOverlay(domStartScreen);
+    hideOverlay(domPauseScreen);
+    hideOverlay(domGameOverScreen);
+    
+    score = 0;
+    reputation = 100;
+    level = 1;
+    domScoreVal.textContent = score;
+    domLevelVal.textContent = level;
+    updateReputationBar();
+    
+    // Clear all boxes from conveyor belt
+    boxes.forEach(b => {
+        if (b.dom) b.dom.remove();
+    });
+    boxes = [];
+    
+    // Clear the conveyor HTML container just in case
+    domConveyorBoxes.innerHTML = '';
+    
+    // Reset all trucks
+    trucks.forEach(t => {
+        resetTruckSlot(t.index);
+    });
+    
+    // Re-trigger API polling immediately to get fresh data
+    pollApi(true);
+    
+    gameState = 'PLAYING';
+    lastTime = performance.now();
+    playSound('repaired'); // Nice positive start sound
+}
+
 function updateReputationBar() {
     domReputationPct.textContent = `${reputation}%`;
     domReputationBarFill.style.width = `${reputation}%`;
