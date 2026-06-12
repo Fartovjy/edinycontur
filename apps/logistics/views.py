@@ -178,10 +178,23 @@ class CalendarEntry:
     def width_style(self):
         return ""
 
+    @property
+    def is_continuation(self):
+        return False
+
 
 class TransportPendingCalendarEntry(CalendarEntry):
     """Заявка с planned_ship_date — показывается в транспортном календаре."""
-    __slots__ = ()
+    __slots__ = ("_span_days", "_is_continuation")
+
+    def __init__(self, req, css, span_days=None, is_continuation=False):
+        super().__init__(req, css)
+        self._span_days = span_days
+        self._is_continuation = is_continuation
+
+    @property
+    def is_continuation(self):
+        return self._is_continuation
 
     @property
     def drag_type(self):
@@ -205,11 +218,14 @@ class TransportPendingCalendarEntry(CalendarEntry):
 
     @property
     def width_style(self):
-        days = self._req.route_days
+        days = self._span_days if self._span_days is not None else self._req.route_days
         if not days or days <= 1:
             return ""
         gap = (days - 1) * 0.4
-        return f"width: calc({days * 100}% + {gap:.1f}rem); position: relative; z-index: 10; overflow: hidden;"
+        style = f"width: calc({days * 100}% + {gap:.1f}rem); position: relative; z-index: 10; overflow: hidden;"
+        if self._is_continuation:
+            style += " border-top-left-radius: 0; border-bottom-left-radius: 0;"
+        return style
 
 
 class PickupCalendarEntry:
@@ -1346,9 +1362,29 @@ def request_calendar(request):
                     if req.assigned_vehicle_id
                     else "calendar-request-no-vehicle"
                 )
-                requests_by_date.setdefault(req.planned_ship_date, []).append(
-                    TransportPendingCalendarEntry(req, css)
-                )
+                ship_date = req.planned_ship_date
+                route_days = req.route_days or 1
+                # Дней до конца текущей недели (Пн=0 → 7, Пт=4 → 3, Вс=6 → 1)
+                days_left = 7 - ship_date.weekday()
+                if route_days <= days_left:
+                    requests_by_date.setdefault(ship_date, []).append(
+                        TransportPendingCalendarEntry(req, css, span_days=route_days if route_days > 1 else None)
+                    )
+                else:
+                    # Первый сегмент — до конца текущей недели
+                    requests_by_date.setdefault(ship_date, []).append(
+                        TransportPendingCalendarEntry(req, css, span_days=days_left)
+                    )
+                    # Продолжения в следующих неделях
+                    remaining = route_days - days_left
+                    cont_start = ship_date + timedelta(days=days_left)
+                    while remaining > 0:
+                        span = min(remaining, 7)
+                        requests_by_date.setdefault(cont_start, []).append(
+                            TransportPendingCalendarEntry(req, css, span_days=span if span > 1 else None, is_continuation=True)
+                        )
+                        remaining -= span
+                        cont_start += timedelta(days=7)
 
         undated_requests = []
 

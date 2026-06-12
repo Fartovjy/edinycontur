@@ -89,6 +89,13 @@
   .calendar-request.dir-nw { border-right: 3px solid #a3e635; }
   /* Разрешить пилюлям выходить за границу ячейки (многодневные рейсы) */
   .calendar-day { overflow: visible; }
+  /* Продолжение таблетки после разрыва недели */
+  .calendar-request.pill-continuation {
+    border-left: 2px dashed rgba(0,0,0,.25);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    opacity: .88;
+  }
 
   .driver-calendar .calendar-request-created,
   .driver-calendar .calendar-request-supply,
@@ -203,15 +210,15 @@
               {% if day.is_holiday %}<span class="badge text-bg-warning ms-1">праздник</span>{% endif %}
             </div>
             {% for item in day.requests %}
-              <a class="calendar-request {{ item.calendar_class }}{% if item.route_direction_css %} {{ item.route_direction_css }}{% endif %}"
+              <a class="calendar-request {{ item.calendar_class }}{% if item.route_direction_css %} {{ item.route_direction_css }}{% endif %}{% if item.is_continuation %} pill-continuation{% endif %}"
                  href="{{ item.get_absolute_url }}"
                  draggable="true"
                  data-drag-id="{{ item.drag_id }}"
                  data-drag-type="{{ item.drag_type }}"
                  {% if item.width_style %}style="{{ item.width_style }}"{% endif %}
                  title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}{% if item.route_direction_label %} · {{ item.route_direction_label }}{% if item.route_days %} · {{ item.route_days }} дн.{% endif %}{% endif %}">
-                {{ item.client_name|default:item.request_number }}
-                {% if item.route_direction_arrow %}<span class="route-badge">{{ item.route_direction_arrow }}{{ item.route_direction_label }}{% if item.route_days %} {{ item.route_days }}д{% endif %}</span>{% endif %}
+                {% if item.is_continuation %}<span style="opacity:.55;margin-right:.2rem">↩</span>{% endif %}{{ item.client_name|default:item.request_number }}
+                {% if not item.is_continuation and item.route_direction_arrow %}<span class="route-badge">{{ item.route_direction_arrow }}{{ item.route_direction_label }}{% if item.route_days %} {{ item.route_days }}д{% endif %}</span>{% endif %}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>
             {% endfor %}
