@@ -42,6 +42,34 @@ def geocode_yandex(address, api_key):
         return None
 
 
+def geocode_nominatim(address):
+    """Fallback геокодер через OpenStreetMap Nominatim. Без API-ключа, бесплатно."""
+    try:
+        r = http_requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": address, "format": "json", "limit": 1, "accept-language": "ru"},
+            headers={"User-Agent": "ediny-kontur-logistics/1.0"},
+            timeout=REQUEST_TIMEOUT,
+        )
+        r.raise_for_status()
+        results = r.json()
+        if not results:
+            return None
+        return float(results[0]["lat"]), float(results[0]["lon"])
+    except Exception as exc:
+        log.warning("geocode_nominatim failed for %r: %s", address, exc)
+        return None
+
+
+def geocode(address, api_key=""):
+    """Яндекс если ключ есть и работает, иначе Nominatim."""
+    if api_key:
+        coords = geocode_yandex(address, api_key)
+        if coords:
+            return coords
+    return geocode_nominatim(address)
+
+
 def haversine_km(lat1, lon1, lat2, lon2):
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
@@ -97,14 +125,11 @@ def compute_route_info(warehouse_address, client_address, api_key):
         "route_direction_arrow": "",
         "route_days": None,
     }
-    if not api_key:
-        return empty
-
-    wh = geocode_yandex(warehouse_address, api_key)
+    wh = geocode(warehouse_address, api_key)
     if not wh:
         return empty
 
-    cl = geocode_yandex(client_address, api_key)
+    cl = geocode(client_address, api_key)
     if not cl:
         return empty
 
