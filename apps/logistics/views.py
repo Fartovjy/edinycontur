@@ -2647,6 +2647,8 @@ def game_api(request):
             "delivery_date": r.planned_delivery_date.isoformat() if r.planned_delivery_date else None,
             "weight_kg": float(r.cargo_weight_kg or 0),
             "days_left": days_left,
+            "direction": r.route_direction_label or "",
+            "direction_css": r.route_direction_css or "",
         })
     vehicles = Vehicle.objects.select_related("default_driver").order_by("plate_number")
     veh_list = []
@@ -2664,12 +2666,15 @@ def game_api(request):
                 "delivery_date": r.planned_delivery_date.isoformat() if r.planned_delivery_date else None,
                 "weight_kg": float(r.cargo_weight_kg or 0),
                 "days_left": days_left,
+                "direction": r.route_direction_label or "",
+                "direction_css": r.route_direction_css or "",
             })
         veh_list.append({
             "id": v.pk,
             "plate": v.plate_number,
             "name": v.name or v.vehicle_type or "",
             "capacity_kg": float(v.max_weight_kg or 0),
+            "volume_m3": float(v.max_volume_m3 or 0),
             "driver": str(v.default_driver) if v.default_driver else "",
             "is_active": v.is_active,
             "assigned_requests": assigned_list,

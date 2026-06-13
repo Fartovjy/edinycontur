@@ -530,7 +530,7 @@ function syncVehicles(apiVehicles, isInitial) {
                     else if (r.weight_kg > 1000) size = 2;
                     
                     let rawAbbr = r.number.split('-')[0];
-                    let abbr = mapAbbrToDirection(rawAbbr);
+                    let abbr = (r.direction && r.direction.trim() !== '') ? r.direction.trim() : mapAbbrToDirection(rawAbbr);
                     
                     loadedUnits += size;
                     loadedBoxes.push({
@@ -563,6 +563,7 @@ function syncVehicles(apiVehicles, isInitial) {
                 index: index,
                 plate: v.plate,
                 name: v.name,
+                volume: v.volume_m3 || 0,
                 driver: v.driver,
                 type: type,
                 capacity: capacity,
@@ -596,6 +597,7 @@ function syncVehicles(apiVehicles, isInitial) {
         apiVehicles.forEach(apiV => {
             const localT = trucks.find(t => t.id === apiV.id);
             if (localT && !localT.isDeparting) {
+                localT.volume = apiV.volume_m3 || 0;
                 // Synchronize broken status from API
                 const isBroken = apiV.is_active === false;
                 if (localT.isBroken !== isBroken) {
@@ -616,7 +618,7 @@ function syncVehicles(apiVehicles, isInitial) {
                             else if (r.weight_kg > 1000) size = 2;
                             
                             let rawAbbr = r.number.split('-')[0];
-                            let abbr = mapAbbrToDirection(rawAbbr);
+                            let abbr = (r.direction && r.direction.trim() !== '') ? r.direction.trim() : mapAbbrToDirection(rawAbbr);
                             
                             localT.loadedUnits += size;
                             localT.loadedBoxes.push({
@@ -668,9 +670,9 @@ function syncRequests(apiRequests) {
         const alreadyExists = boxes.some(b => b.id === apiR.id);
         if (!alreadyExists) {
             // Spawn box
-            // Compass point direction from number: e.g. "ЕК-2026/80" -> "ЕК" -> map to compass point
+            // Compass point direction from number or direction field directly
             const rawAbbr = apiR.number.split('-')[0];
-            let abbr = mapAbbrToDirection(rawAbbr);
+            let abbr = (apiR.direction && apiR.direction.trim() !== '') ? apiR.direction.trim() : mapAbbrToDirection(rawAbbr);
             
             // Weight to size mapping
             let size = 1;
@@ -695,6 +697,36 @@ const CITIES_BY_ABBR = {
     'З': 'Запад',
     'СЗ': 'Северо-Запад'
 };
+
+// Helper to render a realistic Russian license plate
+function renderRussianPlate(plate) {
+    if (!plate) return '';
+    const cleaned = plate.replace(/\s+/g, '').toUpperCase();
+    const match = cleaned.match(/^([А-ЯA-Z])(\d{3})([А-ЯA-Z]{2})(\d{2,3})$/);
+    if (match) {
+        const letter1 = match[1];
+        const digits = match[2];
+        const letters2 = match[3];
+        const region = match[4];
+        return `
+            <div class="ru-plate" title="${plate}">
+                <span class="ru-plate-main"><span class="ru-plate-first-let">${letter1}</span>${digits}<span class="ru-plate-last-lets">${letters2}</span></span>
+                <div class="ru-plate-region-box">
+                    <span class="ru-plate-region">${region}</span>
+                    <div class="ru-plate-country">
+                        <span class="ru-plate-rus">RUS</span>
+                        <span class="ru-plate-flag"></span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    return `
+        <div class="ru-plate raw-plate" title="${plate}">
+            <span>${plate}</span>
+        </div>
+    `;
+}
 
 // Render vehicles layout
 function renderTruckSlots() {
@@ -721,12 +753,15 @@ function renderTruckSlots() {
         
         const badge = document.createElement('div');
         badge.className = 'truck-badge';
-        const typeLabel = `${truck.name || truck.type} (${truck.capacityTons}т)`;
-        const plateLabel = truck.plate ? `[${truck.plate}]` : '';
+        const volumeLabel = truck.volume ? ` / ${Math.round(truck.volume)}м³` : '';
+        const typeLabel = `${truck.name || truck.type} (${truck.capacityTons}т${volumeLabel})`;
         const cityLabel = truck.isAssigned ? truck.assignedAbbr : 'СВОБОДЕН';
         
         badge.innerHTML = `
-            <span class="truck-type-title" title="${truck.plate || ''}">${typeLabel} ${plateLabel}</span>
+            <span class="truck-type-title">${typeLabel}</span>
+            <div class="truck-plate-row">
+                ${renderRussianPlate(truck.plate)}
+            </div>
             <div class="truck-icon-container">
                 ${getTruckSvg(truck)}
                 <span class="truck-city-tag">${cityLabel}</span>
