@@ -11,13 +11,14 @@ window.onerror = function(message, source, lineno, colno, error) {
 
 // --- Cities and Colors mapping ---
 const CITY_COLORS = {
-    'МСК': 'red',
-    'СПБ': 'orange',
-    'КЗН': 'yellow',
-    'ЕКБ': 'green',
-    'НСК': 'cyan',
-    'КРД': 'blue',
-    'ВЛД': 'purple'
+    'С': 'red',
+    'СВ': 'green',
+    'В': 'orange',
+    'ЮВ': 'blue',
+    'Ю': 'yellow',
+    'ЮЗ': 'purple',
+    'З': 'pink',
+    'СЗ': 'cyan'
 };
 
 const COLOR_HEX = {
@@ -28,8 +29,24 @@ const COLOR_HEX = {
     green: '#22c55e',
     cyan: '#06b6d4',
     blue: '#3b82f6',
-    purple: '#a855f7'
+    purple: '#a855f7',
+    pink: '#ec4899'
 };
+
+function mapAbbrToDirection(rawAbbr) {
+    if (!rawAbbr) return 'З';
+    const clean = rawAbbr.toUpperCase().trim();
+    
+    if (clean === 'МСК' || clean === 'МС' || clean === 'MS') return 'С';
+    if (clean === 'СПБ' || clean === 'СП' || clean === 'SP') return 'СЗ';
+    if (clean === 'КЗН' || clean === 'КЗ' || clean === 'KZ') return 'Ю';
+    if (clean === 'ЕКБ' || clean === 'ЕК' || clean === 'EK') return 'СВ';
+    if (clean === 'НСК' || clean === 'НС' || clean === 'NS') return 'В';
+    if (clean === 'КРД' || clean === 'КР' || clean === 'KR') return 'ЮЗ';
+    if (clean === 'ВЛД' || clean === 'ВЛ' || clean === 'VL') return 'ЮВ';
+    
+    return 'З';
+}
 
 // --- API Paths ---
 const API_URLS = {
@@ -434,10 +451,14 @@ function syncVehicles(apiVehicles, isInitial) {
                     if (r.weight_kg > 3000) size = 3;
                     else if (r.weight_kg > 1000) size = 2;
                     
+                    let rawAbbr = r.number.split('-')[0];
+                    let abbr = mapAbbrToDirection(rawAbbr);
+                    
                     loadedUnits += size;
                     loadedBoxes.push({
                         id: r.id,
                         number: r.number,
+                        abbr: abbr,
                         client: r.client,
                         size: size,
                         weight_kg: r.weight_kg,
@@ -451,8 +472,7 @@ function syncVehicles(apiVehicles, isInitial) {
             let assignedCity = '';
             let assignedAbbr = '';
             if (loadedBoxes.length > 0) {
-                assignedAbbr = loadedBoxes[0].number.split('-')[0]; // Extract city abbr from number, e.g. "ЕК"
-                if (assignedAbbr === 'ЕК') assignedAbbr = 'ЕКБ'; // normalise ЕК -> ЕКБ
+                assignedAbbr = loadedBoxes[0].abbr;
                 color = CITY_COLORS[assignedAbbr] || 'neutral';
                 isAssigned = true;
                 assignedCity = CITIES_BY_ABBR[assignedAbbr] || 'Город';
@@ -517,10 +537,14 @@ function syncVehicles(apiVehicles, isInitial) {
                             if (r.weight_kg > 3000) size = 3;
                             else if (r.weight_kg > 1000) size = 2;
                             
+                            let rawAbbr = r.number.split('-')[0];
+                            let abbr = mapAbbrToDirection(rawAbbr);
+                            
                             localT.loadedUnits += size;
                             localT.loadedBoxes.push({
                                 id: r.id,
                                 number: r.number,
+                                abbr: abbr,
                                 size: size,
                                 weight_kg: r.weight_kg,
                                 deadline: r.days_left * dayRealtimeSeconds
@@ -530,16 +554,7 @@ function syncVehicles(apiVehicles, isInitial) {
                     
                     // Update routing colors based on first loaded
                     if (localT.loadedBoxes.length > 0) {
-                        localT.assignedAbbr = localT.loadedBoxes[0].number.substring(0, 2);
-                        // Normalise abbreviations
-                        if (localT.assignedAbbr === 'ЕК') localT.assignedAbbr = 'ЕКБ';
-                        if (localT.assignedAbbr === 'МС') localT.assignedAbbr = 'МСК';
-                        if (localT.assignedAbbr === 'СП') localT.assignedAbbr = 'СПБ';
-                        if (localT.assignedAbbr === 'КЗ') localT.assignedAbbr = 'КЗН';
-                        if (localT.assignedAbbr === 'НС') localT.assignedAbbr = 'НСК';
-                        if (localT.assignedAbbr === 'КР') localT.assignedAbbr = 'КРД';
-                        if (localT.assignedAbbr === 'ВЛ') localT.assignedAbbr = 'ВЛД';
-
+                        localT.assignedAbbr = localT.loadedBoxes[0].abbr;
                         localT.color = CITY_COLORS[localT.assignedAbbr] || 'neutral';
                         localT.isAssigned = true;
                     } else {
@@ -575,9 +590,9 @@ function syncRequests(apiRequests) {
         const alreadyExists = boxes.some(b => b.id === apiR.id);
         if (!alreadyExists) {
             // Spawn box
-            // City abbr from number: e.g. "ЕК-2026/80" -> "ЕК" -> map to full abbr "ЕКБ"
-            let abbr = apiR.number.split('-')[0];
-            if (abbr === 'ЕК') abbr = 'ЕКБ';
+            // Compass point direction from number: e.g. "ЕК-2026/80" -> "ЕК" -> map to compass point
+            const rawAbbr = apiR.number.split('-')[0];
+            let abbr = mapAbbrToDirection(rawAbbr);
             
             // Weight to size mapping
             let size = 1;
@@ -593,13 +608,14 @@ function syncRequests(apiRequests) {
 }
 
 const CITIES_BY_ABBR = {
-    'МСК': 'Москва',
-    'СПБ': 'Санкт-Петербург',
-    'КЗН': 'Казань',
-    'ЕКБ': 'Екатеринбург',
-    'НСК': 'Новосибирск',
-    'КРД': 'Краснодар',
-    'ВЛД': 'Владивосток'
+    'С': 'Север',
+    'СВ': 'Северо-Восток',
+    'В': 'Восток',
+    'ЮВ': 'Юго-Восток',
+    'Ю': 'Юг',
+    'ЮЗ': 'Юго-Запад',
+    'З': 'Запад',
+    'СЗ': 'Северо-Запад'
 };
 
 // Render vehicles layout

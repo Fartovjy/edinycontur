@@ -15,7 +15,7 @@
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     
-    /* 7 City Colors (Neon Cyberpunk Palette) */
+    /* 8 Direction Colors (Neon Cyberpunk Palette) */
     --color-neutral: hsl(210, 10%, 40%);
     --color-red: hsl(355, 95%, 55%);
     --color-orange: hsl(24, 95%, 55%);
@@ -24,6 +24,7 @@
     --color-cyan: hsl(180, 90%, 45%);
     --color-blue: hsl(220, 95%, 55%);
     --color-purple: hsl(272, 85%, 60%);
+    --color-pink: hsl(330, 90%, 60%);
 
     --font-sans: 'Inter', sans-serif;
     --font-display: 'Outfit', sans-serif;
@@ -215,6 +216,7 @@ body {
 .legend-item.cyan { background: rgba(6, 182, 212, 0.2); border-color: var(--color-cyan); }
 .legend-item.blue { background: rgba(59, 130, 246, 0.2); border-color: var(--color-blue); }
 .legend-item.purple { background: rgba(168, 85, 247, 0.2); border-color: var(--color-purple); }
+.legend-item.pink { background: rgba(236, 72, 153, 0.2); border-color: var(--color-pink); }
 
 /* Play Field / Game Area */
 .game-field {
@@ -351,6 +353,7 @@ body {
 .cargo-box.color-cyan { background: linear-gradient(135deg, #06b6d4, #0e7490); box-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
 .cargo-box.color-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
 .cargo-box.color-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); box-shadow: 0 0 10px rgba(168, 85, 247, 0.3); }
+.cargo-box.color-pink { background: linear-gradient(135deg, #ec4899, #be185d); box-shadow: 0 0 10px rgba(236, 72, 153, 0.3); }
 
 /* Box labels styling */
 .cargo-box .box-destination {
@@ -455,6 +458,7 @@ body {
 .truck-slot.cyan { --target-color: var(--color-cyan); --target-glow: rgba(6, 182, 212, 0.2); border-color: rgba(6, 182, 212, 0.3); }
 .truck-slot.blue { --target-color: var(--color-blue); --target-glow: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.3); }
 .truck-slot.purple { --target-color: var(--color-purple); --target-glow: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.3); }
+.truck-slot.pink { --target-color: var(--color-pink); --target-glow: rgba(236, 72, 153, 0.2); border-color: rgba(236, 72, 153, 0.3); }
 
 /* Animated driving out/in */
 .truck-slot.departing {
@@ -616,6 +620,7 @@ body {
 .truck-slot.cyan .truck-city-tag { color: var(--color-cyan); background: rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.2); }
 .truck-slot.blue .truck-city-tag { color: var(--color-blue); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); }
 .truck-slot.purple .truck-city-tag { color: var(--color-purple); background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.2); }
+.truck-slot.pink .truck-city-tag { color: var(--color-pink); background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.2); }
 
 .truck-capacity-label {
     font-family: var(--font-display);
@@ -669,6 +674,7 @@ body {
 .truck-slot.cyan .btn-depart:not(:disabled) { background: rgba(6, 182, 212, 0.15); border-color: var(--color-cyan); color: var(--color-cyan); }
 .truck-slot.blue .btn-depart:not(:disabled) { background: rgba(59, 130, 246, 0.15); border-color: var(--color-blue); color: var(--color-blue); }
 .truck-slot.purple .btn-depart:not(:disabled) { background: rgba(168, 85, 247, 0.15); border-color: var(--color-purple); color: var(--color-purple); }
+.truck-slot.pink .btn-depart:not(:disabled) { background: rgba(236, 72, 153, 0.15); border-color: var(--color-pink); color: var(--color-pink); }
 
 .truck-slot.neutral .cargo-hold-block { background: linear-gradient(90deg, #94a3b8, #475569); }
 .truck-slot.red .cargo-hold-block { background: linear-gradient(90deg, #ef4444, #991b1b); }
@@ -678,6 +684,7 @@ body {
 .truck-slot.cyan .cargo-hold-block { background: linear-gradient(90deg, #06b6d4, #075985); }
 .truck-slot.blue .cargo-hold-block { background: linear-gradient(90deg, #3b82f6, #1e40af); }
 .truck-slot.purple .cargo-hold-block { background: linear-gradient(90deg, #a855f7, #6b21a8); }
+.truck-slot.pink .cargo-hold-block { background: linear-gradient(90deg, #ec4899, #9d174d); }
 
 /* Breakdown (IN REPAIR) state */
 .truck-slot.broken {
