@@ -48,6 +48,84 @@ function mapAbbrToDirection(rawAbbr) {
     return 'З';
 }
 
+function getTruckSvg(truck) {
+    if (truck.type === 'Фура') {
+        return `
+<svg class="truck-icon" viewBox="0 0 64 54" style="color: ${COLOR_HEX[truck.color]}">
+    <ellipse cx="32" cy="44" rx="28" ry="10" fill="#000" opacity="0.25"/>
+    <ellipse cx="14" cy="36" rx="5" ry="3" fill="#1e293b"/>
+    <ellipse cx="20" cy="39" rx="5" ry="3" fill="#1e293b"/>
+    <ellipse cx="26" cy="42" rx="5" ry="3" fill="#1e293b"/>
+    <ellipse cx="44" cy="44" rx="5" ry="3" fill="#1e293b"/>
+    <ellipse cx="50" cy="42" rx="5" ry="3" fill="#1e293b"/>
+    <ellipse cx="14" cy="36" rx="2.5" ry="1.5" fill="#64748b"/>
+    <ellipse cx="20" cy="39" rx="2.5" ry="1.5" fill="#64748b"/>
+    <ellipse cx="26" cy="42" rx="2.5" ry="1.5" fill="#64748b"/>
+    <ellipse cx="44" cy="44" rx="2.5" ry="1.5" fill="#64748b"/>
+    <ellipse cx="50" cy="42" rx="2.5" ry="1.5" fill="#64748b"/>
+    <polygon points="8,12 36,26 36,36 8,22" fill="currentColor"/>
+    <polygon points="8,12 20,6 48,20 36,26" fill="currentColor"/>
+    <polygon points="8,12 36,26 36,36 8,22" fill="#000" opacity="0.15"/>
+    <polygon points="8,12 20,6 48,20 36,26" fill="#fff" opacity="0.2"/>
+    <polygon points="40,24 48,28 48,36 40,32" fill="currentColor"/>
+    <polygon points="48,28 53,25 53,33 48,36" fill="currentColor"/>
+    <polygon points="40,24 45,21 53,25 48,28" fill="currentColor"/>
+    <polygon points="40,24 48,28 48,36 40,32" fill="#fff" opacity="0.1"/>
+    <polygon points="48,28 53,25 53,33 48,36" fill="#000" opacity="0.25"/>
+    <polygon points="40,24 45,21 53,25 48,28" fill="#fff" opacity="0.3"/>
+    <polygon points="41,25 46,27 46,25 41,23" fill="#0f172a"/>
+    <polygon points="49,27 52,25 52,23 49,25" fill="#0f172a"/>
+</svg>
+        `;
+    } else if (truck.type === 'Камаз') {
+        return `
+<svg class="truck-icon" viewBox="0 0 64 54" style="color: ${COLOR_HEX[truck.color]}">
+    <ellipse cx="32" cy="43" rx="26" ry="9" fill="#000" opacity="0.25"/>
+    <ellipse cx="18" cy="38" rx="6" ry="3.5" fill="#1e293b"/>
+    <ellipse cx="28" cy="41" rx="6" ry="3.5" fill="#1e293b"/>
+    <ellipse cx="46" cy="44" rx="6" ry="3.5" fill="#1e293b"/>
+    <ellipse cx="18" cy="38" rx="3.5" ry="2" fill="#64748b"/>
+    <ellipse cx="28" cy="41" rx="3.5" ry="2" fill="#64748b"/>
+    <ellipse cx="46" cy="44" rx="3.5" ry="2" fill="#64748b"/>
+    <polygon points="8,15 34,28 34,37 8,24" fill="currentColor"/>
+    <polygon points="8,15 20,9 46,22 34,28" fill="currentColor"/>
+    <polygon points="8,15 34,28 34,37 8,24" fill="#000" opacity="0.15"/>
+    <polygon points="8,15 20,9 46,22 34,28" fill="#fff" opacity="0.2"/>
+    <polygon points="34,24 46,30 46,38 34,32" fill="currentColor"/>
+    <polygon points="46,30 54,26 54,34 46,38" fill="currentColor"/>
+    <polygon points="34,24 40,21 52,27 46,30" fill="currentColor"/>
+    <polygon points="34,24 46,30 46,38 34,32" fill="#fff" opacity="0.1"/>
+    <polygon points="46,30 54,26 54,34 46,38" fill="#000" opacity="0.25"/>
+    <polygon points="34,24 40,21 52,27 46,30" fill="#fff" opacity="0.3"/>
+    <polygon points="36,25 44,29 44,27 36,23" fill="#0f172a"/>
+    <polygon points="47,29 53,26 53,24 47,27" fill="#0f172a"/>
+</svg>
+        `;
+    } else {
+        return `
+<svg class="truck-icon" viewBox="0 0 64 54" style="color: ${COLOR_HEX[truck.color]}">
+    <ellipse cx="32" cy="42" rx="24" ry="8" fill="#000" opacity="0.25"/>
+    <ellipse cx="20" cy="38" rx="6" ry="3.5" fill="#1e293b"/>
+    <ellipse cx="44" cy="43" rx="6" ry="3.5" fill="#1e293b"/>
+    <ellipse cx="20" cy="38" rx="3.5" ry="2" fill="#64748b"/>
+    <ellipse cx="44" cy="43" rx="3.5" ry="2" fill="#64748b"/>
+    <polygon points="10,18 32,29 32,38 10,27" fill="currentColor"/>
+    <polygon points="10,18 22,12 44,23 32,29" fill="currentColor"/>
+    <polygon points="10,18 32,29 32,38 10,27" fill="#000" opacity="0.15"/>
+    <polygon points="10,18 22,12 44,23 32,29" fill="#fff" opacity="0.2"/>
+    <polygon points="32,29 44,35 44,41 32,35" fill="currentColor"/>
+    <polygon points="44,35 52,31 52,37 44,41" fill="currentColor"/>
+    <polygon points="32,29 38,26 50,32 44,35" fill="currentColor"/>
+    <polygon points="32,29 44,35 44,41 32,35" fill="#fff" opacity="0.1"/>
+    <polygon points="44,35 52,31 52,37 44,41" fill="#000" opacity="0.2"/>
+    <polygon points="32,29 38,26 50,32 44,35" fill="#fff" opacity="0.3"/>
+    <polygon points="34,30 42,34 42,32 34,28" fill="#0f172a"/>
+    <polygon points="45,34 51,31 51,29 45,32" fill="#0f172a"/>
+</svg>
+        `;
+    }
+}
+
 // --- API Paths ---
 const API_URLS = {
     getApi: '/games/api/',
@@ -650,9 +728,7 @@ function renderTruckSlots() {
         badge.innerHTML = `
             <span class="truck-type-title" title="${truck.plate || ''}">${typeLabel} ${plateLabel}</span>
             <div class="truck-icon-container">
-                <svg class="truck-icon" viewBox="0 0 24 24" style="color: ${COLOR_HEX[truck.color]}">
-                    <path fill="currentColor" d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm12 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H17V9.5h2.5v3z"/>
-                </svg>
+                ${getTruckSvg(truck)}
                 <span class="truck-city-tag">${cityLabel}</span>
             </div>
             <span class="truck-capacity-label font-outfit">${truck.loadedUnits} / ${truck.capacity}</span>
