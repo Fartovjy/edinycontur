@@ -49,7 +49,23 @@ let lastTime = 0;
 // Conveyor & Boxes
 let boxes = [];
 const maxDaysHorizon = 15; // 15 days left maps to 0% conveyor progress, 0 days left maps to 100% (right end)
-const dayRealtimeSeconds = 5; // 1 day of days_left ticks down in 5 seconds of real-time
+const dayRealtimeSeconds = 86400; // 1 day = 86400 seconds of real-time
+
+function formatDeadline(seconds) {
+    if (seconds >= 999 * 86400) return '📅 без срока';
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) {
+        return `📅 ${days}д ${hours}ч`;
+    } else if (hours > 0) {
+        return `📅 ${hours}ч ${minutes}м`;
+    } else {
+        const secs = Math.ceil(seconds);
+        return `📅 ${minutes}м ${secs}с`;
+    }
+}
 let baseBoxSpeed = 50; 
 let currentBoxSpeed = 50;
 
@@ -726,7 +742,7 @@ function spawnRequestBox(id, abbr, size, deadline, weight_kg) {
     dom.innerHTML = `
         <span class="box-destination">${abbr}</span>
         <span class="box-volume">${Math.round(weight_kg)}кг</span>
-        <div class="box-deadline font-outfit">📅 ${Math.ceil(deadline / dayRealtimeSeconds)}д</div>
+        <div class="box-deadline font-outfit">${formatDeadline(deadline)}</div>
     `;
     
     // Set position relative to its days_left (conveyor timeline metaphor)
@@ -1311,10 +1327,23 @@ function updateGame(dt) {
         
         // Deadline display
         if (boxObj.domDeadline) {
-            boxObj.domDeadline.textContent = `📅 ${Math.ceil(daysLeft)}д`;
+            boxObj.domDeadline.textContent = formatDeadline(boxObj.deadline);
             if (daysLeft <= 3) {
                 boxObj.domDeadline.classList.add('urgent');
+            } else {
+                boxObj.domDeadline.classList.remove('urgent');
             }
+        }
+        
+        // Dynamic color update
+        const newColor = (boxObj.deadline > 14 * dayRealtimeSeconds) ? 'green' : 
+                         ((boxObj.deadline > 7 * dayRealtimeSeconds) ? 'yellow' : 
+                         ((boxObj.deadline > 3 * dayRealtimeSeconds) ? 'orange' : 'red'));
+        
+        if (boxObj.color !== newColor) {
+            boxObj.dom.classList.remove(`color-${boxObj.color}`);
+            boxObj.dom.classList.add(`color-${newColor}`);
+            boxObj.color = newColor;
         }
         
         // Overdue status check
