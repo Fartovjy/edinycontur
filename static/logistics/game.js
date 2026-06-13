@@ -818,13 +818,13 @@ function redrawTruckCargoHold(truck) {
         truck.dom.className = `truck-slot ${truck.color}`;
         truck.domIcon.style.color = COLOR_HEX[truck.color];
         truck.domTimerBg.classList.add('active');
-        truck.domDepartBtn.disabled = false;
+        if (truck.domDepartBtn) truck.domDepartBtn.disabled = false;
     } else {
         truck.domCityTag.textContent = 'СВОБОДЕН';
         truck.dom.className = 'truck-slot neutral';
         truck.domIcon.style.color = COLOR_HEX.neutral;
         truck.domTimerBg.classList.remove('active');
-        truck.domDepartBtn.disabled = true;
+        if (truck.domDepartBtn) truck.domDepartBtn.disabled = true;
     }
     recalculateTruckTimer(truck);
 }
