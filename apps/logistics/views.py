@@ -80,8 +80,8 @@ COMPLETED_STATUS_ORDER_VALUES = [STATUS_DELIVERED, STATUS_CLOSED, STATUS_CANCELL
 
 ROLE_STATUS_TARGETS = {
     ROLE_SUPPLY: {STATUS_WAITING_SUPPLY, STATUS_WAITING_ARRIVAL, STATUS_PROBLEM},
-    ROLE_TRANSPORT: {STATUS_TRANSPORT_ASSIGNED, STATUS_SHIPPED, STATUS_PROBLEM},
-    ROLE_WAREHOUSE: {STATUS_IN_WAREHOUSE, STATUS_CZ_CHECK, STATUS_READY_TO_SHIP, STATUS_SHIPPED, STATUS_PROBLEM},
+    ROLE_TRANSPORT: {STATUS_TRANSPORT_ASSIGNED, STATUS_PROBLEM},
+    ROLE_WAREHOUSE: {STATUS_IN_WAREHOUSE, STATUS_CZ_CHECK, STATUS_READY_TO_SHIP, STATUS_PROBLEM},
     ROLE_DRIVER: {STATUS_IN_TRANSIT, STATUS_DELIVERED, STATUS_PROBLEM},
 }
 
@@ -1729,7 +1729,7 @@ def request_detail(request, pk):
                 raise PermissionDenied
             planned_ship_date = parse_date(request.POST.get("planned_ship_date") or "")
             new_status = request.POST.get("new_status")
-            if new_status not in {STATUS_IN_WAREHOUSE, STATUS_CZ_CHECK, STATUS_READY_TO_SHIP, STATUS_SHIPPED}:
+            if new_status not in {STATUS_IN_WAREHOUSE, STATUS_CZ_CHECK, STATUS_READY_TO_SHIP}:
                 messages.error(request, "Выберите складской статус.")
                 return redirect(request_obj)
             try:
@@ -1784,12 +1784,12 @@ def request_detail(request, pk):
             request_obj.actual_ship_date = timezone.localdate()
             request_obj.save(update_fields=["actual_ship_date", "updated_at"])
             try:
-                if request_obj.status == STATUS_TRANSPORT_ASSIGNED:
-                    change_request_status(request_obj, STATUS_SHIPPED, request.user, "Склад подтвердил физическую отгрузку")
+                if request_obj.status == STATUS_IN_WAREHOUSE:
+                    change_request_status(request_obj, STATUS_READY_TO_SHIP, request.user, "Склад подтвердил готовность к отгрузке")
             except ValidationError as exc:
                 messages.error(request, exc.message)
                 return redirect(request_obj)
-            messages.success(request, "Отгрузка подтверждена.")
+            messages.success(request, "Готовность к отгрузке подтверждена.")
             return redirect(request_obj)
 
         if action == "attachment":

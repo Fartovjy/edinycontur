@@ -201,6 +201,8 @@ class LogisticsRequestForm(forms.ModelForm):
             contact = ", ".join(part for part in contact_parts if part)
             if contact:
                 instance.client_contact = contact
+        if not instance.region and instance.route_direction_label:
+            instance.region = instance.route_direction_label
         if commit:
             instance.save()
             self.save_m2m()

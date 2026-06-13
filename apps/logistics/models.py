@@ -82,7 +82,7 @@ class LogisticsRequest(models.Model):
     client_address = models.CharField("Адрес клиента", max_length=255, blank=True)
     client_contact = models.CharField("ФИО контактного лица", max_length=160, blank=True)
     client_phone = models.CharField("Телефон / Email", max_length=200, blank=True)
-    region = models.CharField("Регион", max_length=120, default="")
+    region = models.CharField("Регион", max_length=120, default="", blank=True)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="requests", verbose_name="Склад")
     cargo_description = models.TextField("Описание груза", default="", blank=True)
     cargo_places_count = models.PositiveIntegerField("Количество мест", default=1)

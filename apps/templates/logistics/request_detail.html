@@ -512,7 +512,7 @@
     </div>
 
     <!-- ── Чек-листы по ролям ─────────────────────────────────────── -->
-    {% if checklist_blocks %}
+    {% if checklist_blocks and user.profile.role != "warehouse" %}
       <div class="card border-0 shadow-sm mb-3" id="checklist-section">
         <div class="card-body">
           <h2 class="h5 mb-3">Чек-листы</h2>
@@ -770,13 +770,23 @@
 
             {% if user.profile.role == "warehouse" %}
               <div class="col-12 col-lg-4">
-                {% if request_obj.status == "waiting_arrival" %}
+                {% if request_obj.status == "in_warehouse" %}
+                  <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="warehouse_ship">
+                    <div class="form-check mb-3">
+                      <input class="form-check-input" id="ready_to_ship_check" name="goods_shipped" type="checkbox" required>
+                      <label class="form-check-label fw-semibold" for="ready_to_ship_check">Готов к отгрузке</label>
+                    </div>
+                    <button class="btn btn-success w-100" type="submit">Подтвердить готовность</button>
+                  </form>
+                {% elif request_obj.status == "waiting_arrival" %}
                   <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="warehouse_receive">
                     <div class="form-check mb-2">
                       <input class="form-check-input" id="goods_received" name="goods_received" type="checkbox" required>
-                      <label class="form-check-label fw-semibold" for="goods_received">Товар принят</label>
+                      <label class="form-check-label fw-semibold" for="goods_received">Принят на склад</label>
                     </div>
                     {% if request_obj.cz_required %}
                       <div class="form-check mb-3">
@@ -784,7 +794,7 @@
                         <label class="form-check-label fw-semibold" for="cz_checked_warehouse">Честный знак соответствует</label>
                       </div>
                     {% endif %}
-                    <button class="btn btn-primary w-100" type="submit">Подтвердить поступление</button>
+                    <button class="btn btn-primary w-100" type="submit">Принят на склад</button>
                   </form>
                 {% elif request_obj.status == "transport_assigned" %}
                   <form method="post">
