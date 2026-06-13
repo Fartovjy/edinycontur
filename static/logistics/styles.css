@@ -434,7 +434,7 @@ body {
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    height: 190px;
+    height: 220px;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s, background-color 0.3s;
     overflow: hidden;
 }
@@ -636,18 +636,19 @@ body {
 /* Depart Button on Truck */
 .btn-depart {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-    border-radius: 6px;
-    padding: 3px 0;
-    font-size: 0.6rem;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 7px 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 3px;
+    gap: 5px;
     transition: all 0.2s ease;
 }
 
@@ -661,8 +662,8 @@ body {
 }
 
 .btn-depart svg {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
 }
 
 /* Assign Colors in slot styles */
