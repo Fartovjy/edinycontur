@@ -609,9 +609,15 @@ function syncVehicles(apiVehicles, isInitial) {
                 }
                 
                 if (!localT.isBroken) {
-                    // If cargo count changed in DB, rebuild cargo hold blocks
+                    // Detect server-driven departure:
+                    // If we have loaded boxes locally, but the API reports 0 assigned requests
+                    if (localT.loadedBoxes.length > 0 && (!apiV.assigned_requests || apiV.assigned_requests.length === 0)) {
+                        departTruckLocally(localT.index);
+                        return;
+                    }
+                    
                     const apiCount = apiV.assigned_requests ? apiV.assigned_requests.length : 0;
-                if (apiCount !== localT.loadedBoxes.length) {
+                    if (apiCount !== localT.loadedBoxes.length) {
                     localT.loadedBoxes = [];
                     localT.loadedUnits = 0;
                     
@@ -778,24 +784,9 @@ function renderTruckSlots() {
             badge.querySelector('.truck-capacity-label').classList.add('full');
         }
         
-        const btnDepart = document.createElement('button');
-        btnDepart.className = 'btn-depart';
-        btnDepart.disabled = (truck.loadedUnits === 0);
-        btnDepart.innerHTML = `
-            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>
-            <span>ОТПРАВИТЬ</span>
-        `;
-        
-        btnDepart.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (truck.isDeparting || truck.isBroken) return;
-            departTruck(truck.index);
-        });
-
         slotDiv.appendChild(timerBg);
         slotDiv.appendChild(cargoHold);
         slotDiv.appendChild(badge);
-        slotDiv.appendChild(btnDepart);
         
         domTrucksBay.appendChild(slotDiv);
         
@@ -806,7 +797,6 @@ function renderTruckSlots() {
         truck.domCapacityLabel = badge.querySelector('.truck-capacity-label');
         truck.domCityTag = badge.querySelector('.truck-city-tag');
         truck.domIcon = badge.querySelector('.truck-icon');
-        truck.domDepartBtn = btnDepart;
         
         recalculateTruckTimer(truck);
     });
@@ -1201,10 +1191,7 @@ function loadBoxIntoTruck(boxObj, truck) {
     // Remove conveyor element
     boxObj.dom.remove();
     boxes = boxes.filter(b => b.id !== boxObj.id);
-    
-    if (truck.loadedUnits === truck.capacity) {
-        departTruck(truck.index);
-    }
+
 }
 
 function unloadBoxFromTruck(boxId, truck) {
@@ -1245,6 +1232,86 @@ function recalculateTruckTimer(truck) {
 }
 
 // --- Departures ---
+function departTruckLocally(truckIndex) {
+    const truck = trucks[truckIndex];
+    if (truck.isDeparting) return;
+    
+    truck.isDeparting = true;
+    truck.isTimerActive = false;
+    if (truck.domTimerBg) truck.domTimerBg.classList.remove('active');
+    
+    // Score locally based on efficiency
+    let deliveredUnits = 0;
+    let lateUnits = 0;
+    
+    truck.loadedBoxes.forEach(box => {
+        if (box.deadline <= 0) {
+            lateUnits += box.size;
+        } else {
+            deliveredUnits += box.size;
+        }
+        // Ensure box is removed from active list if still registered
+        boxes = boxes.filter(b => b.id !== box.id);
+    });
+    
+    let gainScore = Math.floor(deliveredUnits * 10 * truck.scoreMult);
+    const efficiency = truck.loadedUnits / truck.capacity;
+    let isPerfect = false;
+    let reputationChange = 0;
+    
+    if (efficiency === 1.0 && lateUnits === 0) {
+        gainScore *= 2;
+        reputationChange = 6;
+        isPerfect = true;
+    } else if (efficiency >= 0.75) {
+        gainScore = Math.floor(gainScore * 1.4);
+        reputationChange = 3;
+    } else if (efficiency < 0.50) {
+        gainScore = Math.floor(gainScore * 0.5);
+        reputationChange = -4;
+    }
+    
+    if (lateUnits > 0) {
+        reputationChange -= (lateUnits * 6);
+    }
+    
+    score += gainScore;
+    domScoreVal.textContent = score;
+    reputation = Math.min(100, Math.max(0, reputation + reputationChange));
+    updateReputationBar();
+    
+    // Level Up triggers
+    const newLevel = Math.floor(score / 1000) + 1;
+    if (newLevel > level) {
+        level = newLevel;
+        domLevelVal.textContent = level;
+        playSound('levelUp');
+        updateLevelDifficulty();
+    }
+    
+    // Animation drive away
+    truck.dom.classList.add('departing');
+    playSound('depart');
+    
+    const rect = truck.dom.getBoundingClientRect();
+    if (isPerfect) {
+        playSound('perfect');
+        spawnParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, '#eab308', 35);
+    } else {
+        spawnParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, COLOR_HEX[truck.color] || '#fff', 15);
+    }
+    
+    if (reputation <= 0) {
+        setTimeout(triggerGameOver, 600);
+        return;
+    }
+    
+    // Spawn new empty truck slot in 1.5 seconds
+    setTimeout(() => {
+        resetTruckSlot(truck.index);
+    }, 1500);
+}
+
 async function departTruck(truckIndex) {
     const truck = trucks[truckIndex];
     if (truck.isDeparting) return;

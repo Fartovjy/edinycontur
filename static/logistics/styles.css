@@ -437,7 +437,7 @@ body {
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    height: 255px;
+    height: 220px;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s, background-color 0.3s;
     overflow: hidden;
 }
