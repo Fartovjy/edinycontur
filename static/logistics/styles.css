@@ -247,6 +247,7 @@ body {
     left: 0;
     right: 50px;
     height: 32px;
+    bottom: 24px;
     background: linear-gradient(180deg, #272c3d 0%, #171a26 100%);
     border-top: 2px solid #3f4761;
     border-bottom: 2px solid #0f111a;
@@ -258,6 +259,7 @@ body {
     left: 0;
     right: 50px;
     height: 20px;
+    bottom: 30px;
     background-image: radial-gradient(circle, #5b668a 30%, transparent 40%);
     background-size: 24px 20px;
     background-repeat: repeat-x;
@@ -306,8 +308,8 @@ body {
 /* Conveyor Box Styles */
 .cargo-box {
     position: absolute;
-    bottom: calc(50% - 16px);
-    height: 52px;
+    bottom: 56px;
+    height: 48px;
     border-radius: 8px;
     border: 2px solid rgba(255, 255, 255, 0.25);
     cursor: grab;
@@ -341,9 +343,9 @@ body {
 }
 
 /* Box Sizes */
-.cargo-box.size-1 { width: 48px; height: 48px; bottom: calc(50% - 24px); }
-.cargo-box.size-2 { width: 80px; height: 48px; bottom: calc(50% - 24px); }
-.cargo-box.size-3 { width: 112px; height: 48px; bottom: calc(50% - 24px); }
+.cargo-box.size-1 { width: 48px; height: 48px; bottom: 56px; }
+.cargo-box.size-2 { width: 80px; height: 48px; bottom: 56px; }
+.cargo-box.size-3 { width: 112px; height: 48px; bottom: 56px; }
 
 /* Box Colors & Glowing borders */
 .cargo-box.color-red { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
