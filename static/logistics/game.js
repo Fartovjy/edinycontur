@@ -762,6 +762,7 @@ function renderTruckSlots() {
             <div class="truck-plate-row">
                 ${renderRussianPlate(truck.plate)}
             </div>
+            <span class="truck-driver-label">${truck.driver || '—'}</span>
             <div class="truck-icon-container">
                 ${getTruckSvg(truck)}
                 <span class="truck-city-tag">${cityLabel}</span>
@@ -858,9 +859,7 @@ function redrawTruckCargoHoldData(container, truck) {
 
 // --- Spawn request box on conveyor ---
 function spawnRequestBox(id, abbr, size, deadline, weight_kg) {
-    const color = (deadline > 14 * dayRealtimeSeconds) ? 'green' : 
-                  ((deadline > 7 * dayRealtimeSeconds) ? 'yellow' : 
-                  ((deadline > 3 * dayRealtimeSeconds) ? 'orange' : 'red'));
+    const color = CITY_COLORS[abbr] || 'neutral';
                   
     const dom = document.createElement('div');
     dom.className = `cargo-box size-${size} color-${color}`;
@@ -1461,17 +1460,7 @@ function updateGame(dt) {
                 boxObj.domDeadline.classList.remove('urgent');
             }
         }
-        
-        // Dynamic color update
-        const newColor = (boxObj.deadline > 14 * dayRealtimeSeconds) ? 'green' : 
-                         ((boxObj.deadline > 7 * dayRealtimeSeconds) ? 'yellow' : 
-                         ((boxObj.deadline > 3 * dayRealtimeSeconds) ? 'orange' : 'red'));
-        
-        if (boxObj.color !== newColor) {
-            boxObj.dom.classList.remove(`color-${boxObj.color}`);
-            boxObj.dom.classList.add(`color-${newColor}`);
-            boxObj.color = newColor;
-        }
+
         
         // Overdue status check
         if (daysLeft <= 0) {
