@@ -1545,11 +1545,7 @@ function updateGame(dt) {
             } else {
                 truck.domTimerFill.style.backgroundColor = '#10b981';
             }
-            
-            // Auto depart if time expires
-            if (truck.timer <= 0) {
-                departTruck(truck.index);
-            }
+
         }
     });
     
