@@ -597,6 +597,10 @@ function syncVehicles(apiVehicles, isInitial) {
         apiVehicles.forEach(apiV => {
             const localT = trucks.find(t => t.id === apiV.id);
             if (localT && !localT.isDeparting) {
+                // Ignore API status overwrite if a local action just occurred (prevents race conditions)
+                if (Date.now() - (localT.lastLocalActionTime || 0) < 3000) {
+                    return;
+                }
                 localT.volume = apiV.volume_m3 || 0;
                 // Synchronize broken status from API
                 const isBroken = apiV.is_active === false;
@@ -1168,6 +1172,7 @@ async function departVehicleAPI(vehicleId) {
 
 // --- Load/Unload state handling ---
 function loadBoxIntoTruck(boxObj, truck) {
+    truck.lastLocalActionTime = Date.now();
     if (truck.color === 'neutral') {
         truck.color = CITY_COLORS[boxObj.abbr] || 'neutral';
         truck.isAssigned = true;
@@ -1203,6 +1208,7 @@ function loadBoxIntoTruck(boxObj, truck) {
 }
 
 function unloadBoxFromTruck(boxId, truck) {
+    truck.lastLocalActionTime = Date.now();
     const boxIndex = truck.loadedBoxes.findIndex(b => b.id === boxId);
     if (boxIndex === -1) return;
     
@@ -1243,6 +1249,7 @@ async function departTruck(truckIndex) {
     const truck = trucks[truckIndex];
     if (truck.isDeparting) return;
     
+    truck.lastLocalActionTime = Date.now();
     truck.isDeparting = true;
     truck.isTimerActive = false;
     if (truck.domTimerBg) truck.domTimerBg.classList.remove('active');

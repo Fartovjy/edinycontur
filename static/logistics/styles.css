@@ -753,7 +753,7 @@ body {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-primary);
-    border-radius: 8px;
+    border-radius: 20px;
     padding: 7px 0;
     font-size: 0.75rem;
     font-weight: 700;
@@ -775,21 +775,29 @@ body {
     box-shadow: none !important;
 }
 
+.btn-depart:not(:disabled) {
+    background: linear-gradient(135deg, #22c55e 0%, #15803d 100%) !important;
+    border: 1px solid #166534 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.btn-depart:not(:disabled):hover {
+    background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%) !important;
+    box-shadow: 0 6px 16px rgba(34, 197, 94, 0.6) !important;
+    transform: translateY(-1px);
+}
+
+.btn-depart:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
 .btn-depart svg {
     width: 12px;
     height: 12px;
 }
-
-/* Assign Colors in slot styles */
-.truck-slot.neutral .btn-depart:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: #fff; }
-.truck-slot.red .btn-depart:not(:disabled) { background: rgba(239, 68, 68, 0.15); border-color: var(--color-red); color: var(--color-red); }
-.truck-slot.orange .btn-depart:not(:disabled) { background: rgba(249, 115, 22, 0.15); border-color: var(--color-orange); color: var(--color-orange); }
-.truck-slot.yellow .btn-depart:not(:disabled) { background: rgba(234, 179, 8, 0.15); border-color: var(--color-yellow); color: var(--color-yellow); }
-.truck-slot.green .btn-depart:not(:disabled) { background: rgba(34, 197, 94, 0.15); border-color: var(--color-green); color: var(--color-green); }
-.truck-slot.cyan .btn-depart:not(:disabled) { background: rgba(6, 182, 212, 0.15); border-color: var(--color-cyan); color: var(--color-cyan); }
-.truck-slot.blue .btn-depart:not(:disabled) { background: rgba(59, 130, 246, 0.15); border-color: var(--color-blue); color: var(--color-blue); }
-.truck-slot.purple .btn-depart:not(:disabled) { background: rgba(168, 85, 247, 0.15); border-color: var(--color-purple); color: var(--color-purple); }
-.truck-slot.pink .btn-depart:not(:disabled) { background: rgba(236, 72, 153, 0.15); border-color: var(--color-pink); color: var(--color-pink); }
 
 .truck-slot.neutral .cargo-hold-block { background: linear-gradient(90deg, #94a3b8, #475569); }
 .truck-slot.red .cargo-hold-block { background: linear-gradient(90deg, #ef4444, #991b1b); }
