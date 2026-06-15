@@ -64,57 +64,39 @@
     text-overflow: ellipsis;
   }
   .calendar-request:hover { filter: brightness(.93); }
-  /* Жёлтый — создана/снабжение */
-  .calendar-request-created  { background: #fef9c3; color: #78350f; border-left: 3px solid var(--amber); }
-  .calendar-request-supply   { background: #fef3c7; color: #78350f; border-left: 3px solid var(--amber-dark); }
-  /* Зелёный — склад/доставка */
-  .calendar-request-shipment { background: #dcfce7; color: #14532d; border-left: 3px solid var(--green); }
-  .calendar-request-delivery { background: #bbf7d0; color: #14532d; border-left: 3px solid var(--green-dark); }
-  /* Серо-коричневый — завершено */
-  .calendar-request-done     { background: #f5ede0; color: var(--brown-mid); border-left: 3px solid var(--brown-light); text-decoration: line-through; }
-  /* Красный — проблема */
-  .calendar-request-problem  { background: #fee2e2; color: #7f1d1d; border-left: 3px solid var(--red); }
-  /* Оранжевый — машина не назначена (Transport) */
-  .calendar-request-no-vehicle { background: #fed7aa; color: #7c2d12; border-left: 3px solid #f97316; }
-  /* Бейдж направления внутри пилюли */
+
+  /* Нейтральный фолбек — белый: сразу видно если dir-класс не приехал */
+  .calendar-request { background: #fff; color: #1e293b; border-left: 3px solid #e2e8f0; }
+
+  /* ════ Направление: фон + текст + левая граница ════ */
+  .calendar-request.dir-n  { background: #fecaca; color: #7f1d1d; border-left: 3px solid var(--color-n); }
+  .calendar-request.dir-ne { background: #dcfce7; color: #14532d; border-left: 3px solid var(--color-ne); }
+  .calendar-request.dir-e  { background: #fed7aa; color: #7c2d12; border-left: 3px solid var(--color-e); }
+  .calendar-request.dir-se { background: #dbeafe; color: #1e3a5f; border-left: 3px solid var(--color-se); }
+  .calendar-request.dir-s  { background: #fef9c3; color: #713f12; border-left: 3px solid var(--color-s); }
+  .calendar-request.dir-sw { background: #ede9fe; color: #3b0764; border-left: 3px solid var(--color-sw); }
+  .calendar-request.dir-w  { background: #fce7f3; color: #831843; border-left: 3px solid var(--color-w); }
+  .calendar-request.dir-nw { background: #cffafe; color: #155e75; border-left: 3px solid var(--color-nw); }
+
   .route-badge { font-size: .68em; font-weight: 700; opacity: .85; margin-left: .3rem; white-space: nowrap; }
-  /* Цвет правой границы = направление (левая/фон сохраняют зелёный/оранжевый) */
-  .calendar-request.dir-n  { border-right: 3px solid #3b82f6; }
-  .calendar-request.dir-ne { border-right: 3px solid #8b5cf6; }
-  .calendar-request.dir-e  { border-right: 3px solid #ec4899; }
-  .calendar-request.dir-se { border-right: 3px solid #f97316; }
-  .calendar-request.dir-s  { border-right: 3px solid #ef4444; }
-  .calendar-request.dir-sw { border-right: 3px solid #14b8a6; }
-  .calendar-request.dir-w  { border-right: 3px solid #22c55e; }
-  .calendar-request.dir-nw { border-right: 3px solid #a3e635; }
-  /* Разрешить пилюлям выходить за границу ячейки (многодневные рейсы) */
+
+  /* Разрыв-продолжение */
+  .calendar-request.pill-continuation.dir-n  { border-left: 2px dashed color-mix(in srgb, var(--color-n), transparent 55%); }
+  .calendar-request.pill-continuation.dir-ne { border-left: 2px dashed color-mix(in srgb, var(--color-ne), transparent 55%); }
+  .calendar-request.pill-continuation.dir-e  { border-left: 2px dashed color-mix(in srgb, var(--color-e), transparent 55%); }
+  .calendar-request.pill-continuation.dir-se { border-left: 2px dashed color-mix(in srgb, var(--color-se), transparent 55%); }
+  .calendar-request.pill-continuation.dir-s  { border-left: 2px dashed color-mix(in srgb, var(--color-s), transparent 55%); }
+  .calendar-request.pill-continuation.dir-sw { border-left: 2px dashed color-mix(in srgb, var(--color-sw), transparent 55%); }
+  .calendar-request.pill-continuation.dir-w  { border-left: 2px dashed color-mix(in srgb, var(--color-w), transparent 55%); }
+  .calendar-request.pill-continuation.dir-nw { border-left: 2px dashed color-mix(in srgb, var(--color-nw), transparent 55%); }
+
   .calendar-day { overflow: visible; }
-  /* Продолжение таблетки после разрыва недели */
+
   .calendar-request.pill-continuation {
     border-left: 2px dashed rgba(0,0,0,.25);
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     opacity: .88;
-  }
-
-  .driver-calendar .calendar-request-created,
-  .driver-calendar .calendar-request-supply,
-  .driver-calendar .calendar-request-shipment,
-  .driver-calendar .calendar-request-delivery {
-    background: #fef9c3;
-    border-left-color: var(--amber-dark);
-    color: #78350f;
-  }
-  .driver-calendar .calendar-request-problem {
-    background: #fee2e2;
-    border-left-color: var(--red);
-    color: #7f1d1d;
-  }
-  .driver-calendar .calendar-request-done {
-    background: #dcfce7;
-    border-left-color: var(--green);
-    color: #14532d;
-    text-decoration: none;
   }
   .calendar-filter {
     display: inline-flex;
