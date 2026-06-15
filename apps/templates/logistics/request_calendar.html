@@ -65,17 +65,32 @@
   }
   .calendar-request:hover { filter: brightness(.93); }
 
-  /* ── Фон: светлосерый ── */
-  .calendar-request { background: #f3f4f6; color: #1e293b; border-left: 3px solid #d1d5db; }
+  /* ── База: без фона (фон = направление), тонкий fallback-бордюр ── */
+  .calendar-request { color: #1e293b; border-left: 3px solid #d1d5db; }
+
+  /* ════ Направление: фон + текст ════ */
+  .calendar-request.dir-n  { background: #fecaca; color: #7f1d1d; }
+  .calendar-request.dir-ne { background: #dcfce7; color: #14532d; }
+  .calendar-request.dir-e  { background: #fed7aa; color: #7c2d12; }
+  .calendar-request.dir-se { background: #dbeafe; color: #1e3a5f; }
+  .calendar-request.dir-s  { background: #fef9c3; color: #713f12; }
+  .calendar-request.dir-sw { background: #ede9fe; color: #3b0764; }
+  .calendar-request.dir-w  { background: #fce7f3; color: #831843; }
+  .calendar-request.dir-nw { background: #cffafe; color: #155e75; }
 
   /* ── Бордюры статусов (4px) ── */
-  .calendar-request-created,
-  .calendar-request-supply,
-  .calendar-request-shipment,
-  .calendar-request-delivery  { border-left: 4px solid var(--amber-dark); }
+  .calendar-request-supply   { border-left: 4px solid var(--amber); }
+  .calendar-request-shipment { border-left: 4px solid var(--amber-dark); }
+  .calendar-request-delivery { border-left: 4px solid var(--green-dark); }
   .calendar-request-no-vehicle { border-left: 4px solid #f97316; }
-  .calendar-request-problem    { border-left: 4px solid var(--red); }
-  .calendar-request-done       { border-left: 4px solid #6b7280; }
+  .calendar-request-problem  { border-left: 4px solid var(--red); }
+
+  /* Доставлена: фон светло-серый, бордюр тёмно-серый */
+  .calendar-request-done {
+    background: #f3f4f6 !important;
+    color: #6b7280;
+    border-left: 4px solid #6b7280;
+  }
 
   /* ── Текст загрузки, направления, дней: +1pt ── */
   .route-badge { font-size: .75em; font-weight: 700; opacity: .85; margin-left: .3rem; white-space: nowrap; }
@@ -101,9 +116,9 @@
   }
 
   /* Легенда фильтров: цветные swatch-прямоугольники */
-  .calendar-legend i.calendar-request-supply,
-  .calendar-legend i.calendar-request-shipment,
-  .calendar-legend i.calendar-request-delivery { background: var(--amber-dark); }
+  .calendar-legend i.calendar-request-supply   { background: var(--amber); }
+  .calendar-legend i.calendar-request-shipment { background: var(--amber-dark); }
+  .calendar-legend i.calendar-request-delivery { background: var(--green-dark); }
   .calendar-legend i.calendar-request-problem  { background: var(--red); }
   .calendar-legend i.calendar-request-done     { background: #6b7280; }
   .calendar-filter {
