@@ -79,6 +79,7 @@
   .calendar-request.dir-nw { background: #cffafe; color: #155e75; border-left: 3px solid var(--color-nw); }
 
   .route-badge { font-size: .68em; font-weight: 700; opacity: .85; margin-left: .3rem; white-space: nowrap; }
+  .load-badge { font-size: .68em; font-weight: 700; margin-left: .3rem; white-space: nowrap; }
 
   /* Разрыв-продолжение */
   .calendar-request.pill-continuation.dir-n  { border-left: 2px dashed color-mix(in srgb, var(--color-n), transparent 55%); }
@@ -200,6 +201,7 @@
                  {% if item.width_style %}style="{{ item.width_style }}"{% endif %}
                  title="{{ item.request_number }} · {{ item.client_name }}{% if item.subtitle %} — {{ item.subtitle }}{% endif %}{% if item.route_direction_label %} · {{ item.route_direction_label }}{% if item.route_days %} · {{ item.route_days }} дн.{% endif %}{% endif %}">
                 {% if item.is_continuation %}<span style="opacity:.55;margin-right:.2rem">↩</span>{% endif %}{{ item.client_name|default:item.request_number }}
+                {% if item.vehicle_load_pct %}<span class="load-badge">⚡{{ item.vehicle_load_pct }}%</span>{% endif %}
                 {% if not item.is_continuation and item.route_direction_arrow %}<span class="route-badge">{{ item.route_direction_arrow }}{{ item.route_direction_label }}{% if item.route_days %} {{ item.route_days }}д{% endif %}</span>{% endif %}
                 {% if item.subtitle %}<span style="display:block;font-size:.68em;opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:.05rem">{{ item.subtitle }}</span>{% endif %}
               </a>

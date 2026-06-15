@@ -133,12 +133,13 @@ class CalendarEntry:
     """Тонкая обёртка над LogisticsRequest для отображения в календаре.
     Позволяет одной заявке появляться несколько раз с разными цветами и подписями."""
 
-    __slots__ = ("_req", "calendar_class", "subtitle")
+    __slots__ = ("_req", "calendar_class", "subtitle", "_vehicle_load_pct")
 
-    def __init__(self, req, calendar_class, subtitle=""):
+    def __init__(self, req, calendar_class, subtitle="", vehicle_load_pct=None):
         self._req = req
         self.calendar_class = calendar_class
         self.subtitle = subtitle
+        self._vehicle_load_pct = vehicle_load_pct
 
     def get_absolute_url(self):
         return self._req.get_absolute_url()
@@ -180,6 +181,10 @@ class CalendarEntry:
         return ""
 
     @property
+    def vehicle_load_pct(self):
+        return self._vehicle_load_pct
+
+    @property
     def is_continuation(self):
         return False
 
@@ -188,8 +193,8 @@ class TransportPendingCalendarEntry(CalendarEntry):
     """Заявка с planned_ship_date — показывается в транспортном календаре."""
     __slots__ = ("_span_days", "_is_continuation")
 
-    def __init__(self, req, css, span_days=None, is_continuation=False):
-        super().__init__(req, css)
+    def __init__(self, req, css, span_days=None, is_continuation=False, vehicle_load_pct=None):
+        super().__init__(req, css, vehicle_load_pct=vehicle_load_pct)
         self._span_days = span_days
         self._is_continuation = is_continuation
 
@@ -238,6 +243,10 @@ class PickupCalendarEntry:
         self._pickup = pickup
         self.calendar_class = calendar_class
         self.subtitle = subtitle
+
+    @property
+    def vehicle_load_pct(self):
+        return None
 
     def get_absolute_url(self):
         return self._pickup.get_absolute_url()
@@ -1304,6 +1313,32 @@ def request_calendar(request):
         if item["key"] not in _hidden_filters
     ]
 
+    # Предвычисление загрузки машин: {(vehicle_id, planned_ship_date): pct}
+    vehicle_load_map = {}
+    load_qs = (
+        LogisticsRequest.objects
+        .filter(
+            is_archived=False,
+            assigned_vehicle_id__isnull=False,
+            planned_ship_date__isnull=False,
+        )
+        .values("assigned_vehicle_id", "planned_ship_date")
+        .annotate(total_kg=Sum("cargo_weight_kg"))
+    )
+    if load_qs:
+        vehicle_ids = {item["assigned_vehicle_id"] for item in load_qs}
+        vehicle_caps = {
+            v.id: v.max_weight_kg
+            for v in Vehicle.objects.filter(id__in=vehicle_ids).only("id", "max_weight_kg")
+        }
+        for item in load_qs:
+            vid = item["assigned_vehicle_id"]
+            ship_date = item["planned_ship_date"]
+            total = float(item["total_kg"] or 0)
+            cap = vehicle_caps.get(vid, 0)
+            if cap > 0:
+                vehicle_load_map[(vid, ship_date)] = round(total / cap * 100)
+
     open_problem_qs = ProblemReport.objects.filter(
         request=OuterRef("pk"),
         status__in=[ProblemReport.OPEN, ProblemReport.IN_PROGRESS],
@@ -1364,17 +1399,18 @@ def request_calendar(request):
                     else "calendar-request-no-vehicle"
                 )
                 ship_date = req.planned_ship_date
+                load_pct = vehicle_load_map.get((req.assigned_vehicle_id, ship_date)) if req.assigned_vehicle_id else None
                 route_days = req.route_days or 1
                 # Дней до конца текущей недели (Пн=0 → 7, Пт=4 → 3, Вс=6 → 1)
                 days_left = 7 - ship_date.weekday()
                 if route_days <= days_left:
                     requests_by_date.setdefault(ship_date, []).append(
-                        TransportPendingCalendarEntry(req, css, span_days=route_days if route_days > 1 else None)
+                        TransportPendingCalendarEntry(req, css, span_days=route_days if route_days > 1 else None, vehicle_load_pct=load_pct)
                     )
                 else:
                     # Первый сегмент — до конца текущей недели
                     requests_by_date.setdefault(ship_date, []).append(
-                        TransportPendingCalendarEntry(req, css, span_days=days_left)
+                        TransportPendingCalendarEntry(req, css, span_days=days_left, vehicle_load_pct=load_pct)
                     )
                     # Продолжения в следующих неделях
                     remaining = route_days - days_left
@@ -1382,7 +1418,7 @@ def request_calendar(request):
                     while remaining > 0:
                         span = min(remaining, 7)
                         requests_by_date.setdefault(cont_start, []).append(
-                            TransportPendingCalendarEntry(req, css, span_days=span if span > 1 else None, is_continuation=True)
+                            TransportPendingCalendarEntry(req, css, span_days=span if span > 1 else None, is_continuation=True, vehicle_load_pct=load_pct)
                         )
                         remaining -= span
                         cont_start += timedelta(days=7)
@@ -1414,6 +1450,7 @@ def request_calendar(request):
             request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
             request_obj.drag_id   = request_obj.pk
             request_obj.drag_type = "delivery"
+            request_obj.vehicle_load_pct = vehicle_load_map.get((request_obj.assigned_vehicle_id, request_obj.planned_ship_date)) if request_obj.assigned_vehicle_id else None
             day_items.append(request_obj)
 
         undated_requests = []
@@ -1430,6 +1467,7 @@ def request_calendar(request):
             request_obj.calendar_class = CALENDAR_STATUS_FILTER_CLASSES[calendar_group]
             request_obj.drag_id   = request_obj.pk
             request_obj.drag_type = "delivery"
+            request_obj.vehicle_load_pct = None
             undated_requests.append(request_obj)
             if len(undated_requests) >= 20:
                 break
