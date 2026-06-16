@@ -815,8 +815,8 @@ class LogisticsRoleAccessTests(TestCase):
         response = self.client.get(reverse("request_list"))
         content = response.content.decode()
 
-        self.assertContains(response, active_trip.request_number)
-        self.assertContains(response, closed_trip.request_number)
+        self.assertContains(response, active_trip.client_name)
+        self.assertContains(response, closed_trip.client_name)
         self.assertLess(content.index("Driver Active Trip"), content.index("Driver Closed Trip"))
 
     def test_request_list_period_filter_is_saved_for_user(self):
@@ -841,15 +841,15 @@ class LogisticsRoleAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.admin.profile.request_list_period, "day")
-        self.assertContains(response, today_request.request_number)
-        self.assertNotContains(response, later_request.request_number)
+        self.assertContains(response, today_request.client_name)
+        self.assertNotContains(response, later_request.client_name)
 
         self.client.logout()
         self.client.force_login(self.admin)
         saved_response = self.client.get(reverse("request_list"))
 
-        self.assertContains(saved_response, today_request.request_number)
-        self.assertNotContains(saved_response, later_request.request_number)
+        self.assertContains(saved_response, today_request.client_name)
+        self.assertNotContains(saved_response, later_request.client_name)
 
     def test_unavailable_edit_fields_are_hidden_for_operator(self):
         request = self._request(status=STATUS_CREATED)
