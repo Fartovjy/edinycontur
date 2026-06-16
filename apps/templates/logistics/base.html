@@ -15,16 +15,25 @@
       --brown-mid:     #7a5230;
       --brown-light:   #d4a66a;
       --brown-faint:   #f5ede0;
-      --amber:         #f59e0b;
+      --amber:         #f97316;
       --amber-dark:    #d97706;
       --amber-darker:  #b45309;
       --amber-light:   #fef9ec;
-      --green:         #16a34a;
+      --green:         #22c55e;
       --green-dark:    #15803d;
       --green-light:   #f0fdf4;
       --green-mid:     #86efac;
-      --red:           #dc2626;
+      --red:           #ef4444;
       --red-light:     #fef2f2;
+      /* ── Направления (8 цветов из игры) ── */
+      --color-n:  #ef4444;
+      --color-ne: #22c55e;
+      --color-e:  #f97316;
+      --color-se: #3b82f6;
+      --color-s:  #eab308;
+      --color-sw: #a855f7;
+      --color-w:  #ec4899;
+      --color-nw: #06b6d4;
       /* ── Design tokens ── */
       --ek-bg:         #fdf8f2;
       --ek-surface:    #ffffff;
@@ -419,7 +428,7 @@
             {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}
               <a class="nav-link" href="{% url 'supplier_list' %}">Поставщики</a>
             {% endif %}
-            {% if user.is_superuser or user.profile.role == "admin" %}
+            {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "supply" %}
               <a class="nav-link" href="{% url 'supply_pickup_list' %}">Заборы</a>
             {% endif %}
             {% if unread_notifications_count %}
