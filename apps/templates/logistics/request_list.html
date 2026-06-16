@@ -203,6 +203,7 @@
   {% elif user.profile.role == "supply" %}
     <div class="d-flex gap-2 align-self-md-start">
       <a class="btn btn-primary" href="{% url 'supply_pickup_create' %}">Новая заявка</a>
+      <a class="btn btn-outline-secondary" href="{% url 'supply_pickup_list' %}">Заборы</a>
     </div>
   {% endif %}
 </div>
