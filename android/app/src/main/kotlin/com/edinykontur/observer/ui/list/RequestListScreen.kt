@@ -1,9 +1,11 @@
 package com.edinykontur.observer.ui.list
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Warning
@@ -54,7 +56,6 @@ fun RequestListScreen(
                         }
                     }
                 )
-                HorizontalDivider(thickness = 1.dp, color = EkColors.Amber)
                 // ── Фильтр-таб ──────────────────────────────────────────────
                 FilterTabRow(
                     selected      = uiState.filter,
@@ -112,7 +113,7 @@ fun RequestListScreen(
     }
 }
 
-// ── Три кнопки фильтра ─────────────────────────────────────────────────────────
+// ── Три пилюли-фильтра ──────────────────────────────────────────────────────────
 
 @Composable
 private fun FilterTabRow(
@@ -125,16 +126,17 @@ private fun FilterTabRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterTab(
+        FilterPill(
             label    = "Текущие",
             count    = activeCount,
             active   = selected == RequestFilter.ACTIVE,
             onClick  = { onSelect(RequestFilter.ACTIVE) },
             modifier = Modifier.weight(1f),
         )
-        FilterTab(
+        FilterPill(
             label    = "С ошибками",
             count    = problemCount,
             active   = selected == RequestFilter.PROBLEMS,
@@ -142,7 +144,7 @@ private fun FilterTabRow(
             warn     = problemCount > 0,
             modifier = Modifier.weight(1f),
         )
-        FilterTab(
+        FilterPill(
             label    = "Архив",
             count    = archiveCount,
             active   = selected == RequestFilter.ARCHIVE,
@@ -153,7 +155,7 @@ private fun FilterTabRow(
 }
 
 @Composable
-private fun FilterTab(
+private fun FilterPill(
     label:    String,
     count:    Int,
     active:   Boolean,
@@ -161,52 +163,50 @@ private fun FilterTab(
     warn:     Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val bg  = if (active) EkColors.BrownDark else EkColors.BrownFaint
-    val fg  = if (active) EkColors.Amber     else if (warn) EkColors.Red else EkColors.Muted
-    val ind = if (active) 3.dp               else 0.dp
+    val shape = RoundedCornerShape(12.dp)
+
+    val bg = when {
+        active  -> EkColors.Amber
+        warn    -> EkColors.Red.copy(alpha = 0.15f)
+        else    -> EkColors.BrownFaint
+    }
+    val border = when {
+        active  -> BorderStroke(1.5.dp, EkColors.Amber)
+        warn    -> BorderStroke(1.dp, EkColors.Red.copy(alpha = 0.4f))
+        else    -> BorderStroke(1.dp, EkColors.BrownFaint)
+    }
+    val fg = when {
+        active  -> EkColors.BrownDarkest
+        warn    -> EkColors.Red
+        else    -> EkColors.Muted
+    }
 
     Surface(
-        color    = bg,
-        modifier = modifier
-            .clickable(onClick = onClick),
+        shape  = shape,
+        color  = bg,
+        border = border,
+        modifier = modifier.clickable(onClick = onClick),
     ) {
         Column(
-            modifier            = Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+                .padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 label,
-                fontSize    = 13.sp,
-                fontWeight  = if (active) FontWeight.Bold else FontWeight.Normal,
-                color       = fg,
-                maxLines    = 1,
+                fontSize   = 13.sp,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                color      = fg,
+                maxLines   = 1,
             )
             if (count > 0) {
                 Text(
-                    count.toString(),
-                    fontSize   = 11.sp,
-                    color      = fg.copy(alpha = if (active) 1f else 0.7f),
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                    text       = if (active) "● $count" else "$count",
+                    fontSize   = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = fg.copy(alpha = if (active) 1f else 0.8f),
                 )
-            }
-            // Активная полоска снизу
-            Spacer(Modifier.height(4.dp))
-            Box(
-                Modifier
-                    .fillMaxWidth(0.6f)
-                    .height(ind)
-                    .then(
-                        if (active)
-                            Modifier.padding(0.dp)
-                        else
-                            Modifier
-                    ),
-            ) {
-                if (active) {
-                    Surface(color = EkColors.Amber, modifier = Modifier.fillMaxSize()) {}
-                }
             }
         }
     }
