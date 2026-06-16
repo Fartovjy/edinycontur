@@ -54,6 +54,7 @@ fun RequestListScreen(
                         }
                     }
                 )
+                HorizontalDivider(thickness = 1.dp, color = EkColors.Amber)
                 // ── Фильтр-таб ──────────────────────────────────────────────
                 FilterTabRow(
                     selected      = uiState.filter,
