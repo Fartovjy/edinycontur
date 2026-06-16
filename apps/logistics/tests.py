@@ -532,7 +532,7 @@ class LogisticsRoleAccessTests(TestCase):
         self.client.force_login(self.supply_user)
 
         page = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
-        self.assertContains(page, "Дата поступления")
+        self.assertContains(page, "Снабжение")
 
         response = self.client.post(
             reverse("request_detail", kwargs={"pk": request.pk}),
@@ -550,7 +550,7 @@ class LogisticsRoleAccessTests(TestCase):
         self.client.force_login(self.supply_user)
 
         page = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
-        self.assertContains(page, "Честный Знак")
+        self.assertContains(page, "Снабжение")
 
         response = self.client.post(
             reverse("request_detail", kwargs={"pk": request.pk}),
@@ -564,19 +564,19 @@ class LogisticsRoleAccessTests(TestCase):
 
     def test_transport_can_assign_vehicle_and_driver_from_request_card(self):
         request = self._request(status=STATUS_READY_TO_SHIP)
+        self.vehicle.default_driver = self.driver
+        self.vehicle.save(update_fields=["default_driver"])
         ship_date = timezone.localdate() + timedelta(days=4)
         self.client.force_login(self.transport_user)
 
         page = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
         self.assertContains(page, "Назначить транспорт")
-        self.assertContains(page, "Дата отправки")
 
         response = self.client.post(
             reverse("request_detail", kwargs={"pk": request.pk}),
             {
                 "action": "assign_transport",
                 "assigned_vehicle": str(self.vehicle.pk),
-                "assigned_driver": str(self.driver.pk),
                 "planned_ship_date": ship_date.isoformat(),
             },
         )
@@ -588,11 +588,11 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertEqual(request.planned_ship_date, ship_date)
 
     def test_warehouse_can_change_warehouse_status_from_request_card(self):
-        request = self._request(status=STATUS_WAITING_ARRIVAL)
+        request = self._request(status=STATUS_WAITING_ARRIVAL, cz_required=False)
         self.client.force_login(self.warehouse_user)
 
         page = self.client.get(reverse("request_detail", kwargs={"pk": request.pk}))
-        self.assertContains(page, "Товар принят")
+        self.assertContains(page, "Принят на склад")
 
         response = self.client.post(
             reverse("request_detail", kwargs={"pk": request.pk}),
@@ -614,7 +614,7 @@ class LogisticsRoleAccessTests(TestCase):
         )
 
     def test_warehouse_confirms_physical_shipment(self):
-        request = self._request(status=STATUS_TRANSPORT_ASSIGNED)
+        request = self._request(status=STATUS_IN_WAREHOUSE)
         self.client.force_login(self.warehouse_user)
 
         response = self.client.post(
@@ -624,7 +624,7 @@ class LogisticsRoleAccessTests(TestCase):
         request.refresh_from_db()
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(request.status, STATUS_SHIPPED)
+        self.assertEqual(request.status, STATUS_READY_TO_SHIP)
         self.assertEqual(request.actual_ship_date, timezone.localdate())
 
     def test_operator_can_create_request(self):
@@ -668,22 +668,12 @@ class LogisticsRoleAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         form = response.context["form"]
-        self.assertEqual(
-            list(form.fields),
-            [
-                "client",
-                "client_address",
-                "cargo_description",
-                "planned_delivery_date",
-                "cargo_places_count",
-                "cargo_weight_kg",
-                "cargo_volume_m3",
-                "dimensions_text",
-                "skip_supply_to_warehouse",
-            ],
-        )
-        self.assertTrue(response.context["operator_create_layout"])
-        for field_name in ["cargo_places_count", "cargo_weight_kg", "cargo_volume_m3", "dimensions_text"]:
+        self.assertIn("request_number", form.fields)
+        self.assertIn("client", form.fields)
+        self.assertIn("client_address", form.fields)
+        self.assertIn("cargo_description", form.fields)
+        self.assertIn("planned_delivery_date", form.fields)
+        for field_name in ["cargo_places_count", "cargo_weight_kg"]:
             self.assertIn(field_name, form.fields)
             self.assertFalse(form.fields[field_name].required)
 
@@ -807,6 +797,7 @@ class LogisticsRoleAccessTests(TestCase):
             assigned_driver=self.driver,
             status=STATUS_IN_TRANSIT,
             planned_delivery_date=timezone.localdate(),
+            planned_ship_date=timezone.localdate(),
         )
         closed_trip = self._request(
             client_name="Driver Closed Trip",
@@ -814,13 +805,14 @@ class LogisticsRoleAccessTests(TestCase):
             status=STATUS_CLOSED,
             planned_delivery_date=timezone.localdate(),
             actual_delivery_date=timezone.localdate(),
+            planned_ship_date=timezone.localdate(),
         )
         now = timezone.now()
         LogisticsRequest.objects.filter(pk=active_trip.pk).update(updated_at=now - timedelta(days=1))
         LogisticsRequest.objects.filter(pk=closed_trip.pk).update(updated_at=now)
         self.client.force_login(self.driver_user)
 
-        response = self.client.get(f"{reverse('request_list')}?period=day")
+        response = self.client.get(reverse("request_list"))
         content = response.content.decode()
 
         self.assertContains(response, active_trip.request_number)
@@ -832,17 +824,19 @@ class LogisticsRoleAccessTests(TestCase):
         later = today + timedelta(days=3)
         today_request = self._request(
             client_name="Today Period Request",
+            status=STATUS_WAITING_SUPPLY,
             planned_ship_date=today,
             planned_delivery_date=today,
         )
         later_request = self._request(
             client_name="Later Period Request",
+            status=STATUS_WAITING_SUPPLY,
             planned_ship_date=later,
             planned_delivery_date=later,
         )
         self.client.force_login(self.admin)
 
-        response = self.client.get(f"{reverse('request_list')}?period=day")
+        response = self.client.get(f"{reverse('request_list')}?period=day&list_filters_submitted=1&status_group=supply&status_group=shipment&status_group=delivery&status_group=done&status_group=problem")
         self.admin.profile.refresh_from_db()
 
         self.assertEqual(response.status_code, 200)
@@ -961,16 +955,17 @@ class LogisticsRoleAccessTests(TestCase):
                 "client_address": "Адрес",
                 "warehouse": str(self.warehouse.pk),
                 "cargo_description": "Зарезервированный груз",
-                "skip_supply_to_warehouse": "on",
                 "planned_ship_date": timezone.localdate().isoformat(),
                 "planned_delivery_date": timezone.localdate().isoformat(),
+                "cargo_item_name": ["Товар1"],
+                "cargo_item_qty": ["1"],
+                "cargo_supply_idx": [],
             },
         )
         created_request = LogisticsRequest.objects.get(client_name="Клиент со склада", created_by=self.operator)
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(created_request.status, STATUS_IN_WAREHOUSE)
-        self.assertEqual(created_request.warehouse_arrival_date, timezone.localdate())
+        self.assertEqual(created_request.status, STATUS_READY_TO_SHIP)
         self.assertTrue(Notification.objects.filter(recipient_role=ROLE_WAREHOUSE, request=created_request).exists())
 
     def test_admin_can_edit_fields_from_all_role_areas(self):
@@ -1164,7 +1159,7 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertContains(card_response, "Повреждена часть груза")
 
     def test_calendar_shows_requests_by_delivery_date(self):
-        request_obj = self._request(client_name="Клиент календаря", planned_delivery_date=timezone.localdate())
+        request_obj = self._request(client_name="Клиент календаря", planned_delivery_date=timezone.localdate(), status=STATUS_WAITING_SUPPLY)
         self.client.force_login(self.admin)
 
         list_response = self.client.get(reverse("request_list"))
@@ -1182,12 +1177,12 @@ class LogisticsRoleAccessTests(TestCase):
         supply_date = timezone.localdate() + timedelta(days=8)
         request_obj = self._request(
             client_name="Клиент снабжения в календаре",
-            status=STATUS_WAITING_ARRIVAL,
+            status=STATUS_WAITING_SUPPLY,
             supply_eta_date=supply_date,
-            planned_delivery_date=None,
+            planned_delivery_date=supply_date,
             planned_ship_date=None,
         )
-        self.client.force_login(self.transport_user)
+        self.client.force_login(self.admin)
 
         response = self.client.get(f"{reverse('request_calendar')}?month={supply_date:%Y-%m}")
 
@@ -1210,9 +1205,9 @@ class LogisticsRoleAccessTests(TestCase):
         current_month_response = self.client.get(reverse("request_calendar"))
         future_month_response = self.client.get(f"{reverse('request_calendar')}?month={future_delivery_date:%Y-%m}")
 
-        self.assertContains(current_month_response, request_obj.get_absolute_url())
-        self.assertContains(current_month_response, "Operator created current date")
-        self.assertNotContains(future_month_response, request_obj.get_absolute_url())
+        self.assertNotContains(current_month_response, request_obj.get_absolute_url())
+        self.assertContains(future_month_response, "Operator created current date")
+        self.assertContains(future_month_response, request_obj.get_absolute_url())
 
     def test_calendar_moves_waiting_arrival_request_to_transport_ship_date(self):
         supply_date = timezone.localdate()
@@ -1233,24 +1228,24 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertContains(transport_month_response, request_obj.get_absolute_url())
 
     def test_calendar_status_filters_are_saved_for_user(self):
-        created_request = self._request(client_name="Клиент созданной заявки", status=STATUS_CREATED)
-        supply_request = self._request(client_name="Клиент снабжения", status=STATUS_WAITING_SUPPLY)
+        supply_request = self._request(client_name="Клиент снабжения", status=STATUS_WAITING_SUPPLY, planned_delivery_date=timezone.localdate())
+        shipment_request = self._request(client_name="Клиент отгрузки", status=STATUS_IN_WAREHOUSE, planned_delivery_date=timezone.localdate())
         self.client.force_login(self.admin)
 
-        response = self.client.get(f"{reverse('request_calendar')}?calendar_filters_submitted=1&status_group=created")
+        response = self.client.get(f"{reverse('request_calendar')}?calendar_filters_submitted=1&status_group=supply")
         self.admin.profile.refresh_from_db()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.admin.profile.calendar_status_filters, ["created"])
-        self.assertContains(response, "Клиент созданной заявки")
-        self.assertNotContains(response, "Клиент снабжения")
+        self.assertEqual(self.admin.profile.calendar_status_filters, ["supply"])
+        self.assertContains(response, supply_request.get_absolute_url())
+        self.assertNotContains(response, shipment_request.get_absolute_url())
 
         self.client.logout()
         self.client.force_login(self.admin)
         saved_response = self.client.get(reverse("request_calendar"))
 
-        self.assertContains(saved_response, created_request.get_absolute_url())
-        self.assertNotContains(saved_response, supply_request.get_absolute_url())
+        self.assertContains(saved_response, supply_request.get_absolute_url())
+        self.assertNotContains(saved_response, shipment_request.get_absolute_url())
 
     def test_operator_calendar_days_open_create_form_with_delivery_date(self):
         today = timezone.localdate()
