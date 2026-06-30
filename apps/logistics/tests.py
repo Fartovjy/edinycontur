@@ -14,6 +14,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from openpyxl import Workbook
 from PIL import Image
 
 from apps.accounts.constants import (
@@ -43,7 +44,7 @@ from apps.logistics.constants import (
     STATUS_WAITING_ARRIVAL,
     STATUS_WAITING_SUPPLY,
 )
-from apps.logistics.models import Client, LogisticsRequest, RequestStatusHistory, Warehouse
+from apps.logistics.models import CargoItem, Client, LogisticsRequest, RequestStatusHistory, Warehouse
 from apps.logistics.services import change_request_status
 from apps.notifications.models import Notification
 from apps.problems.models import ProblemReport
@@ -696,6 +697,54 @@ class LogisticsRoleAccessTests(TestCase):
         self.assertEqual(created_request.cargo_weight_kg, Decimal("0.00"))
         self.assertEqual(created_request.cargo_volume_m3, Decimal("0.000"))
         self.assertEqual(created_request.dimensions_text, "")
+
+    def test_operator_can_create_request_from_xlsx(self):
+        self.client.force_login(self.operator)
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Лист_1"
+        rows = [
+            ["Наименование", "Данные", "Кол-во", "Вес", "Объем", "Кол-во мест", "К обеспечению", "Честный знак"],
+            ["Номер", "БК00-000619"],
+            ["Дата", "23.06.2026 11:36:39"],
+            ["Плановая доставка", "23.06.2026 0:00:00"],
+            ["Клиент", "ДРУЖБА НАРОДОВ НОВА АО"],
+            ["Адрес / GPS", "Российская Федерация, Республика Крым"],
+            ["Контактное лицо", "Михно Федора Сергеевича"],
+            ["Телефон / Email", ""],
+            ["Перечень товаров"],
+            [1, "НБ Ла-Сота по 5 т.д, ВНИИЗЖ (ЧЗ)", 25000, 6750, 50, "", "Нет", "Нет"],
+            [2, "НБ Ла-Сота по 5 т.д, ВНИИЗЖ (ЧЗ)", 25000, 6750, 50, "", "Нет", "Нет"],
+            ["Примечание", ""],
+            ["Приоритет", "Средний"],
+        ]
+        for row in rows:
+            worksheet.append(row)
+        buffer = BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        upload = SimpleUploadedFile(
+            "БК00-000619.xlsx",
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        response = self.client.post(reverse("request_create_from_xlsx"), {"xlsx_file": upload})
+
+        created_request = LogisticsRequest.objects.get(request_number="БК00-000619")
+        self.assertRedirects(response, created_request.get_absolute_url())
+        self.assertEqual(created_request.client_name, "ДРУЖБА НАРОДОВ НОВА АО")
+        self.assertEqual(created_request.client_contact, "Михно Федора Сергеевича")
+        self.assertEqual(created_request.planned_delivery_date.isoformat(), "2026-06-23")
+        self.assertEqual(created_request.cargo_places_count, 1)
+        self.assertEqual(created_request.cargo_weight_kg, Decimal("13500.00"))
+        self.assertEqual(created_request.cargo_volume_m3, Decimal("100.000"))
+        self.assertEqual(created_request.priority, LogisticsRequest.PRIORITY_NORMAL)
+        self.assertFalse(created_request.cz_required)
+        self.assertEqual(created_request.status, STATUS_READY_TO_SHIP)
+        self.assertEqual(CargoItem.objects.filter(request=created_request).count(), 2)
+        self.assertTrue(Notification.objects.filter(recipient_role=ROLE_WAREHOUSE, request=created_request).exists())
+        self.assertTrue(Notification.objects.filter(recipient_role=ROLE_TRANSPORT, request=created_request).exists())
 
     def test_operator_create_form_has_client_search_popup_and_last_address(self):
         self._request(client_name=self.client_record.name, client_address="Последний адрес клиента")

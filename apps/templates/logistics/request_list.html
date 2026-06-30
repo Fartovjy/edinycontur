@@ -198,7 +198,7 @@
   {% if user.is_superuser or user.profile.role == "admin" or user.profile.role == "operator" or user.profile.role == "manager" %}
     <div class="d-flex gap-2 align-self-md-start">
       <a class="btn btn-primary" href="{% url 'request_create' %}">Новая заявка</a>
-      <a class="btn btn-outline-secondary" href="{% url 'request_create_from_pdf' %}">Создать из файла</a>
+      <a class="btn btn-outline-secondary" href="{% url 'request_create_from_xlsx' %}">Создать из XLSX</a>
     </div>
   {% elif user.profile.role == "supply" %}
     <div class="d-flex gap-2 align-self-md-start">

@@ -43,7 +43,7 @@
   <div class="card-body">
     <form method="post" {% if form_action %}action="{{ form_action }}"{% endif %} class="row g-3" id="request-edit-form">
       {% csrf_token %}
-      {% if parse_info %}<input type="hidden" name="from_pdf" value="1">{% endif %}
+      {% if parse_info %}<input type="hidden" name="from_file" value="1">{% endif %}
 
       {% if not request_obj %}
       {# ══ ФОРМА СОЗДАНИЯ: фиксированный макет col-8 / col-4 ══════════════ #}

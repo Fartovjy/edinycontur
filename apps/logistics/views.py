@@ -1950,68 +1950,106 @@ def request_detail(request, pk):
 
 @login_required
 @role_required(ROLE_ADMIN, ROLE_MANAGER, ROLE_OPERATOR)
-def request_create_from_pdf(request):
-    """Upload a 'Заказ клиента' or 'Счёт-проформа' PDF and open a pre-filled create form."""
-    from .pdf_parser import parse_pdf_auto
+def request_create_from_xlsx(request):
+    """Upload a 1C 'Заказ клиента' XLSX and create a logistics request."""
+    from .xlsx_parser import parse_order_xlsx
 
     if request.method == "GET":
-        return render(request, "logistics/request_from_pdf.html")
+        return render(request, "logistics/request_from_xlsx.html")
 
-    uploaded = request.FILES.get("pdf_file")
+    uploaded = request.FILES.get("xlsx_file")
     if not uploaded:
-        messages.error(request, "Выберите PDF-файл.")
-        return render(request, "logistics/request_from_pdf.html")
-    if not uploaded.name.lower().endswith(".pdf"):
-        messages.error(request, "Файл должен быть в формате PDF.")
-        return render(request, "logistics/request_from_pdf.html")
+        messages.error(request, "Выберите XLSX-файл.")
+        return render(request, "logistics/request_from_xlsx.html")
+    if not uploaded.name.lower().endswith(".xlsx"):
+        messages.error(request, "Файл должен быть в формате XLSX.")
+        return render(request, "logistics/request_from_xlsx.html")
 
     try:
-        parsed, _fmt = parse_pdf_auto(uploaded)
+        parsed = parse_order_xlsx(uploaded)
     except Exception as exc:
-        messages.error(request, f"Не удалось разобрать PDF: {exc}")
-        return render(request, "logistics/request_from_pdf.html")
+        messages.error(request, f"Не удалось разобрать XLSX: {exc}")
+        return render(request, "logistics/request_from_xlsx.html")
 
-    # ── Build initial dict ────────────────────────────────────────────────
-    initial = {}
-    if parsed["order_number"]:
-        initial["request_number"] = parsed["order_number"]
-    if parsed["client_address"]:
-        initial["client_address"] = parsed["client_address"]
-    if parsed.get("client_contact"):
-        initial["client_contact"] = parsed["client_contact"]
-    if parsed.get("client_phone"):
-        initial["client_phone"] = parsed["client_phone"]
-    # cargo_description намеренно не заполняем — оператор вводит сам
-    if parsed["cargo_places_count"]:
-        initial["cargo_places_count"] = parsed["cargo_places_count"]
-    if parsed.get("cargo_weight_kg"):
-        initial["cargo_weight_kg"] = parsed["cargo_weight_kg"]
-    # planned_delivery_date НЕ берём из PDF: это дата документа, а не дата доставки.
-    # Оператор задаёт её вручную — именно эта дата затем уходит в уведомление
-    # транспортному отделу («подготовьте автомобиль на DD.MM.YYYY»).
+    if not parsed["client_name"]:
+        messages.error(request, "В XLSX не найден клиент.")
+        return render(request, "logistics/request_from_xlsx.html")
+    if not parsed["items"]:
+        messages.error(request, "В XLSX не найдены позиции груза.")
+        return render(request, "logistics/request_from_xlsx.html")
+    if parsed["order_number"] and LogisticsRequest.objects.filter(request_number=parsed["order_number"]).exists():
+        messages.error(request, f"Заявка {parsed['order_number']} уже существует.")
+        return render(request, "logistics/request_from_xlsx.html")
 
-    role = get_user_role(request.user)
-    form = LogisticsRequestCreateForm(initial=initial, user_role=role, from_pdf=True)
+    default_warehouse = Warehouse.objects.order_by("name").first()
+    if not default_warehouse:
+        messages.error(request, "Добавьте хотя бы один склад перед созданием заявки.")
+        return render(request, "logistics/request_from_xlsx.html")
 
-    parse_info = {
-        "order_number": parsed["order_number"],
-        "order_date": parsed["order_date"],
-        "client_name_raw": parsed["client_name_raw"],
-        "items": parsed["items"],   # передаём в шаблон для pre-fill таблицы позиций
-    }
+    with transaction.atomic():
+        request_obj = LogisticsRequest.objects.create(
+            request_number=parsed["order_number"],
+            client_name=parsed["client_name"],
+            client_address=parsed["client_address"],
+            client_contact=parsed["client_contact"],
+            client_phone=parsed["client_phone"],
+            warehouse=default_warehouse,
+            cargo_description=parsed["note"],
+            cargo_places_count=parsed["cargo_places_count"],
+            cargo_weight_kg=parsed["cargo_weight_kg"],
+            cargo_volume_m3=parsed["cargo_volume_m3"],
+            planned_delivery_date=parsed["planned_delivery_date"],
+            priority=parsed["priority"],
+            cz_required=parsed["cz_required"],
+            cz_status=LogisticsRequest.CZ_PENDING if parsed["cz_required"] else LogisticsRequest.CZ_NOT_REQUIRED,
+            created_by=request.user,
+        )
+        for position, item in enumerate(parsed["items"]):
+            CargoItem.objects.create(
+                request=request_obj,
+                name=item.name,
+                qty=item.qty,
+                needs_supply=item.needs_supply,
+                needs_cz=item.needs_cz,
+                position=position,
+            )
 
-    available_viewers = User.objects.filter(
-        profile__role=ROLE_VIEWER, profile__is_active=True
-    ).order_by("last_name", "first_name", "username")
+        any_needs_supply = request_obj.cargo_items.filter(needs_supply=True).exists()
+        if any_needs_supply:
+            request_obj.status = STATUS_WAITING_SUPPLY
+            notif_role = ROLE_SUPPLY
+            history_msg = "Заявка создана из XLSX. Передано в отдел снабжения."
+        else:
+            request_obj.status = STATUS_READY_TO_SHIP
+            notif_role = ROLE_WAREHOUSE
+            history_msg = "Заявка создана из XLSX. Все товары на складе, готова к отгрузке."
+        request_obj.save(update_fields=["status", "updated_at"])
+        RequestStatusHistory.objects.create(
+            request=request_obj,
+            old_status="",
+            new_status=request_obj.status,
+            changed_by=request.user,
+            comment=history_msg,
+        )
+        create_role_notification(
+            notif_role,
+            request_obj,
+            f"Новая заявка {request_obj.request_number}: {request_obj.client_name}",
+        )
+        if request_obj.planned_delivery_date:
+            create_role_notification(
+                ROLE_TRANSPORT,
+                request_obj,
+                f"Новая заявка {request_obj.request_number} ({request_obj.client_name}): "
+                f"плановая доставка {request_obj.planned_delivery_date:%d.%m.%Y} — подготовьте автомобиль.",
+            )
+        from apps.checklists.services import create_checklist_for_request
+        create_checklist_for_request(request_obj)
 
-    return render(request, "logistics/request_form.html", {
-        "form": form,
-        "title": "Создание заявки из файла",
-        "client_last_addresses": _client_last_addresses(),
-        "form_action": reverse("request_create"),
-        "parse_info": parse_info,
-        "available_viewers": available_viewers,
-    })
+    if request_obj.client_address:
+        request_obj.refresh_route_info()
+    messages.success(request, f"Заявка {request_obj.request_number} создана из XLSX.")
+    return redirect(request_obj)
 
 
 @login_required
@@ -2019,12 +2057,12 @@ def request_create_from_pdf(request):
 def request_create(request):
     role = get_user_role(request.user)
     if request.method == "POST":
-        from_pdf = request.POST.get("from_pdf") == "1"
-        form = LogisticsRequestCreateForm(request.POST, user_role=role, from_pdf=from_pdf)
+        from_file = request.POST.get("from_file") == "1"
+        form = LogisticsRequestCreateForm(request.POST, user_role=role, from_file=from_file)
         if form.is_valid():
             request_obj = form.save(commit=False)
-            # При создании из PDF — берём имя клиента напрямую из текстового поля
-            if from_pdf:
+            # При создании из файла — берём имя клиента напрямую из текстового поля
+            if from_file:
                 client_name_override = request.POST.get("client_name_override", "").strip()
                 if client_name_override:
                     request_obj.client_name = client_name_override

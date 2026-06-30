@@ -229,12 +229,12 @@ class LogisticsRequestCreateForm(LogisticsRequestForm):
             "cargo_description",
         ]
 
-    def __init__(self, *args, user_role=None, from_pdf=False, **kwargs):
+    def __init__(self, *args, user_role=None, from_file=False, **kwargs):
         super().__init__(*args, can_assign_transport=False, **kwargs)
         self.fields.pop("status_comment", None)
 
-        # При создании из PDF клиент вводится текстом напрямую — FK не нужен
-        self.fields["client"].required = not from_pdf
+        # При создании из файла клиент вводится текстом напрямую — FK не нужен
+        self.fields["client"].required = not from_file
 
         # Необязательные поля
         for name in ["request_number", "client_contact", "client_phone",
