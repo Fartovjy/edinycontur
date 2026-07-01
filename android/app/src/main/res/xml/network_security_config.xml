@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!--
-        Сервер работает с самоподписанным сертификатом на IP-адресе.
-        Доверяем только нашему конкретному сертификату — Android отклонит любой другой.
-        Cleartext (HTTP) трафик к серверу запрещён.
-    -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="false">5.42.122.25</domain>
-        <trust-anchors>
-            <certificates src="@raw/server_cert"/>
-        </trust-anchors>
+        <domain includeSubdomains="false">5-42-122-25.sslip.io</domain>
     </domain-config>
 </network-security-config>
